@@ -168,6 +168,7 @@
       letter-spacing: .3px;
       text-align:center;
       padding: 18px;
+      z-index: 10;
     }
     .overlay.show{ display:flex; }
 
@@ -318,7 +319,7 @@
           <div class="board" id="board"></div>
 
           <div class="win-banner" id="winBanner">
-            🎉 You did it! Rows are matched. Enter your name in the Leaderboard to save your score.
+            🎉 You did it! Rows are matched. Enter your name to save your score.
           </div>
         </div>
       </div>
@@ -328,7 +329,7 @@
 
   <!-- HOW TO PLAY MODAL -->
   <div class="modal" id="howModal" aria-hidden="true">
-    <div class="modal-card">
+    <div class="modal-card" id="howCard">
       <div class="modal-head">
         <div class="modal-title">📖 How To Play</div>
         <button class="btn" id="howBack">⬅️ Back</button>
@@ -341,10 +342,10 @@
           <li>Three characters have <b>5 tiles</b> each.</li>
           <li>One character has <b>4 tiles</b> (because there’s <b>1 empty space</b> you slide into).</li>
         </ul>
-        <p><b>How to move:</b> Tap a tile that is directly next to the empty space (up/down/left/right) to slide it.</p>
+        <p><b>How to move:</b> Tap a tile next to the empty space (up/down/left/right).</p>
         <p><b>New Game:</b> Picks 4 new characters and shows a solved board.</p>
-        <p><b>Start:</b> Shuffles the <b>current</b> characters for 3 seconds (always solvable).</p>
-        <p><b>Reset:</b> Returns to solved using the <b>current</b> characters.</p>
+        <p><b>Start:</b> Shuffles for 3 seconds (always solvable).</p>
+        <p><b>Reset:</b> Returns to solved using the current characters.</p>
         <p><b>Scoring:</b> Faster time is better. If time ties, fewer moves wins.</p>
       </div>
     </div>
@@ -352,7 +353,7 @@
 
   <!-- LEADERBOARD MODAL -->
   <div class="modal" id="lbModal" aria-hidden="true">
-    <div class="modal-card">
+    <div class="modal-card" id="lbCard">
       <div class="modal-head">
         <div class="modal-title">🏆 Leaderboard (Top 10)</div>
         <button class="btn" id="lbBack">⬅️ Back</button>
@@ -398,7 +399,6 @@
     const PUZZLE_FOLDER = "puzzles";
     const MIN_IMG = 1;
     const MAX_IMG = 100;
-
     const SCORES_COLLECTION = "scores";
 
     const firebaseConfig = {
@@ -415,7 +415,6 @@
      * GAME STATE
      ******************************************************************/
     const W = 5, H = 4, N = W * H; // 20
-
     let board = new Array(N).fill(-1);
     let emptyIndex = N - 1;
 
@@ -451,9 +450,11 @@
 
     const howModal = document.getElementById("howModal");
     const howBack = document.getElementById("howBack");
+    const howCard = document.getElementById("howCard");
 
     const lbModal = document.getElementById("lbModal");
     const lbBack = document.getElementById("lbBack");
+    const lbCard = document.getElementById("lbCard");
     const lbBody = document.getElementById("lbBody");
     const nameInput = document.getElementById("nameInput");
     const submitScoreBtn = document.getElementById("submitScoreBtn");
@@ -473,14 +474,12 @@
           firebaseReady = false;
           return;
         }
-
-        // ✅ SAFE INIT: don't crash if app already exists
+        // ✅ Prevent "Firebase App named '[DEFAULT]' already exists" from breaking things
         if (firebase.apps && firebase.apps.length){
-          // reuse existing app
+          // already inited
         } else {
           firebase.initializeApp(firebaseConfig);
         }
-
         db = firebase.firestore();
         firebaseReady = true;
       }catch(e){
@@ -614,7 +613,6 @@
      ******************************************************************/
     function render(){
       boardEl.innerHTML = "";
-
       for(let i=0;i<N;i++){
         const v = board[i];
         const tile = document.createElement("div");
@@ -637,10 +635,7 @@
           if(!gameStarted) return;
           if(won) return;
           if(v === -1) return;
-
-          if(canMove(i)){
-            doMove(i, true);
-          }
+          if(canMove(i)) doMove(i, true);
         });
 
         tile.appendChild(btn);
@@ -665,7 +660,19 @@
       render();
     }
 
-    async function checkWin(){
+    // ✅ NEW: open leaderboard automatically on win
+    async function openLeaderboardAfterWin(){
+      openModal(lbModal);
+      await loadLeaderboard();
+      updateSubmitNote(true);
+
+      // Focus name input
+      setTimeout(() => {
+        try { nameInput.focus(); nameInput.select(); } catch(e){}
+      }, 50);
+    }
+
+    function checkWin(){
       const rowTypes = [];
       const rowCounts = [];
 
@@ -696,22 +703,14 @@
       stopTimer();
       winBanner.classList.add("show");
       gameStarted = false;
+
+      // allow submit for this win
+      scoreSubmitted = false;
       updateSubmitNote(true);
       updateButtons();
 
-      // ✅ AUTO-OPEN LEADERBOARD ON WIN
-      openModal(lbModal);
-      await loadLeaderboard();
-      updateSubmitNote(true);
-
-      // focus name input
-      setTimeout(() => {
-        try{
-          nameInput.focus();
-          nameInput.select?.();
-          nameInput.scrollIntoView?.({ behavior:"smooth", block:"center" });
-        }catch{}
-      }, 50);
+      // ✅ POP the leaderboard modal automatically
+      openLeaderboardAfterWin();
     }
 
     /******************************************************************
@@ -739,7 +738,7 @@
     }
 
     /******************************************************************
-     * SHUFFLE
+     * SHUFFLE (3 seconds fast, always solvable)
      ******************************************************************/
     async function shuffleFor3Seconds(){
       shuffling = true;
@@ -752,7 +751,6 @@
 
       while(performance.now() < end){
         const neigh = neighbors(emptyIndex);
-
         let options = neigh.filter(n => n !== lastEmpty);
         if(options.length === 0) options = neigh;
 
@@ -803,7 +801,7 @@
       const isWon = forceWon || won;
 
       if(!firebaseReady){
-        submitNote.textContent = "Leaderboard saving is OFF until Firebase config is added.";
+        submitNote.textContent = "Firebase not ready (check Console / GitHub Pages).";
         submitScoreBtn.disabled = true;
         submitScoreBtn.style.opacity = 0.55;
         return;
@@ -822,12 +820,12 @@
     }
 
     async function loadLeaderboard(){
-      if(!firebaseReady){
-        lbBody.innerHTML = `<tr><td colspan="5">Firebase not configured yet.</td></tr>`;
+      lbBody.innerHTML = `<tr><td colspan="5">Loading…</td></tr>`;
+
+      if(!firebaseReady || !db){
+        lbBody.innerHTML = `<tr><td colspan="5">Firebase not configured/ready.</td></tr>`;
         return;
       }
-
-      lbBody.innerHTML = `<tr><td colspan="5">Loading…</td></tr>`;
 
       try{
         const snap = await db.collection(SCORES_COLLECTION)
@@ -871,12 +869,12 @@
 
       }catch(e){
         console.warn(e);
-        lbBody.innerHTML = `<tr><td colspan="5">Error loading leaderboard.</td></tr>`;
+        lbBody.innerHTML = `<tr><td colspan="5">Error loading leaderboard (rules/index?).</td></tr>`;
       }
     }
 
     async function submitScore(){
-      if(!firebaseReady) return;
+      if(!firebaseReady || !db) return;
       if(!won) return;
       if(scoreSubmitted) return;
 
@@ -907,16 +905,22 @@
         console.warn(e);
         scoreSubmitted = false;
         updateSubmitNote(true);
-        submitNote.textContent = "Submit failed (Firebase rules/config). We’ll fix it next.";
+        submitNote.textContent = "Submit failed (Firebase rules/config).";
       }
     }
 
+    /******************************************************************
+     * BUTTON ENABLE/DISABLE
+     ******************************************************************/
     function updateButtons(){
       btnNew.disabled = shuffling;
       btnReset.disabled = shuffling;
       btnStart.disabled = shuffling || gameStarted;
     }
 
+    /******************************************************************
+     * BACK TO ARCADE MENU
+     ******************************************************************/
     function goToArcadeMenu(){
       window.location.href = "../index.html";
     }
@@ -933,7 +937,7 @@
       openModal(lbModal);
       await loadLeaderboard();
       updateSubmitNote();
-      setTimeout(() => { try{ nameInput.focus(); }catch{} }, 50);
+      setTimeout(() => { try { nameInput.focus(); } catch(e){} }, 50);
     });
     lbBack.addEventListener("click", () => closeModal(lbModal));
 
@@ -958,18 +962,26 @@
       updateSubmitNote();
     });
 
-    howModal.addEventListener("click", (e) => {
-      if(e.target === howModal) closeModal(howModal);
-    });
-    lbModal.addEventListener("click", (e) => {
-      if(e.target === lbModal) closeModal(lbModal);
+    // Close modals by clicking outside the card
+    howModal.addEventListener("click", (e) => { if(e.target === howModal) closeModal(howModal); });
+    lbModal.addEventListener("click", (e) => { if(e.target === lbModal) closeModal(lbModal); });
+
+    // Prevent clicks inside the card from closing (extra safe)
+    howCard.addEventListener("click", (e) => e.stopPropagation());
+    lbCard.addEventListener("click", (e) => e.stopPropagation());
+
+    // ESC to close
+    document.addEventListener("keydown", (e) => {
+      if(e.key === "Escape"){
+        closeModal(howModal);
+        closeModal(lbModal);
+      }
     });
 
     /******************************************************************
      * INIT
      ******************************************************************/
     initFirebaseIfConfigured();
-
     chosenImgs = pick4UniqueImages();
     buildSolvedBoardUsingCurrentImages();
     updateButtons();

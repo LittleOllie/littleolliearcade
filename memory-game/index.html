@@ -1,0 +1,1122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Little Ollie Memory Game</title>
+
+<style>
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: radial-gradient(circle at top, #6de0ff, #4c6fff);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  color: #fff;
+}
+
+.game-wrapper {
+  background: rgba(0,0,0,0.18);
+  border-radius: 20px;
+  padding: 16px;
+  box-shadow: 0 12px 28px rgba(0,0,0,0.35);
+  width: 960px;
+  max-width: 96vw;
+}
+
+.header-image {
+  width: 100%;
+  margin-bottom: 10px;
+  display: block;
+}
+
+.stats {
+  font-size: 15px;
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.controls {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+  align-items: center;
+}
+
+.btn {
+  padding: 8px 16px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  background: #ffdd55;
+  color: #222;
+  font-weight: 800;
+}
+
+.btn:active { transform: translateY(1px); }
+
+.btn.secondary {
+  background: rgba(255,255,255,0.22);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.25);
+}
+
+.small-toggle {
+  display:flex;
+  align-items:center;
+  gap:6px;
+  font-size: 13px;
+  opacity: 0.95;
+}
+
+.small-toggle input { transform: translateY(1px); }
+
+.game-board {
+  display: grid;
+  gap: 10px;
+}
+
+/* Card */
+.card {
+  aspect-ratio: 1 / 1;
+  perspective: 800px;
+  cursor: pointer;
+  transition: transform 0.45s cubic-bezier(.22,.61,.36,1);
+  will-change: transform;
+}
+
+.card-inner {
+  width: 100%;
+  height: 100%;
+  transition: transform 0.35s ease;
+  transform-style: preserve-3d;
+}
+
+.card.flipped .card-inner,
+.card.matched .card-inner {
+  transform: rotateY(180deg);
+}
+
+.card-face {
+  position: absolute;
+  inset: 0;
+  border-radius: 12px;
+  backface-visibility: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #fff;
+  border: 3px solid #111;
+}
+
+.card-back img { max-width: 80%; }
+.card-front { transform: rotateY(180deg); }
+.card-front img { max-width: 90%; }
+
+.card.matched .card-front {
+  background: #d1fae5;
+  border-color: #10b981;
+}
+
+/* Wiggle */
+@keyframes wiggle {
+  0% { transform: translate(0,0) rotate(0); }
+  25% { transform: translate(2px,-2px) rotate(-2deg); }
+  50% { transform: translate(-2px,2px) rotate(2deg); }
+  75% { transform: translate(1px,-1px) rotate(-1deg); }
+  100% { transform: translate(0,0) rotate(0); }
+}
+.card.wiggle { animation: wiggle 0.35s ease; }
+
+/* Overlay */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 20;
+}
+
+.overlay-box {
+  background: rgba(255,255,255,.18);
+  backdrop-filter: blur(12px);
+  border-radius: 20px;
+  padding: 24px;
+  text-align: center;
+  box-shadow: 0 20px 50px rgba(0,0,0,.5);
+  width: min(560px, 92vw);
+}
+
+.overlay-box button {
+  padding: 12px 20px;
+  margin: 6px;
+  border-radius: 14px;
+  border: none;
+  background: #ffdd55;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+hr {
+  border: none;
+  border-top: 1px solid rgba(255,255,255,.25);
+  margin: 14px 0;
+}
+
+/* Confetti */
+.confetti {
+  position: fixed;
+  top: -10px;
+  width: 10px;
+  height: 14px;
+  animation: fall linear forwards;
+  z-index: 50;
+}
+@keyframes fall {
+  to { transform: translateY(110vh) rotate(360deg); }
+}
+
+/* Leaderboard */
+.leaderboard {
+  text-align: left;
+  margin-top: 10px;
+  background: rgba(0,0,0,0.15);
+  padding: 12px;
+  border-radius: 14px;
+}
+
+.lb-title {
+  display:flex;
+  justify-content: space-between;
+  align-items:center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.lb-title h3 { margin: 0; font-size: 16px; }
+
+.lb-status { font-size: 12px; opacity: 0.9; }
+
+.lb-list {
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 6px;
+}
+
+.lb-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  background: rgba(255,255,255,0.12);
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 14px;
+}
+
+.lb-row.podium {
+  background: rgba(255,255,255,0.18);
+  border: 1px solid rgba(255,255,255,0.18);
+}
+
+.lb-divider {
+  height: 1px;
+  background: rgba(255,255,255,0.22);
+  margin: 10px 0 6px;
+  border-radius: 999px;
+}
+
+.lb-name { font-weight: 800; }
+.lb-meta { opacity: 0.95; }
+
+.name-row {
+  display:flex;
+  gap: 8px;
+  justify-content:center;
+  align-items:center;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.name-row input {
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: none;
+  width: min(260px, 80vw);
+  outline: none;
+}
+
+/* Fun bits */
+.badge-row{
+  display:flex;
+  justify-content:center;
+  gap:8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+  font-size: 13px;
+  opacity: 0.95;
+}
+.badge {
+  background: rgba(0,0,0,0.18);
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.14);
+}
+
+.toast{
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 18px;
+  background: rgba(0,0,0,0.75);
+  color: #fff;
+  padding: 10px 14px;
+  border-radius: 999px;
+  font-weight: 800;
+  z-index: 60;
+  display:none;
+  max-width: 92vw;
+  text-align:center;
+}
+</style>
+</head>
+
+<body>
+
+<!-- START -->
+<div class="overlay" id="startOverlay">
+  <div class="overlay-box">
+    <h2>Choose Difficulty</h2>
+    <button data-diff="easy">Easy (12)</button>
+    <button data-diff="medium">Medium (20)</button>
+    <button data-diff="hard">Hard (30)</button>
+    <button data-diff="extra-hard">Extra Hard (42)</button>
+    <hr />
+    <button class="btn secondary" id="openLbFromStartBtn">🏆 Leaderboards</button>
+  </div>
+</div>
+
+<!-- WIN -->
+<div class="overlay" id="winOverlay" style="display:none">
+  <div class="overlay-box">
+    <h2>🎉 You Win! 🎉</h2>
+    <p id="winStats"></p>
+
+    <div class="badge-row">
+      <span class="badge" id="rankBadge">Rank: —</span>
+      <span class="badge" id="dailyBadge">Daily: —</span>
+      <span class="badge" id="streakBadge">Streak: —</span>
+    </div>
+
+    <div class="name-row">
+      <input id="playerName" placeholder="Enter your name (optional)" maxlength="20" />
+      <button class="btn" id="submitScoreBtn">Submit</button>
+    </div>
+
+    <div class="leaderboard">
+      <div class="lb-title">
+        <h3>🏆 Leaderboard (<span id="lbDiff">easy</span>)</h3>
+        <div class="lb-status" id="lbStatus">Loading…</div>
+      </div>
+
+      <div class="controls" style="margin:10px 0 0; padding:0;">
+        <label class="small-toggle"><input type="checkbox" id="showMoves" checked /> Show moves</label>
+        <label class="small-toggle"><input type="checkbox" id="showTime" checked /> Show time</label>
+      </div>
+
+      <div class="lb-divider" id="podiumDivider" style="display:none;"></div>
+      <ol class="lb-list" id="lbList"></ol>
+    </div>
+
+    <hr />
+
+    <button class="btn secondary" id="openLbBtn">🏆 Open Leaderboards</button>
+    <button onclick="location.reload()">Play Again</button>
+  </div>
+</div>
+
+<!-- LEADERBOARD SCREEN -->
+<div class="overlay" id="leaderboardOverlay" style="display:none">
+  <div class="overlay-box" style="text-align:left;">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+      <h2 style="margin:0;">🏆 Leaderboards</h2>
+      <button class="btn secondary" id="closeLbOverlayBtn">↩ Return to game</button>
+    </div>
+
+    <div class="controls" style="margin-top:12px;">
+      <label style="font-weight:800;">Difficulty:</label>
+      <select id="lbSelect" style="padding:10px 12px;border-radius:12px;border:none;outline:none;font-weight:800;">
+        <option value="easy">Easy</option>
+        <option value="medium">Medium</option>
+        <option value="hard">Hard</option>
+        <option value="extra-hard">Extra Hard</option>
+      </select>
+
+      <label class="small-toggle"><input type="checkbox" id="lbShowMoves" checked /> Show moves</label>
+      <label class="small-toggle"><input type="checkbox" id="lbShowTime" checked /> Show time</label>
+    </div>
+
+    <div class="leaderboard" style="margin-top:12px;">
+      <div class="lb-title">
+        <h3 style="margin:0;">Top 10 (<span id="lbDiff2">easy</span>)</h3>
+        <div class="lb-status" id="lbStatus2">Loading…</div>
+      </div>
+      <div class="lb-divider" id="podiumDivider2" style="display:none;"></div>
+      <ol class="lb-list" id="lbList2"></ol>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="game-wrapper">
+  <img src="header.png" class="header-image" alt="Header" />
+
+  <div class="stats">
+    <div>Moves: <span id="moves">0</span></div>
+    <div>Matches: <span id="matches">0</span>/<span id="total">0</span></div>
+    <div>Time: <span id="time">0</span>s</div>
+  </div>
+
+  <div class="controls">
+    <!-- ✅ ADDED: Back to Arcade Menu button (sits with all the other buttons) -->
+    <button class="btn secondary" id="backMenuBtn">🕹️ Arcade Menu</button>
+
+    <button class="btn" id="restartBtn">🔁 Restart</button>
+    <button class="btn" id="soundBtn">My stupid voice: ON</button>
+    <button class="btn secondary" id="hintBtn">💡 Hint (1)</button>
+    <button class="btn secondary" id="leaderboardsBtn">🏆 Leaderboards</button>
+    <button class="btn secondary" id="shareBtn" style="display:none;">📣 Share</button>
+  </div>
+
+  <div class="game-board" id="board"></div>
+</div>
+
+<script type="module">
+/* =========================
+   FIREBASE (Firestore)
+   ========================= */
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import {
+  getFirestore,
+  collection,
+  addDoc,
+  serverTimestamp,
+  query,
+  where,
+  orderBy,
+  limit,
+  onSnapshot,
+  getDocs
+} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCpoXdJ1ASWEhp9IM4hm_LeVOW0VFqQ2hg",
+  authDomain: "little-ollie-memory.firebaseapp.com",
+  projectId: "little-ollie-memory",
+  storageBucket: "little-ollie-memory.firebasestorage.app",
+  messagingSenderId: "846792708520",
+  appId: "1:846792708520:web:851cf20bf6a80754cd8d9d",
+  measurementId: "G-CJCEBPSS2M"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+/* =========================
+   GAME
+   ========================= */
+const isMobile = window.matchMedia("(max-width: 768px)").matches;
+
+const ALL_IMAGES = [...Array(100)].map((_, i) => `${i + 1}.png`);
+
+const DIFFS = {
+  easy:         { pairs: 6,  cols: isMobile ? 3 : 4 },
+  medium:       { pairs: 10, cols: isMobile ? 4 : 5 },
+  hard:         { pairs: 15, cols: isMobile ? 5 : 6 },
+  "extra-hard": { pairs: 21, cols: isMobile ? 6 : 7 }
+};
+
+let currentDiff = "easy";
+
+/* AUDIO */
+let soundEnabled = true;
+
+const flipSound = new Audio("flip.wav");
+const correctSounds = ["tick1.wav","tick2.wav","tick3.wav","tick4.wav","tick5.wav"].map(f => new Audio(f));
+const wrongSounds = ["wrong1.wav","wrong2.wav","wrong3.wav","wrong4.wav","wrong5.wav"].map(f => new Audio(f));
+
+[flipSound, ...correctSounds, ...wrongSounds].forEach(s => s.volume = 0.75);
+
+function play(sound){
+  if (!soundEnabled) return;
+  try { sound.currentTime = 0; sound.play(); } catch {}
+}
+function playFlip(){ play(flipSound); }
+function playCorrect(){ play(correctSounds[Math.floor(Math.random() * correctSounds.length)]); }
+function playWrong(){ play(wrongSounds[Math.floor(Math.random() * wrongSounds.length)]); }
+
+/* DOM */
+const board = document.getElementById("board");
+const startOverlay = document.getElementById("startOverlay");
+const winOverlay = document.getElementById("winOverlay");
+const leaderboardOverlay = document.getElementById("leaderboardOverlay");
+
+const winStats = document.getElementById("winStats");
+const movesEl = document.getElementById("moves");
+const matchesEl = document.getElementById("matches");
+const totalEl = document.getElementById("total");
+const timeEl = document.getElementById("time");
+const restartBtn = document.getElementById("restartBtn");
+const soundBtn = document.getElementById("soundBtn");
+
+const hintBtn = document.getElementById("hintBtn");
+const leaderboardsBtn = document.getElementById("leaderboardsBtn");
+const shareBtn = document.getElementById("shareBtn");
+
+const playerNameEl = document.getElementById("playerName");
+const submitScoreBtn = document.getElementById("submitScoreBtn");
+
+const lbDiffEl = document.getElementById("lbDiff");
+const lbStatusEl = document.getElementById("lbStatus");
+const lbListEl = document.getElementById("lbList");
+const showMovesEl = document.getElementById("showMoves");
+const showTimeEl = document.getElementById("showTime");
+const podiumDivider = document.getElementById("podiumDivider");
+
+const openLbBtn = document.getElementById("openLbBtn");
+const openLbFromStartBtn = document.getElementById("openLbFromStartBtn");
+
+const closeLbOverlayBtn = document.getElementById("closeLbOverlayBtn");
+const lbSelect = document.getElementById("lbSelect");
+const lbDiff2 = document.getElementById("lbDiff2");
+const lbStatus2 = document.getElementById("lbStatus2");
+const lbList2 = document.getElementById("lbList2");
+const lbShowMoves = document.getElementById("lbShowMoves");
+const lbShowTime = document.getElementById("lbShowTime");
+const podiumDivider2 = document.getElementById("podiumDivider2");
+
+const toastEl = document.getElementById("toast");
+
+/* ✅ ADDED: Back to Arcade Menu */
+const backMenuBtn = document.getElementById("backMenuBtn");
+backMenuBtn.onclick = () => {
+  // memory-game/ -> go back to root index.html
+  location.href = "../index.html";
+};
+
+/* FUN UI bits */
+const rankBadge = document.getElementById("rankBadge");
+const dailyBadge = document.getElementById("dailyBadge");
+const streakBadge = document.getElementById("streakBadge");
+
+/* STATE */
+let cards = [];
+let flipped = [];
+let lock = true;
+let moves = 0;
+let matches = 0;
+let totalPairs = 0;
+let seconds = 0;
+let timer = null;
+
+let leaderboardUnsub = null;
+let leaderboardUnsub2 = null;
+
+let lastWin = null;
+
+/* per-win submit lock */
+let gameStartMs = Date.now();
+let submittedThisWin = false;
+
+/* hint */
+let hintUsed = false;
+
+/* daily + streak */
+const STORAGE_KEYS = {
+  streak: "lo_mem_streak_v1",
+  lastWinDay: "lo_mem_last_win_day_v1",
+  submittedWins: "lo_mem_submitted_wins_v1"
+};
+
+/* UTILS */
+const shuffle = (a) => {
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+};
+
+function todayKey(){
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth()+1).padStart(2,"0");
+  const dd = String(d.getDate()).padStart(2,"0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function toast(msg){
+  toastEl.textContent = msg;
+  toastEl.style.display = "block";
+  clearTimeout(toastEl._t);
+  toastEl._t = setTimeout(() => toastEl.style.display = "none", 1400);
+}
+
+function resetStats(){
+  cards = [];
+  flipped = [];
+  lock = true;
+  moves = 0;
+  matches = 0;
+  seconds = 0;
+  hintUsed = false;
+  hintBtn.disabled = false;
+  hintBtn.textContent = "💡 Hint (1)";
+  shareBtn.style.display = "none";
+
+  movesEl.textContent = "0";
+  matchesEl.textContent = "0";
+  timeEl.textContent = "0";
+  if (timer) clearInterval(timer);
+  timer = null;
+
+  gameStartMs = Date.now();
+  submittedThisWin = false;
+  submitScoreBtn.disabled = false;
+  submitScoreBtn.textContent = "Submit";
+}
+
+function startTimer(){
+  if (timer) clearInterval(timer);
+  timer = setInterval(() => {
+    seconds++;
+    timeEl.textContent = seconds;
+  }, 1000);
+}
+
+function launchConfetti(count = 120){
+  const total = Math.max(60, Math.min(160, count));
+  for (let i = 0; i < total; i++) {
+    const c = document.createElement("div");
+    c.className = "confetti";
+    c.style.left = Math.random() * 100 + "vw";
+    c.style.background = `hsl(${Math.random() * 360},90%,60%)`;
+    c.style.animationDuration = (2 + Math.random() * 3) + "s";
+    document.body.appendChild(c);
+    setTimeout(() => c.remove(), 5000);
+  }
+}
+
+/* random image selection */
+function buildOrderedPairs(totalPairs){
+  const picked = shuffle([...ALL_IMAGES]).slice(0, totalPairs);
+
+  picked.sort((a,b) => {
+    const na = parseInt(a, 10);
+    const nb = parseInt(b, 10);
+    return na - nb;
+  });
+
+  const paired = [];
+  for (const img of picked) paired.push(img, img);
+  return paired;
+}
+
+function startGame(diffKey){
+  currentDiff = diffKey;
+  resetStats();
+
+  startOverlay.style.display = "none";
+  winOverlay.style.display = "none";
+
+  const cfg = DIFFS[diffKey];
+  if (!cfg) { alert("Difficulty key not found: " + diffKey); return; }
+
+  totalPairs = cfg.pairs;
+  totalEl.textContent = totalPairs;
+  board.style.gridTemplateColumns = `repeat(${cfg.cols}, 1fr)`;
+
+  const paired = buildOrderedPairs(totalPairs);
+  cards = paired.map((img, i) => ({ id: i, img }));
+
+  board.innerHTML = "";
+  cards.forEach((c) => {
+    const d = document.createElement("div");
+    d.className = "card";
+    d.dataset.id = c.id;
+    d.innerHTML = `
+      <div class="card-inner">
+        <div class="card-face card-back"><img src="logo.png" alt="Logo"></div>
+        <div class="card-face card-front"><img src="${c.img}" alt="Card"></div>
+      </div>`;
+    board.appendChild(d);
+  });
+
+  previewThenMix();
+}
+
+async function previewThenMix(){
+  const els = [...document.querySelectorAll(".card")];
+
+  els.forEach(c => { c.classList.add("flipped"); c.classList.add("wiggle"); });
+  await new Promise(r => setTimeout(r, 380));
+  els.forEach(c => c.classList.remove("wiggle"));
+
+  await new Promise(r => setTimeout(r, 1200));
+
+  els.forEach(c => c.classList.remove("flipped"));
+  await new Promise(r => setTimeout(r, 350));
+
+  els.forEach(c => c.classList.add("wiggle"));
+  await new Promise(r => setTimeout(r, 350));
+  els.forEach(c => c.classList.remove("wiggle"));
+
+  await visualMixAndRemap(els);
+
+  lock = false;
+  startTimer();
+}
+
+async function visualMixAndRemap(els){
+  const firstRects = new Map();
+  els.forEach(el => firstRects.set(el, el.getBoundingClientRect()));
+
+  const shuffledEls = shuffle([...els]);
+  shuffledEls.forEach(el => board.appendChild(el));
+
+  shuffledEls.forEach(el => {
+    const last = el.getBoundingClientRect();
+    const first = firstRects.get(el);
+    el.style.transform = `translate(${first.left - last.left}px, ${first.top - last.top}px)`;
+  });
+
+  board.offsetHeight;
+
+  shuffledEls.forEach(el => {
+    el.style.transition = "transform 420ms cubic-bezier(.22,.61,.36,1)";
+    el.style.transform = "";
+  });
+
+  await new Promise(r => setTimeout(r, 450));
+  shuffledEls.forEach(el => el.style.transition = "");
+
+  const imgs = cards.map(c => c.img);
+  shuffle(imgs);
+
+  shuffledEls.forEach((tileEl) => {
+    const id = +tileEl.dataset.id;
+    const newImg = imgs[id];
+    cards[id].img = newImg;
+    tileEl.querySelector(".card-front img").src = newImg;
+  });
+}
+
+/* ONE-TILE HINT (once per game) */
+async function doOneTileHint(){
+  if (hintUsed || lock) return;
+  const els = [...document.querySelectorAll(".card")];
+  const candidates = els.filter(el => !el.classList.contains("matched") && !el.classList.contains("flipped"));
+  if (!candidates.length) return;
+
+  hintUsed = true;
+  hintBtn.disabled = true;
+  hintBtn.textContent = "💡 Hint used";
+  lock = true;
+
+  const pick = candidates[Math.floor(Math.random() * candidates.length)];
+  pick.classList.add("flipped");
+  playFlip();
+
+  await new Promise(r => setTimeout(r, 650));
+  pick.classList.remove("flipped");
+  await new Promise(r => setTimeout(r, 150));
+
+  lock = false;
+}
+
+/* GAME CLICK */
+board.addEventListener("click", (e) => {
+  const cardEl = e.target.closest(".card");
+  if (!cardEl || lock || cardEl.classList.contains("matched")) return;
+
+  const id = +cardEl.dataset.id;
+  if (flipped.some(f => f.id === id)) return;
+
+  cardEl.classList.add("flipped");
+  playFlip();
+  flipped.push({ id, img: cards[id].img, el: cardEl });
+
+  if (flipped.length === 2) {
+    lock = true;
+    moves++;
+    movesEl.textContent = moves;
+
+    const [a, b] = flipped;
+
+    if (a.img === b.img) {
+      playCorrect();
+      a.el.classList.add("matched");
+      b.el.classList.add("matched");
+      matches++;
+      matchesEl.textContent = matches;
+      flipped = [];
+      lock = false;
+
+      if (matches === totalPairs) {
+        clearInterval(timer);
+
+        launchConfetti(110);
+
+        winStats.textContent = `${moves} moves · ${seconds}s`;
+        winOverlay.style.display = "flex";
+
+        lastWin = { moves, time: seconds, diff: currentDiff, gameStartMs };
+        lbDiffEl.textContent = currentDiff;
+
+        shareBtn.style.display = "inline-block";
+
+        updateStreakBadges();
+        startLeaderboardListener(currentDiff, "win");
+        updateRankAndCelebrate();
+      }
+    } else {
+      playWrong();
+      setTimeout(() => {
+        a.el.classList.remove("flipped");
+        b.el.classList.remove("flipped");
+        flipped = [];
+        lock = false;
+      }, 850);
+    }
+  }
+});
+
+restartBtn.onclick = () => location.reload();
+
+soundBtn.onclick = () => {
+  soundEnabled = !soundEnabled;
+  soundBtn.textContent = `My stupid voice: ${soundEnabled ? "ON" : "OFF"}`;
+};
+
+hintBtn.onclick = () => doOneTileHint();
+
+document.querySelectorAll("#startOverlay button[data-diff]").forEach(btn => {
+  btn.onclick = () => startGame(btn.dataset.diff);
+});
+
+/* LEADERBOARD SCREEN */
+function openLeaderboardOverlay(initialDiff = currentDiff){
+  leaderboardOverlay.style.display = "flex";
+  lbSelect.value = initialDiff;
+  lbDiff2.textContent = initialDiff;
+  startLeaderboardListener(initialDiff, "screen");
+}
+function closeLeaderboardOverlay(){
+  leaderboardOverlay.style.display = "none";
+}
+
+leaderboardsBtn.onclick = () => openLeaderboardOverlay(currentDiff);
+openLbBtn.onclick = () => openLeaderboardOverlay(currentDiff);
+openLbFromStartBtn.onclick = () => openLeaderboardOverlay("easy");
+closeLbOverlayBtn.onclick = () => closeLeaderboardOverlay();
+
+lbSelect.addEventListener("change", () => {
+  lbDiff2.textContent = lbSelect.value;
+  startLeaderboardListener(lbSelect.value, "screen");
+});
+
+lbShowMoves.addEventListener("change", () => startLeaderboardListener(lbSelect.value, "screen"));
+lbShowTime.addEventListener("change", () => startLeaderboardListener(lbSelect.value, "screen"));
+
+/* Share */
+shareBtn.onclick = async () => {
+  if (!lastWin) return;
+  const url = location.href;
+  const text = `I just scored ${lastWin.moves} moves in ${lastWin.time}s on Little Ollie Memory (${lastWin.diff})! 🧠✨`;
+  try{
+    if (navigator.share){
+      await navigator.share({ title: "Little Ollie Memory Game", text, url });
+    } else {
+      await navigator.clipboard.writeText(`${text}\n${url}`);
+      toast("Copied share text ✅");
+    }
+  } catch {}
+};
+
+/* LEADERBOARD */
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, m => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
+  }[m]));
+}
+
+function medalForRank(i){
+  if (i === 0) return "🥇 ";
+  if (i === 1) return "🥈 ";
+  if (i === 2) return "🥉 ";
+  return "";
+}
+
+function renderLeaderboardInto(items, listEl, statusEl, opts){
+  const showMoves = opts.showMoves;
+  const showTime = opts.showTime;
+  const dividerEl = opts.dividerEl;
+
+  listEl.innerHTML = "";
+
+  if (!items.length){
+    if (dividerEl) dividerEl.style.display = "none";
+    listEl.innerHTML = `<li class="lb-row"><span class="lb-name">No scores yet</span><span class="lb-meta"></span></li>`;
+    statusEl.textContent = "No scores yet";
+    return;
+  }
+
+  if (dividerEl) dividerEl.style.display = items.length >= 4 ? "block" : "none";
+
+  items.forEach((it, idx) => {
+    const name = it.name || "Anonymous";
+    const parts = [];
+    if (showMoves) parts.push(`${it.moves} moves`);
+    if (showTime) parts.push(`${it.time}s`);
+    const meta = parts.join(" · ");
+
+    const li = document.createElement("li");
+    li.className = "lb-row" + (idx < 3 ? " podium" : "");
+    li.innerHTML = `
+      <span class="lb-name">${medalForRank(idx)}#${idx + 1} ${escapeHtml(name)}</span>
+      <span class="lb-meta">${meta}</span>
+    `;
+    listEl.appendChild(li);
+
+    if (idx === 2 && items.length > 3){
+      const sep = document.createElement("div");
+      sep.className = "lb-divider";
+      listEl.appendChild(sep);
+    }
+  });
+
+  statusEl.textContent = `Top ${items.length} shown`;
+}
+
+function startLeaderboardListener(diff, context){
+  const isWin = context === "win";
+
+  const listEl   = isWin ? lbListEl   : lbList2;
+  const statusEl = isWin ? lbStatusEl : lbStatus2;
+  const dividerEl= isWin ? podiumDivider : podiumDivider2;
+
+  const showMoves = isWin ? showMovesEl.checked : lbShowMoves.checked;
+  const showTime  = isWin ? showTimeEl.checked  : lbShowTime.checked;
+
+  if (isWin){
+    if (leaderboardUnsub) leaderboardUnsub();
+  } else {
+    if (leaderboardUnsub2) leaderboardUnsub2();
+  }
+
+  statusEl.textContent = "Loading…";
+
+  const primaryQuery = query(
+    collection(db, "scores"),
+    where("difficulty", "==", diff),
+    orderBy("moves", "asc"),
+    orderBy("time", "asc"),
+    limit(10)
+  );
+
+  const fallbackQuery = query(
+    collection(db, "scores"),
+    orderBy("moves", "asc"),
+    orderBy("time", "asc"),
+    limit(200)
+  );
+
+  const attach = (q, isFallback = false) => {
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        let items = snap.docs.map(d => d.data());
+
+        if (isFallback){
+          items = items.filter(it => it.difficulty === diff).slice(0, 10);
+        }
+
+        renderLeaderboardInto(items, listEl, statusEl, {
+          showMoves,
+          showTime,
+          dividerEl
+        });
+
+        if (isFallback){
+          statusEl.textContent = `Top ${items.length} shown (fallback mode)`;
+        }
+      },
+      (err) => {
+        console.error("Leaderboard error:", err);
+
+        const code = err?.code || "";
+        const msg  = err?.message || "";
+
+        statusEl.textContent = `Leaderboard error: ${code} ${msg}`.trim();
+
+        if (!isFallback && (code === "failed-precondition" || code === "permission-denied")){
+          statusEl.textContent = `Leaderboard issue (${code}). Trying fallback…`;
+          const unsub2 = attach(fallbackQuery, true);
+          if (isWin) leaderboardUnsub = unsub2;
+          else leaderboardUnsub2 = unsub2;
+        }
+      }
+    );
+
+    return unsub;
+  };
+
+  const unsub = attach(primaryQuery, false);
+
+  if (isWin) leaderboardUnsub = unsub;
+  else leaderboardUnsub2 = unsub;
+}
+
+/* ANTI-SPAM: local only (works with your Rules) */
+function getWinId(win){
+  return `${win.diff}|${win.moves}|${win.time}|${win.gameStartMs}`;
+}
+
+function loadSubmittedWins(){
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEYS.submittedWins) || "[]"); }
+  catch { return []; }
+}
+function saveSubmittedWins(arr){
+  try { localStorage.setItem(STORAGE_KEYS.submittedWins, JSON.stringify(arr.slice(-50))); } catch {}
+}
+function isSubmittedAlready(winId){
+  const arr = loadSubmittedWins();
+  return arr.includes(winId);
+}
+function markSubmitted(winId){
+  const arr = loadSubmittedWins();
+  if (!arr.includes(winId)) arr.push(winId);
+  saveSubmittedWins(arr);
+}
+
+submitScoreBtn.addEventListener("click", async () => {
+  if (!lastWin) return;
+
+  if (submittedThisWin){
+    toast("Already submitted ✅");
+    return;
+  }
+
+  const winId = getWinId(lastWin);
+
+  if (isSubmittedAlready(winId)){
+    submitScoreBtn.disabled = true;
+    submitScoreBtn.textContent = "Submitted ✅";
+    toast("Already submitted ✅");
+    submittedThisWin = true;
+    return;
+  }
+
+  const rawName = (playerNameEl.value || "").trim();
+  const name = rawName.slice(0, 20) || "Anonymous";
+
+  submitScoreBtn.disabled = true;
+  submitScoreBtn.textContent = "Submitting…";
+
+  try {
+    const winId = getWinId(lastWin);
+
+    await addDoc(collection(db, "scores"), {
+      name,
+      difficulty: lastWin.diff,
+      moves: lastWin.moves,
+      time: lastWin.time,
+      winId,
+      createdAt: serverTimestamp()
+    });
+
+    markSubmitted(winId);
+    submittedThisWin = true;
+
+    submitScoreBtn.textContent = "Submitted ✅";
+    updateRankAndCelebrate();
+
+  } catch (err) {
+    console.error("Submit score error:", err);
+    alert(`Could not submit score:\n${err.code || ""}\n${err.message || ""}`);
+    submitScoreBtn.textContent = "Submit";
+    submitScoreBtn.disabled = false;
+  }
+});
+
+/* FUN: daily + streak + rank */
+function updateStreakBadges(){
+  const day = todayKey();
+  const lastDay = localStorage.getItem(STORAGE_KEYS.lastWinDay) || "";
+  let streak = parseInt(localStorage.getItem(STORAGE_KEYS.streak) || "0", 10);
+
+  if (lastDay !== day){
+    const d = new Date(day + "T00:00:00");
+    const y = new Date(d.getTime() - 86400000);
+    const yKey = `${y.getFullYear()}-${String(y.getMonth()+1).padStart(2,"0")}-${String(y.getDate()).padStart(2,"0")}`;
+
+    if (lastDay === yKey) streak += 1;
+    else streak = 1;
+
+    localStorage.setItem(STORAGE_KEYS.lastWinDay, day);
+    localStorage.setItem(STORAGE_KEYS.streak, String(streak));
+  }
+
+  dailyBadge.textContent = `Daily: ${day}`;
+  streakBadge.textContent = `Streak: ${streak}🔥`;
+}
+
+async function updateRankAndCelebrate(){
+  if (!lastWin) return;
+
+  rankBadge.textContent = "Rank: —";
+
+  try{
+    const q = query(
+      collection(db, "scores"),
+      where("difficulty", "==", lastWin.diff),
+      orderBy("moves", "asc"),
+      orderBy("time", "asc"),
+      limit(10)
+    );
+    const snap = await getDocs(q);
+    const items = snap.docs.map(d => d.data());
+
+    let idx = items.findIndex(it => it.moves === lastWin.moves && it.time === lastWin.time);
+
+    if (idx >= 0){
+      const rankNum = idx + 1;
+      const emoji = rankNum === 1 ? "🥇" : rankNum === 2 ? "🥈" : rankNum === 3 ? "🥉" : "🏁";
+      rankBadge.textContent = `Rank: ${emoji} #${rankNum}`;
+
+      if (rankNum === 1){
+        launchConfetti(160);
+        toast("NEW #1! 🥇");
+      }
+    } else {
+      rankBadge.textContent = "Rank: (not in top 10 yet)";
+    }
+  } catch {
+    // keep —
+  }
+}
+</script>
+</body>
+</html>

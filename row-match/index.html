@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Little Ollie Row Match</title>
+
+  <style>
+    *{ box-sizing:border-box; }
+    :root{
+      --gap: 6px;
+      --radius: 16px;
+      --panel: rgba(0,0,0,.18);
+      --shadow: 0 12px 28px rgba(0,0,0,.35);
+      --tileShadow: 0 10px 20px rgba(0,0,0,.25);
+    }
+
+    body{
+      margin:0;
+      min-height:100vh;
+      display:flex;
+      justify-content:center;
+      align-items:flex-start;
+      padding:16px 10px 26px;
+      background: radial-gradient(circle at top, #6de0ff, #4c6fff);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      color:#fff;
+    }
+
+    .wrap{
+      width: 980px;
+      max-width: 96vw;
+    }
+
+    .panel{
+      background: var(--panel);
+      border-radius: 22px;
+      padding: 14px;
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+
+    .header-img{
+      width:100%;
+      display:block;
+      border-radius: 16px;
+      margin-bottom: 10px;
+    }
+
+    .topbar{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+      justify-content:space-between;
+      margin-bottom: 10px;
+    }
+
+    .tabs{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+    }
+
+    .btn{
+      border:0;
+      cursor:pointer;
+      padding:10px 12px;
+      border-radius: 14px;
+      background: rgba(255,255,255,.16);
+      color:#fff;
+      font-weight: 800;
+      letter-spacing:.2px;
+      box-shadow: 0 10px 18px rgba(0,0,0,.18);
+      transition: transform .08s ease, background .15s ease;
+      user-select:none;
+      display:flex;
+      align-items:center;
+      gap:8px;
+    }
+    .btn:hover{ transform: translateY(-1px); background: rgba(255,255,255,.22); }
+    .btn:active{ transform: translateY(0px) scale(.99); }
+    .btn:disabled{ cursor:not-allowed; opacity:.6; transform:none; }
+
+    .stats{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+      justify-content:flex-end;
+      font-weight: 800;
+    }
+    .pill{
+      padding:10px 12px;
+      border-radius: 14px;
+      background: rgba(0,0,0,.18);
+      box-shadow: 0 10px 18px rgba(0,0,0,.12);
+      white-space:nowrap;
+    }
+
+    .game-area{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
+    /* Board is 5x4 */
+    .board-wrap{
+      position:relative;
+      border-radius: 20px;
+      background: rgba(0,0,0,.10);
+      padding: 12px;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.10);
+    }
+
+    .board{
+      display:grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: var(--gap);
+    }
+
+    .tile{
+      position:relative;
+      width:100%;
+      aspect-ratio: 1 / 1;
+      border-radius: var(--radius);
+      background: rgba(255,255,255,.10);
+      overflow:hidden;
+      box-shadow: var(--tileShadow);
+      transform: translateZ(0);
+    }
+
+    .tile button{
+      all: unset;
+      width:100%;
+      height:100%;
+      display:block;
+      cursor:pointer;
+    }
+
+    .tile img{
+      width:100%;
+      height:100%;
+      object-fit: cover;
+      display:block;
+    }
+
+    .tile.empty{
+      background: rgba(0,0,0,.10);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.12);
+    }
+    .tile.empty button{ cursor: default; }
+
+    .disabled .tile button{ cursor: default; }
+
+    /* Shuffle overlay */
+    .overlay{
+      position:absolute;
+      inset:0;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      background: rgba(0,0,0,.35);
+      backdrop-filter: blur(2px);
+      border-radius: 20px;
+      font-weight: 900;
+      letter-spacing: .3px;
+      text-align:center;
+      padding: 18px;
+    }
+    .overlay.show{ display:flex; }
+
+    /* Modal */
+    .modal{
+      position:fixed;
+      inset:0;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding: 16px;
+      background: rgba(0,0,0,.55);
+      backdrop-filter: blur(3px);
+      z-index: 9999;
+    }
+    .modal.show{ display:flex; }
+
+    .modal-card{
+      width: min(900px, 96vw);
+      max-height: 86vh;
+      overflow:auto;
+      border-radius: 22px;
+      background: rgba(20,22,30,.95);
+      box-shadow: 0 20px 50px rgba(0,0,0,.45);
+      border: 1px solid rgba(255,255,255,.12);
+      padding: 14px;
+    }
+
+    .modal-head{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      margin-bottom: 10px;
+    }
+
+    .modal-title{
+      font-size: 18px;
+      font-weight: 950;
+      letter-spacing: .2px;
+    }
+
+    .section{
+      background: rgba(255,255,255,.06);
+      border-radius: 18px;
+      padding: 12px;
+      border: 1px solid rgba(255,255,255,.10);
+      margin-bottom: 12px;
+    }
+
+    .small{
+      opacity:.92;
+      line-height: 1.4;
+    }
+
+    table{
+      width:100%;
+      border-collapse: collapse;
+      overflow:hidden;
+      border-radius: 14px;
+    }
+    th, td{
+      padding:10px 10px;
+      border-bottom: 1px solid rgba(255,255,255,.10);
+      text-align:left;
+      font-weight: 750;
+      font-size: 14px;
+    }
+    th{
+      opacity:.95;
+      font-weight: 900;
+    }
+
+    tr.top1{ background: rgba(255, 215, 0, .18); }
+    tr.top2{ background: rgba(192, 192, 192, .16); }
+    tr.top3{ background: rgba(205, 127, 50, .14); }
+
+    .row{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+    }
+    input{
+      padding: 10px 12px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,.16);
+      background: rgba(255,255,255,.08);
+      color:#fff;
+      outline:none;
+      font-weight: 800;
+      width: min(320px, 80vw);
+    }
+    input::placeholder{ color: rgba(255,255,255,.7); }
+
+    .note{
+      opacity:.88;
+      font-weight: 700;
+      font-size: 13px;
+      margin-top: 8px;
+      line-height:1.35;
+    }
+
+    .win-banner{
+      display:none;
+      margin-top: 10px;
+      padding: 12px;
+      border-radius: 18px;
+      background: rgba(0, 255, 170, .14);
+      border: 1px solid rgba(0, 255, 170, .22);
+      font-weight: 950;
+    }
+    .win-banner.show{ display:block; }
+
+    @media (max-width: 520px){
+      .btn{ padding:10px 11px; border-radius: 12px; }
+      .pill{ padding:10px 11px; border-radius: 12px; }
+      th, td{ font-size: 13px; padding:9px 9px; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <div class="panel">
+
+      <img class="header-img" src="header.png" alt="Header" />
+
+      <div class="topbar">
+        <div class="tabs">
+          <!-- ✅ NEW: Back to Arcade Menu button (with the other buttons) -->
+          <button class="btn" id="btnBackMenu">🕹️ Arcade Menu</button>
+
+          <button class="btn" id="btnLeaderboard">🏆 Leaderboard</button>
+          <button class="btn" id="btnHow">📖 How To Play</button>
+          <button class="btn" id="btnNew">🆕 New Game</button>
+          <button class="btn" id="btnStart">▶️ Start</button>
+          <button class="btn" id="btnReset">🔄 Reset</button>
+        </div>
+
+        <div class="stats">
+          <div class="pill">⏱️ <span id="timeText">0</span>s</div>
+          <div class="pill">🧠 Moves: <span id="movesText">0</span></div>
+        </div>
+      </div>
+
+      <div class="game-area">
+        <div class="board-wrap" id="boardWrap">
+          <div class="overlay" id="overlay">🌀 Shuffling…<br/>Get ready!</div>
+          <div class="board" id="board"></div>
+
+          <div class="win-banner" id="winBanner">
+            🎉 You did it! Rows are matched. Enter your name in the Leaderboard to save your score.
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- HOW TO PLAY MODAL -->
+  <div class="modal" id="howModal" aria-hidden="true">
+    <div class="modal-card">
+      <div class="modal-head">
+        <div class="modal-title">📖 How To Play</div>
+        <button class="btn" id="howBack">⬅️ Back</button>
+      </div>
+
+      <div class="section small">
+        <p><b>Goal:</b> Make each row contain the same character.</p>
+        <ul>
+          <li>There are <b>4 different characters</b> each game.</li>
+          <li>Three characters have <b>5 tiles</b> each.</li>
+          <li>One character has <b>4 tiles</b> (because there’s <b>1 empty space</b> you slide into).</li>
+        </ul>
+        <p><b>How to move:</b> Tap a tile that is directly next to the empty space (up/down/left/right) to slide it.</p>
+        <p><b>New Game:</b> Picks 4 new characters and shows a solved board.</p>
+        <p><b>Start:</b> Shuffles the <b>current</b> characters for 3 seconds (always solvable).</p>
+        <p><b>Reset:</b> Returns to solved using the <b>current</b> characters.</p>
+        <p><b>Scoring:</b> Faster time is better. If time ties, fewer moves wins.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- LEADERBOARD MODAL -->
+  <div class="modal" id="lbModal" aria-hidden="true">
+    <div class="modal-card">
+      <div class="modal-head">
+        <div class="modal-title">🏆 Leaderboard (Top 10)</div>
+        <button class="btn" id="lbBack">⬅️ Back</button>
+      </div>
+
+      <div class="section">
+        <div class="row">
+          <input id="nameInput" maxlength="20" placeholder="Your name (1–20 chars)" />
+          <button class="btn" id="submitScoreBtn">✅ Submit Score</button>
+        </div>
+        <div class="note" id="submitNote">
+          Finish a game first — then submit. (Only 1 submission per win.)
+        </div>
+      </div>
+
+      <div class="section">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Name</th>
+              <th>Time</th>
+              <th>Moves</th>
+              <th>Date</th>
+            </tr>
+          </thead>
+          <tbody id="lbBody">
+            <tr><td colspan="5">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Firebase (compat, same style as your other games) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+  <script>
+    /******************************************************************
+     * CONFIG / ASSETS
+     ******************************************************************/
+    const PUZZLE_FOLDER = "puzzles";
+    const MIN_IMG = 1;
+    const MAX_IMG = 100;
+
+    const SCORES_COLLECTION = "scores";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBjKE9UqfwhLTgKywMlmC0IVdAD5xPJs7Q",
+      authDomain: "littleollierowmatch.firebaseapp.com",
+      projectId: "littleollierowmatch",
+      storageBucket: "littleollierowmatch.firebasestorage.app",
+      messagingSenderId: "232794121702",
+      appId: "1:232794121702:web:7fea3de6e6a5a58ac32227",
+      measurementId: "G-WGK6L2JGLS"
+    };
+
+    /******************************************************************
+     * GAME STATE
+     ******************************************************************/
+    const W = 5, H = 4, N = W * H; // 20
+
+    let board = new Array(N).fill(-1);
+    let emptyIndex = N - 1;
+
+    let gameStarted = false;
+    let shuffling = false;
+    let won = false;
+
+    let moves = 0;
+    let startTimeMs = 0;
+    let timerHandle = null;
+
+    let winId = "";
+    let scoreSubmitted = false;
+
+    // The 4 chosen images for this round (persist until New Game)
+    let chosenImgs = []; // [imgNumber,...] length 4
+
+    /******************************************************************
+     * DOM
+     ******************************************************************/
+    const boardEl = document.getElementById("board");
+    const overlayEl = document.getElementById("overlay");
+    const boardWrapEl = document.getElementById("boardWrap");
+
+    const timeText = document.getElementById("timeText");
+    const movesText = document.getElementById("movesText");
+
+    const btnBackMenu = document.getElementById("btnBackMenu"); // ✅ NEW
+    const btnNew = document.getElementById("btnNew");
+    const btnStart = document.getElementById("btnStart");
+    const btnReset = document.getElementById("btnReset");
+    const btnLeaderboard = document.getElementById("btnLeaderboard");
+    const btnHow = document.getElementById("btnHow");
+
+    const howModal = document.getElementById("howModal");
+    const howBack = document.getElementById("howBack");
+
+    const lbModal = document.getElementById("lbModal");
+    const lbBack = document.getElementById("lbBack");
+    const lbBody = document.getElementById("lbBody");
+    const nameInput = document.getElementById("nameInput");
+    const submitScoreBtn = document.getElementById("submitScoreBtn");
+    const submitNote = document.getElementById("submitNote");
+
+    const winBanner = document.getElementById("winBanner");
+
+    /******************************************************************
+     * FIREBASE
+     ******************************************************************/
+    let db = null;
+    let firebaseReady = false;
+
+    function initFirebaseIfConfigured(){
+      try{
+        if(!firebaseConfig || !firebaseConfig.projectId){
+          firebaseReady = false;
+          return;
+        }
+        firebase.initializeApp(firebaseConfig);
+        db = firebase.firestore();
+        firebaseReady = true;
+      }catch(e){
+        firebaseReady = false;
+        console.warn("Firebase init error:", e);
+      }
+    }
+
+    /******************************************************************
+     * HELPERS
+     ******************************************************************/
+    function randInt(min, max){
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    function pick4UniqueImages(){
+      const set = new Set();
+      while(set.size < 4){
+        set.add(randInt(MIN_IMG, MAX_IMG));
+      }
+      return Array.from(set);
+    }
+
+    function imgSrcForType(typeIndex){
+      const imgNum = chosenImgs[typeIndex];
+      return `${PUZZLE_FOLDER}/${imgNum}.png`;
+    }
+
+    function idxToRC(i){
+      return { r: Math.floor(i / W), c: i % W };
+    }
+
+    function rcToIdx(r,c){
+      return r * W + c;
+    }
+
+    function neighbors(i){
+      const {r,c} = idxToRC(i);
+      const out = [];
+      if(r>0) out.push(rcToIdx(r-1,c));
+      if(r<H-1) out.push(rcToIdx(r+1,c));
+      if(c>0) out.push(rcToIdx(r,c-1));
+      if(c<W-1) out.push(rcToIdx(r,c+1));
+      return out;
+    }
+
+    function canMove(i){
+      return neighbors(i).includes(emptyIndex);
+    }
+
+    function setDisabledUI(disabled){
+      if(disabled) boardWrapEl.classList.add("disabled");
+      else boardWrapEl.classList.remove("disabled");
+    }
+
+    function formatDate(ts){
+      try{
+        const d = ts instanceof Date ? ts : new Date(ts);
+        const dd = String(d.getDate()).padStart(2,'0');
+        const mm = String(d.getMonth()+1).padStart(2,'0');
+        const yy = d.getFullYear();
+        return `${dd}/${mm}/${yy}`;
+      }catch{
+        return "";
+      }
+    }
+
+    function newWinId(){
+      return `win_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+    }
+
+    function escapeHtml(str){
+      return String(str)
+        .replaceAll("&","&amp;")
+        .replaceAll("<","&lt;")
+        .replaceAll(">","&gt;")
+        .replaceAll('"',"&quot;")
+        .replaceAll("'","&#039;");
+    }
+
+    /******************************************************************
+     * SOLVED BOARD (uses current chosenImgs)
+     ******************************************************************/
+    function buildSolvedBoardUsingCurrentImages(){
+      if(!chosenImgs || chosenImgs.length !== 4){
+        chosenImgs = pick4UniqueImages();
+      }
+
+      board = new Array(N).fill(-1);
+
+      // Row0: type0 x4 + empty at col4
+      for(let c=0;c<4;c++){
+        board[rcToIdx(0,c)] = 0;
+      }
+      board[rcToIdx(0,4)] = -1;
+      emptyIndex = rcToIdx(0,4);
+
+      // Rows1-3: type1/2/3 full rows
+      for(let r=1;r<4;r++){
+        for(let c=0;c<5;c++){
+          board[rcToIdx(r,c)] = r; // 1,2,3
+        }
+      }
+
+      moves = 0;
+      movesText.textContent = "0";
+      timeText.textContent = "0";
+
+      won = false;
+      winBanner.classList.remove("show");
+
+      gameStarted = false;
+      shuffling = false;
+
+      scoreSubmitted = false;
+      winId = newWinId();
+      updateSubmitNote();
+
+      render();
+      updateButtons();
+    }
+
+    // New Game: pick NEW images, then show solved board
+    function newGame(){
+      stopTimer();
+      chosenImgs = pick4UniqueImages();
+      buildSolvedBoardUsingCurrentImages();
+    }
+
+    /******************************************************************
+     * RENDER
+     ******************************************************************/
+    function render(){
+      boardEl.innerHTML = "";
+
+      for(let i=0;i<N;i++){
+        const v = board[i];
+        const tile = document.createElement("div");
+        tile.className = "tile" + (v === -1 ? " empty" : "");
+
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.setAttribute("aria-label", v === -1 ? "Empty" : "Tile");
+
+        if(v !== -1){
+          const img = document.createElement("img");
+          img.src = imgSrcForType(v);
+          img.alt = "";
+          img.draggable = false;
+          btn.appendChild(img);
+        }
+
+        btn.addEventListener("click", () => {
+          if(shuffling) return;
+          if(!gameStarted) return;
+          if(won) return;
+          if(v === -1) return;
+
+          if(canMove(i)){
+            doMove(i, true);
+          }
+        });
+
+        tile.appendChild(btn);
+        boardEl.appendChild(tile);
+      }
+    }
+
+    /******************************************************************
+     * MOVES / WIN CHECK
+     ******************************************************************/
+    function doMove(tileIndex, countMove){
+      const t = board[tileIndex];
+      board[tileIndex] = -1;
+      board[emptyIndex] = t;
+      emptyIndex = tileIndex;
+
+      if(countMove){
+        moves++;
+        movesText.textContent = String(moves);
+        checkWin();
+      }
+      render();
+    }
+
+    function checkWin(){
+      const rowTypes = [];
+      const rowCounts = [];
+
+      for(let r=0;r<H;r++){
+        let type = null;
+        let count = 0;
+
+        for(let c=0;c<W;c++){
+          const v = board[rcToIdx(r,c)];
+          if(v === -1) continue;
+          count++;
+          if(type === null) type = v;
+          else if(v !== type) return;
+        }
+
+        if(type === null) return;
+        rowTypes.push(type);
+        rowCounts.push(count);
+      }
+
+      const s = new Set(rowTypes);
+      if(s.size !== 4) return;
+
+      const sortedCounts = [...rowCounts].sort((a,b)=>a-b).join(",");
+      if(sortedCounts !== "4,5,5,5") return;
+
+      won = true;
+      stopTimer();
+      winBanner.classList.add("show");
+      gameStarted = false;
+      updateSubmitNote(true);
+      updateButtons();
+    }
+
+    /******************************************************************
+     * TIMER
+     ******************************************************************/
+    function startTimer(){
+      startTimeMs = Date.now();
+      stopTimer();
+      timerHandle = setInterval(() => {
+        const t = Math.max(0, Math.floor((Date.now() - startTimeMs) / 1000));
+        timeText.textContent = String(t);
+      }, 200);
+    }
+
+    function stopTimer(){
+      if(timerHandle){
+        clearInterval(timerHandle);
+        timerHandle = null;
+      }
+    }
+
+    function currentTimeSeconds(){
+      if(!timerHandle) return Number(timeText.textContent || "0");
+      return Math.max(0, Math.floor((Date.now() - startTimeMs) / 1000));
+    }
+
+    /******************************************************************
+     * SHUFFLE (3 seconds fast, always solvable)
+     ******************************************************************/
+    async function shuffleFor3Seconds(){
+      shuffling = true;
+      setDisabledUI(true);
+      overlayEl.classList.add("show");
+      updateButtons();
+
+      const end = performance.now() + 3000;
+      let lastEmpty = -1;
+
+      while(performance.now() < end){
+        const neigh = neighbors(emptyIndex);
+
+        let options = neigh.filter(n => n !== lastEmpty);
+        if(options.length === 0) options = neigh;
+
+        const pick = options[Math.floor(Math.random() * options.length)];
+        lastEmpty = emptyIndex;
+        doMove(pick, false);
+
+        await new Promise(res => setTimeout(res, 25));
+      }
+
+      overlayEl.classList.remove("show");
+      setDisabledUI(false);
+      shuffling = false;
+
+      // After shuffle, reset counters + start timer
+      moves = 0;
+      movesText.textContent = "0";
+      timeText.textContent = "0";
+
+      won = false;
+      winBanner.classList.remove("show");
+
+      gameStarted = true;
+      scoreSubmitted = false;
+      winId = newWinId();
+      updateSubmitNote();
+
+      startTimer();
+      render();
+      updateButtons();
+    }
+
+    /******************************************************************
+     * MODALS
+     ******************************************************************/
+    function openModal(el){
+      el.classList.add("show");
+      el.setAttribute("aria-hidden","false");
+    }
+    function closeModal(el){
+      el.classList.remove("show");
+      el.setAttribute("aria-hidden","true");
+    }
+
+    /******************************************************************
+     * LEADERBOARD
+     ******************************************************************/
+    function updateSubmitNote(forceWon){
+      const isWon = forceWon || won;
+
+      if(!firebaseReady){
+        submitNote.textContent = "Leaderboard saving is OFF until Firebase config is added.";
+        submitScoreBtn.disabled = true;
+        submitScoreBtn.style.opacity = 0.55;
+        return;
+      }
+
+      submitScoreBtn.disabled = !(isWon && !scoreSubmitted);
+      submitScoreBtn.style.opacity = submitScoreBtn.disabled ? 0.55 : 1;
+
+      if(!isWon){
+        submitNote.textContent = "Finish a game first — then submit. (Only 1 submission per win.)";
+      }else if(scoreSubmitted){
+        submitNote.textContent = "Score already submitted for this win ✅";
+      }else{
+        submitNote.textContent = "You won! Enter your name and submit (only once).";
+      }
+    }
+
+    async function loadLeaderboard(){
+      if(!firebaseReady){
+        lbBody.innerHTML = `<tr><td colspan="5">Firebase not configured yet.</td></tr>`;
+        return;
+      }
+
+      lbBody.innerHTML = `<tr><td colspan="5">Loading…</td></tr>`;
+
+      try{
+        const snap = await db.collection(SCORES_COLLECTION)
+          .orderBy("time", "asc")
+          .orderBy("moves", "asc")
+          .limit(10)
+          .get();
+
+        const rows = [];
+        let rank = 1;
+
+        snap.forEach(doc => {
+          const d = doc.data() || {};
+          rows.push({
+            rank,
+            name: d.name || "???",
+            time: Number.isFinite(d.time) ? d.time : 0,
+            moves: Number.isFinite(d.moves) ? d.moves : 0,
+            createdAt: d.createdAt?.toDate ? d.createdAt.toDate() : (d.createdAt || null)
+          });
+          rank++;
+        });
+
+        if(rows.length === 0){
+          lbBody.innerHTML = `<tr><td colspan="5">No scores yet. Be the first! 😄</td></tr>`;
+          return;
+        }
+
+        lbBody.innerHTML = rows.map((r, i) => {
+          const cls = i === 0 ? "top1" : i === 1 ? "top2" : i === 2 ? "top3" : "";
+          return `
+            <tr class="${cls}">
+              <td>${r.rank}</td>
+              <td>${escapeHtml(r.name)}</td>
+              <td>${r.time}s</td>
+              <td>${r.moves}</td>
+              <td>${r.createdAt ? formatDate(r.createdAt) : ""}</td>
+            </tr>
+          `;
+        }).join("");
+
+      }catch(e){
+        console.warn(e);
+        lbBody.innerHTML = `<tr><td colspan="5">Error loading leaderboard.</td></tr>`;
+      }
+    }
+
+    async function submitScore(){
+      if(!firebaseReady) return;
+      if(!won) return;
+      if(scoreSubmitted) return;
+
+      const name = (nameInput.value || "").trim();
+      if(name.length < 1 || name.length > 20){
+        submitNote.textContent = "Name must be 1–20 characters.";
+        return;
+      }
+
+      const time = currentTimeSeconds();
+
+      scoreSubmitted = true;
+      updateSubmitNote(true);
+
+      try{
+        await db.collection(SCORES_COLLECTION).add({
+          name,
+          moves,
+          time,
+          winId,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        submitNote.textContent = "Submitted ✅ Refreshing leaderboard…";
+        await loadLeaderboard();
+        submitNote.textContent = "Submitted ✅ (Top 10 updated)";
+      }catch(e){
+        console.warn(e);
+        scoreSubmitted = false;
+        updateSubmitNote(true);
+        submitNote.textContent = "Submit failed (Firebase rules/config). We’ll fix it next.";
+      }
+    }
+
+    /******************************************************************
+     * BUTTON ENABLE/DISABLE (keeps things clean)
+     ******************************************************************/
+    function updateButtons(){
+      btnNew.disabled = shuffling;
+      btnReset.disabled = shuffling;
+      btnStart.disabled = shuffling || gameStarted;
+    }
+
+    /******************************************************************
+     * BACK TO ARCADE MENU (✅ NEW)
+     ******************************************************************/
+    function goToArcadeMenu(){
+      // Typical structure:
+      // /index.html (menu)
+      // /row-match/index.html (this game)
+      // so go up one folder:
+      window.location.href = "../index.html";
+    }
+
+    /******************************************************************
+     * EVENTS
+     ******************************************************************/
+    btnBackMenu.addEventListener("click", goToArcadeMenu);
+
+    btnHow.addEventListener("click", () => openModal(howModal));
+    howBack.addEventListener("click", () => closeModal(howModal));
+
+    btnLeaderboard.addEventListener("click", async () => {
+      openModal(lbModal);
+      await loadLeaderboard();
+      updateSubmitNote();
+    });
+    lbBack.addEventListener("click", () => closeModal(lbModal));
+
+    submitScoreBtn.addEventListener("click", submitScore);
+
+    btnNew.addEventListener("click", () => {
+      if(shuffling) return;
+      newGame();
+    });
+
+    btnReset.addEventListener("click", () => {
+      if(shuffling) return;
+      stopTimer();
+      buildSolvedBoardUsingCurrentImages();
+    });
+
+    btnStart.addEventListener("click", async () => {
+      if(shuffling) return;
+      stopTimer();
+      buildSolvedBoardUsingCurrentImages();
+      await shuffleFor3Seconds();
+      updateSubmitNote();
+    });
+
+    howModal.addEventListener("click", (e) => {
+      if(e.target === howModal) closeModal(howModal);
+    });
+    lbModal.addEventListener("click", (e) => {
+      if(e.target === lbModal) closeModal(lbModal);
+    });
+
+    /******************************************************************
+     * INIT
+     ******************************************************************/
+    initFirebaseIfConfigured();
+
+    chosenImgs = pick4UniqueImages();
+    buildSolvedBoardUsingCurrentImages();
+    updateButtons();
+  </script>
+</body>
+</html>

@@ -27,7 +27,7 @@
       background: radial-gradient(circle at top, #6de0ff, #4c6fff);
       font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
       color:#fff;
-    } 
+    }
 
     .wrap{
       width: 980px;
@@ -283,6 +283,17 @@
     }
     .win-banner.show{ display:block; }
 
+    .chip{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:8px 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.12);
+      font-weight: 900;
+    }
+
     @media (max-width: 520px){
       .btn{ padding:10px 11px; border-radius: 12px; }
       .pill{ padding:10px 11px; border-radius: 12px; }
@@ -319,11 +330,38 @@
           <div class="board" id="board"></div>
 
           <div class="win-banner" id="winBanner">
-            🎉 You did it! Rows are matched. Open 🏆 Leaderboard to submit your score & see the top scores.
+            🎉 You did it! Rows are matched.
           </div>
         </div>
       </div>
 
+    </div>
+  </div>
+
+  <!-- PLAYER LOGIN MODAL -->
+  <div class="modal" id="playerModal" aria-hidden="true">
+    <div class="modal-card">
+      <div class="modal-head">
+        <div class="modal-title">👤 Choose Player</div>
+        <div class="chip" id="playerHint">Scores need a name</div>
+      </div>
+
+      <div class="section small">
+        <p style="margin:0 0 10px 0;">
+          Pick a username (no password) to submit scores — or play as <b>Anon</b> (no submitting).
+        </p>
+
+        <div class="row" style="margin-top:10px;">
+          <input id="playerNameInput" maxlength="20" placeholder="✍️ Enter username (1–20 chars)" />
+          <button class="btn" id="playerSaveBtn">✅ Use This Name</button>
+        </div>
+
+        <div class="row" style="margin-top:10px;">
+          <button class="btn" id="playerAnonBtn">🙈 Play as Anon</button>
+        </div>
+
+        <div class="note" id="playerNote"></div>
+      </div>
     </div>
   </div>
 
@@ -359,8 +397,14 @@
         <button class="btn" id="lbBack">⬅️ Back</button>
       </div>
 
-      <!-- ✅ Submit area sits above leaderboard (same idea as memory game) -->
       <div class="section">
+        <div class="row" style="justify-content:space-between;">
+          <div class="chip">👤 <span id="playerDisplay">Anon</span></div>
+          <button class="btn" id="changePlayerBtn">🔁 Change Player</button>
+        </div>
+
+        <div style="height:10px;"></div>
+
         <div class="row">
           <input id="nameInput" maxlength="20" placeholder="✍️ Your name (1–20 chars)" />
           <button class="btn" id="submitScoreBtn">✅ Submit Score</button>
@@ -427,6 +471,12 @@
 
     let chosenImgs = [];
 
+    // ✅ Player system (saved like memory game)
+    const LS_PLAYER_NAME = "lo_rowmatch_playerName";
+    const LS_PLAYER_ANON = "lo_rowmatch_isAnon";
+    let playerName = "";
+    let isAnon = true;
+
     const boardEl = document.getElementById("board");
     const overlayEl = document.getElementById("overlay");
     const boardWrapEl = document.getElementById("boardWrap");
@@ -453,6 +503,15 @@
 
     const winBanner = document.getElementById("winBanner");
 
+    // Player modal
+    const playerModal = document.getElementById("playerModal");
+    const playerNameInput = document.getElementById("playerNameInput");
+    const playerSaveBtn = document.getElementById("playerSaveBtn");
+    const playerAnonBtn = document.getElementById("playerAnonBtn");
+    const playerNote = document.getElementById("playerNote");
+    const playerDisplay = document.getElementById("playerDisplay");
+    const changePlayerBtn = document.getElementById("changePlayerBtn");
+
     let db = null;
     let firebaseReady = false;
 
@@ -462,7 +521,10 @@
           firebaseReady = false;
           return;
         }
-        firebase.initializeApp(firebaseConfig);
+        // ✅ Guard: don't double-init
+        if (firebase.apps && firebase.apps.length === 0){
+          firebase.initializeApp(firebaseConfig);
+        }
         db = firebase.firestore();
         firebaseReady = true;
       }catch(e){
@@ -531,6 +593,78 @@
         .replaceAll(">","&gt;")
         .replaceAll('"',"&quot;")
         .replaceAll("'","&#039;");
+    }
+
+    function openModal(el){
+      el.classList.add("show");
+      el.setAttribute("aria-hidden","false");
+    }
+    function closeModal(el){
+      el.classList.remove("show");
+      el.setAttribute("aria-hidden","true");
+    }
+
+    // ✅ Load player from localStorage
+    function loadPlayer(){
+      const savedName = (localStorage.getItem(LS_PLAYER_NAME) || "").trim();
+      const savedAnon = localStorage.getItem(LS_PLAYER_ANON);
+
+      if(savedAnon === "false" && savedName.length >= 1){
+        playerName = savedName;
+        isAnon = false;
+      }else if(savedAnon === "true"){
+        playerName = "";
+        isAnon = true;
+      }else if(savedName.length >= 1){
+        // if name exists but anon flag missing, assume named player
+        playerName = savedName;
+        isAnon = false;
+      }else{
+        playerName = "";
+        isAnon = true;
+      }
+
+      syncPlayerUI();
+    }
+
+    function setPlayerNamed(name){
+      playerName = name.trim().slice(0,20);
+      isAnon = false;
+      localStorage.setItem(LS_PLAYER_NAME, playerName);
+      localStorage.setItem(LS_PLAYER_ANON, "false");
+      syncPlayerUI();
+    }
+
+    function setPlayerAnon(){
+      playerName = "";
+      isAnon = true;
+      localStorage.removeItem(LS_PLAYER_NAME);
+      localStorage.setItem(LS_PLAYER_ANON, "true");
+      syncPlayerUI();
+    }
+
+    function syncPlayerUI(){
+      playerDisplay.textContent = isAnon ? "Anon" : playerName;
+      nameInput.value = isAnon ? "" : playerName;
+
+      // if anon, keep placeholder and allow typing BUT it won't submit
+      if(isAnon){
+        nameInput.placeholder = "Anon mode (no submitting)";
+      }else{
+        nameInput.placeholder = "✍️ Your name (1–20 chars)";
+      }
+      updateSubmitNote();
+    }
+
+    function ensurePlayerChosen(){
+      // Show modal if no explicit choice yet (neither anon flag nor name)
+      const hasAnonFlag = localStorage.getItem(LS_PLAYER_ANON) !== null;
+      const hasName = (localStorage.getItem(LS_PLAYER_NAME) || "").trim().length > 0;
+
+      if(!hasAnonFlag && !hasName){
+        openModal(playerModal);
+        setTimeout(() => playerNameInput.focus(), 50);
+      }
     }
 
     function buildSolvedBoardUsingCurrentImages(){
@@ -626,6 +760,19 @@
       render();
     }
 
+    async function onWinOpenLeaderboard(){
+      // ✅ This is the missing behaviour you want:
+      // Auto-open leaderboard modal right when a win happens
+      openModal(lbModal);
+      await loadLeaderboard();
+      updateSubmitNote(true);
+
+      // focus name box if they can submit
+      if(!isAnon && !scoreSubmitted){
+        setTimeout(() => nameInput.focus(), 60);
+      }
+    }
+
     function checkWin(){
       const rowTypes = [];
       const rowCounts = [];
@@ -657,8 +804,13 @@
       stopTimer();
       winBanner.classList.add("show");
       gameStarted = false;
-      updateSubmitNote(true);
       updateButtons();
+
+      // ✅ force note into "won" state
+      updateSubmitNote(true);
+
+      // ✅ AUTO POPUP leaderboard submit
+      onWinOpenLeaderboard();
     }
 
     function startTimer(){
@@ -725,17 +877,8 @@
       updateButtons();
     }
 
-    function openModal(el){
-      el.classList.add("show");
-      el.setAttribute("aria-hidden","false");
-    }
-    function closeModal(el){
-      el.classList.remove("show");
-      el.setAttribute("aria-hidden","true");
-    }
-
     function updateSubmitNote(forceWon){
-      const isWon = forceWon || won;
+      const isWonNow = forceWon || won;
 
       if(!firebaseReady){
         submitNote.textContent = "Leaderboard saving is OFF until Firebase config is added.";
@@ -744,15 +887,23 @@
         return;
       }
 
-      submitScoreBtn.disabled = !(isWon && !scoreSubmitted);
+      if(isAnon){
+        submitNote.textContent = "You are playing as Anon — scores can’t be submitted. Tap “Change Player” to add a username.";
+        submitScoreBtn.disabled = true;
+        submitScoreBtn.style.opacity = 0.55;
+        return;
+      }
+
+      // Named player
+      submitScoreBtn.disabled = !(isWonNow && !scoreSubmitted);
       submitScoreBtn.style.opacity = submitScoreBtn.disabled ? 0.55 : 1;
 
-      if(!isWon){
+      if(!isWonNow){
         submitNote.textContent = "Finish a game first — then submit. (Only 1 submission per win.)";
       }else if(scoreSubmitted){
         submitNote.textContent = "Score already submitted for this win ✅";
       }else{
-        submitNote.textContent = "You won! Enter your name and submit (only once).";
+        submitNote.textContent = "You won! Submit your score (only once).";
       }
     }
 
@@ -814,11 +965,20 @@
       if(!firebaseReady) return;
       if(!won) return;
       if(scoreSubmitted) return;
+      if(isAnon) return;
 
-      const name = (nameInput.value || "").trim();
+      // use saved player name (but allow editing the box if you want)
+      const entered = (nameInput.value || "").trim();
+      const name = entered.length ? entered : playerName;
+
       if(name.length < 1 || name.length > 20){
         submitNote.textContent = "Name must be 1–20 characters.";
         return;
+      }
+
+      // if they typed a new name, persist it
+      if(name !== playerName){
+        setPlayerNamed(name);
       }
 
       const time = currentTimeSeconds();
@@ -856,6 +1016,9 @@
       window.location.href = "../index.html";
     }
 
+    // ----------------
+    // Events
+    // ----------------
     btnBackMenu.addEventListener("click", goToArcadeMenu);
 
     btnHow.addEventListener("click", () => openModal(howModal));
@@ -865,6 +1028,9 @@
       openModal(lbModal);
       await loadLeaderboard();
       updateSubmitNote();
+      if(!isAnon && won && !scoreSubmitted){
+        setTimeout(() => nameInput.focus(), 60);
+      }
     });
     lbBack.addEventListener("click", () => closeModal(lbModal));
 
@@ -892,10 +1058,50 @@
     howModal.addEventListener("click", (e) => { if(e.target === howModal) closeModal(howModal); });
     lbModal.addEventListener("click", (e) => { if(e.target === lbModal) closeModal(lbModal); });
 
+    // Player modal events
+    playerSaveBtn.addEventListener("click", () => {
+      const n = (playerNameInput.value || "").trim();
+      if(n.length < 1 || n.length > 20){
+        playerNote.textContent = "Username must be 1–20 characters.";
+        return;
+      }
+      setPlayerNamed(n);
+      playerNote.textContent = "";
+      closeModal(playerModal);
+      // keep leaderboard name input in sync
+      nameInput.value = playerName;
+      updateSubmitNote();
+    });
+
+    playerAnonBtn.addEventListener("click", () => {
+      setPlayerAnon();
+      playerNote.textContent = "";
+      closeModal(playerModal);
+      updateSubmitNote();
+    });
+
+    changePlayerBtn.addEventListener("click", () => {
+      // show modal again and prefill
+      playerNameInput.value = isAnon ? "" : playerName;
+      playerNote.textContent = "";
+      openModal(playerModal);
+      setTimeout(() => playerNameInput.focus(), 50);
+    });
+
+    playerModal.addEventListener("click", (e) => { if(e.target === playerModal) closeModal(playerModal); });
+
+    // ----------------
+    // Init
+    // ----------------
     initFirebaseIfConfigured();
+    loadPlayer();
+
     chosenImgs = pick4UniqueImages();
     buildSolvedBoardUsingCurrentImages();
     updateButtons();
+
+    // ✅ prompt once on first ever visit
+    ensurePlayerChosen();
   </script>
 </body>
 </html>

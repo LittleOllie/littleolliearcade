@@ -26,7 +26,7 @@ body {
   box-shadow: 0 12px 28px rgba(0,0,0,0.35);
   width: 960px;
   max-width: 96vw;
-} 
+}
 
 .header-image {
   width: 100%;
@@ -75,6 +75,26 @@ button:disabled,
   cursor: not-allowed;
 }
 
+/* ✅ Make dropdowns yellow too */
+select {
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: none;
+  outline: none;
+  font-weight: 900;
+  background: #ffdd55;
+  color: #222;
+}
+
+/* Inputs */
+input{
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: none;
+  outline:none;
+}
+
+/* Board */
 .game-board {
   display: grid;
   gap: 10px;
@@ -285,10 +305,62 @@ hr {
   max-width: 92vw;
   text-align:center;
 }
+
+/* Player overlay styling bits */
+.player-hint{
+  opacity: .92;
+  font-weight: 800;
+  line-height: 1.35;
+  margin-top: 10px;
+}
+.player-row{
+  display:flex;
+  gap:10px;
+  align-items:center;
+  justify-content:center;
+  flex-wrap:wrap;
+  margin-top: 12px;
+}
+.player-row input{
+  width: min(320px, 84vw);
+}
+.smallnote{
+  opacity:.9;
+  font-size: 12px;
+  font-weight: 800;
+  margin-top: 8px;
+}
 </style>
 </head>
 
 <body>
+
+<!-- ✅ PLAYER GATE OVERLAY -->
+<div class="overlay" id="playerOverlay" style="display:none;">
+  <div class="overlay-box">
+    <h2>👤 Choose your player name</h2>
+
+    <div class="player-row">
+      <input id="playerGateInput" maxlength="20" placeholder="Enter a username (1–20 chars)" />
+      <button id="savePlayerBtn">✅ Save Name</button>
+    </div>
+
+    <div class="player-row" style="margin-top:8px;">
+      <button id="continueAnonBtn">😶 Continue as Anon</button>
+      <button id="clearPlayerBtn" title="Forget saved name">🧹 Clear</button>
+    </div>
+
+    <div class="player-hint">
+      If you play as <b>Anon</b> you can still enjoy the game, but you <b>can’t submit scores</b>.
+    </div>
+    <div class="smallnote">
+      (No password. Name saves on this device.)
+    </div>
+
+    <hr />
+    <button id="playerOverlayOkBtn">▶️ Continue</button>
+  </div>
+</div>
 
 <!-- START -->
 <div class="overlay" id="startOverlay">
@@ -320,7 +392,6 @@ hr {
       <button class="btn" id="submitScoreBtn">📤 Submit Score</button>
     </div>
 
-    <!-- ✅ Leaderboard remains visible right under submission -->
     <div class="leaderboard" id="winLeaderboardBox">
       <div class="lb-title">
         <h3>🏆 Leaderboard (<span id="lbDiff">easy</span>)</h3>
@@ -348,7 +419,7 @@ hr {
 
     <div class="controls" style="margin-top:12px;">
       <label style="font-weight:900;">🎚️ Difficulty:</label>
-      <select id="lbSelect" style="padding:10px 12px;border-radius:12px;border:none;outline:none;font-weight:900;">
+      <select id="lbSelect">
         <option value="easy">😊 Easy</option>
         <option value="medium">😎 Medium</option>
         <option value="hard">🔥 Hard</option>
@@ -420,6 +491,47 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+
+/* =========================
+   PLAYER (localStorage)
+   ========================= */
+const LS_PLAYER_NAME = "lo_player_name_v1";
+const LS_PLAYER_ID   = "lo_player_id_v1";
+
+/* tiny id helper */
+function makeId(){
+  if (crypto?.randomUUID) return crypto.randomUUID();
+  return "p_" + Date.now() + "_" + Math.random().toString(16).slice(2);
+}
+
+function getPlayer(){
+  const name = (localStorage.getItem(LS_PLAYER_NAME) || "").trim();
+  let id = (localStorage.getItem(LS_PLAYER_ID) || "").trim();
+  if (!id) {
+    id = makeId();
+    localStorage.setItem(LS_PLAYER_ID, id);
+  }
+  return { name, id, isAnon: !name };
+}
+
+function setPlayerName(name){
+  const clean = (name || "").trim().slice(0, 20);
+  if (clean) localStorage.setItem(LS_PLAYER_NAME, clean);
+  else localStorage.removeItem(LS_PLAYER_NAME);
+}
+
+function clearPlayer(){
+  localStorage.removeItem(LS_PLAYER_NAME);
+  // keep id so you still track device if you want
+}
+
+/* Player overlay DOM */
+const playerOverlay = document.getElementById("playerOverlay");
+const playerGateInput = document.getElementById("playerGateInput");
+const savePlayerBtn = document.getElementById("savePlayerBtn");
+const continueAnonBtn = document.getElementById("continueAnonBtn");
+const clearPlayerBtn = document.getElementById("clearPlayerBtn");
+const playerOverlayOkBtn = document.getElementById("playerOverlayOkBtn");
 
 /* =========================
    GAME
@@ -615,6 +727,27 @@ function buildOrderedPairs(totalPairs){
   return paired;
 }
 
+/* ✅ Optional tracking: log a "play" when the game starts */
+async function logPlay(diffKey){
+  try{
+    const p = getPlayer();
+    // If you want only named players tracked, uncomment:
+    // if (p.isAnon) return;
+
+    await addDoc(collection(db, "plays"), {
+      playerId: p.id,
+      name: p.name || "Anon",
+      named: !p.isAnon,
+      game: "memory",
+      difficulty: diffKey,
+      createdAt: serverTimestamp()
+    });
+  }catch(e){
+    // silent — don't break gameplay
+    console.warn("play log failed:", e?.code || e);
+  }
+}
+
 function startGame(diffKey){
   currentDiff = diffKey;
   resetStats();
@@ -624,6 +757,9 @@ function startGame(diffKey){
 
   const cfg = DIFFS[diffKey];
   if (!cfg) { alert("Difficulty key not found: " + diffKey); return; }
+
+  // ✅ log a play when someone starts a run
+  logPlay(diffKey);
 
   totalPairs = cfg.pairs;
   totalEl.textContent = totalPairs;
@@ -771,6 +907,10 @@ board.addEventListener("click", (e) => {
         updateStreakBadges();
         startLeaderboardListener(currentDiff, "win");
         updateRankAndCelebrate();
+
+        // ✅ Auto-fill name + lock submit if anon
+        syncPlayerToWinInput();
+        applySubmitRulesForPlayer();
       }
     } else {
       playWrong();
@@ -868,7 +1008,7 @@ function renderLeaderboardInto(items, listEl, statusEl, dividerEl){
 
   items.forEach((it, idx) => {
     const name = it.name || "Anonymous";
-    const meta = `${it.moves} moves · ${it.time}s`; // ✅ always show both
+    const meta = `${it.moves} moves · ${it.time}s`;
 
     const li = document.createElement("li");
     li.className = "lb-row" + rankClass(idx);
@@ -960,7 +1100,7 @@ function startLeaderboardListener(diff, context){
   else leaderboardUnsub2 = unsub;
 }
 
-/* ANTI-SPAM: local only (works with your Rules) */
+/* ANTI-SPAM: local only */
 function getWinId(win){
   return `${win.diff}|${win.moves}|${win.time}|${win.gameStartMs}`;
 }
@@ -986,7 +1126,40 @@ function scrollToWinLeaderboard(){
   try { winLeaderboardBox.scrollIntoView({ behavior: "smooth", block: "start" }); } catch {}
 }
 
+/* ✅ Player -> win input */
+function syncPlayerToWinInput(){
+  const p = getPlayer();
+  if (!p.isAnon) {
+    playerNameEl.value = p.name;
+  } else {
+    // keep whatever they typed, but you can also force blank:
+    // playerNameEl.value = "";
+  }
+}
+
+/* ✅ If anon: block submissions */
+function applySubmitRulesForPlayer(){
+  const p = getPlayer();
+  if (p.isAnon) {
+    submitScoreBtn.disabled = true;
+    submitScoreBtn.textContent = "🚫 Set name to submit";
+    toast("Anon mode: no score submissions");
+  } else {
+    // only re-enable if not already submitted by anti-spam logic
+    if (!submittedThisWin) {
+      submitScoreBtn.disabled = false;
+      submitScoreBtn.textContent = "📤 Submit Score";
+    }
+  }
+}
+
 submitScoreBtn.addEventListener("click", async () => {
+  const p = getPlayer();
+  if (p.isAnon){
+    alert("Anon can’t submit scores. Go back and set a name 👤");
+    return;
+  }
+
   if (!lastWin) return;
 
   if (submittedThisWin){
@@ -1006,8 +1179,9 @@ submitScoreBtn.addEventListener("click", async () => {
     return;
   }
 
+  // Use saved name unless they typed something different
   const rawName = (playerNameEl.value || "").trim();
-  const name = rawName.slice(0, 20) || "Anonymous";
+  const name = rawName.slice(0, 20) || p.name || "Anonymous";
 
   submitScoreBtn.disabled = true;
   submitScoreBtn.textContent = "⏳ Submitting…";
@@ -1027,7 +1201,7 @@ submitScoreBtn.addEventListener("click", async () => {
 
     submitScoreBtn.textContent = "✅ Submitted";
     toast("🏆 Score added!");
-    startLeaderboardListener(lastWin.diff, "win"); // ✅ refresh leaderboard after submit
+    startLeaderboardListener(lastWin.diff, "win");
     updateRankAndCelebrate();
     scrollToWinLeaderboard();
 
@@ -1095,6 +1269,64 @@ async function updateRankAndCelebrate(){
     // keep —
   }
 }
+
+/* =========================
+   PLAYER OVERLAY FLOW (INIT)
+   ========================= */
+function showPlayerOverlayIfNeeded(){
+  const p = getPlayer();
+
+  // If a name already exists, skip overlay
+  if (!p.isAnon) {
+    playerOverlay.style.display = "none";
+    startOverlay.style.display = "flex";
+    return;
+  }
+
+  // else show overlay first
+  playerOverlay.style.display = "flex";
+  startOverlay.style.display = "none";
+}
+
+function proceedToStart(){
+  playerOverlay.style.display = "none";
+  startOverlay.style.display = "flex";
+}
+
+savePlayerBtn.addEventListener("click", () => {
+  const name = (playerGateInput.value || "").trim();
+  if (name.length < 1 || name.length > 20){
+    alert("Name must be 1–20 characters.");
+    return;
+  }
+  setPlayerName(name);
+  toast(`Saved: ${name}`);
+});
+
+continueAnonBtn.addEventListener("click", () => {
+  // do nothing, stay anon
+  toast("Continuing as Anon");
+});
+
+clearPlayerBtn.addEventListener("click", () => {
+  clearPlayer();
+  playerGateInput.value = "";
+  toast("Cleared saved name");
+});
+
+playerOverlayOkBtn.addEventListener("click", () => {
+  // if they typed something but didn't press save, save it anyway
+  const typed = (playerGateInput.value || "").trim();
+  if (typed) setPlayerName(typed.slice(0,20));
+  proceedToStart();
+});
+
+/* On load, prefill gate if existing (usually none) */
+(function initPlayer(){
+  const p = getPlayer();
+  if (!p.isAnon) playerGateInput.value = p.name;
+  showPlayerOverlayIfNeeded();
+})();
 </script>
 </body>
 </html>

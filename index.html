@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Little Ollie Arcade</title>
 
-  <!-- PWA can stay, but UI removed -->
+  <!-- PWA can stay -->
   <link rel="manifest" href="manifest.webmanifest" />
   <meta name="theme-color" content="#4c6fff" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -19,21 +19,20 @@
       --bg1:#6de0ff;
       --bg2:#4c6fff;
 
-      --cabinet:#1a1730;
-      --cabinet2:#131126;
-      --trim: rgba(255,255,255,.14);
-
-      --screen: rgba(0,0,0,.28);
-      --screenBorder: rgba(255,255,255,.16);
-
       --shadow: 0 18px 44px rgba(0,0,0,.35);
       --soft: 0 10px 22px rgba(0,0,0,.25);
 
       --radius: 22px;
       --radius2: 16px;
 
-      --accent: #ffdd55;
-      --accent2: #7cffc7;
+      --accent: #ffdd55;          /* ✅ Yellow everywhere */
+      --accentText: #161616;
+      --trim: rgba(255,255,255,.14);
+
+      --screen: rgba(0,0,0,.28);
+      --screenBorder: rgba(255,255,255,.16);
+
+      --panel: rgba(0,0,0,.18);
     }
 
     body{
@@ -48,13 +47,10 @@
       color:#fff;
     }
 
-    .wrap{
-      width: 980px;
-      max-width: 96vw;
-    }
+    .wrap{ width: 980px; max-width: 96vw; }
 
     .panel{
-      background: rgba(0,0,0,.18);
+      background: var(--panel);
       border-radius: var(--radius);
       padding: 14px;
       box-shadow: var(--shadow);
@@ -68,6 +64,61 @@
       border-radius: 16px;
       box-shadow: var(--soft);
     }
+
+    /* ✅ Top status bar */
+    .statusbar{
+      margin-top: 12px;
+      background: rgba(0,0,0,.16);
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 18px;
+      padding: 10px 12px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      box-shadow: 0 10px 22px rgba(0,0,0,.18);
+    }
+
+    .pill{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      padding: 10px 12px;
+      border-radius: 16px;
+      background: rgba(255,255,255,.10);
+      border: 1px solid rgba(255,255,255,.12);
+      font-weight: 900;
+      letter-spacing: .2px;
+      white-space:nowrap;
+    }
+
+    .pill small{
+      opacity:.9;
+      font-weight: 800;
+      letter-spacing: .1px;
+    }
+
+    .btn{
+      border:0;
+      cursor:pointer;
+      padding: 10px 12px;
+      border-radius: 16px;
+      background: var(--accent);      /* ✅ Yellow */
+      color: var(--accentText);
+      font-weight: 950;
+      letter-spacing: .2px;
+      box-shadow: 0 10px 18px rgba(0,0,0,.18);
+      transition: transform .08s ease, filter .12s ease;
+      user-select:none;
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      text-decoration:none;
+    }
+    .btn:hover{ filter: brightness(1.03); transform: translateY(-1px); }
+    .btn:active{ transform: translateY(0px) scale(.99); }
+    .btn:disabled{ cursor:not-allowed; opacity:.65; transform:none; }
 
     .grid{
       margin-top: 14px;
@@ -194,8 +245,8 @@
       padding: 12px 14px;
       font-weight: 950;
       letter-spacing: .2px;
-      background: var(--accent);
-      color:#161616;
+      background: var(--accent);      /* ✅ Yellow */
+      color: var(--accentText);
       box-shadow: 0 12px 26px rgba(0,0,0,.25);
       border: 1px solid rgba(255,255,255,.12);
       user-select:none;
@@ -252,7 +303,6 @@
     .btnDot.b{ background: rgba(124, 255, 199, .55); }
     .btnDot.c{ background: rgba(255, 221, 85, .55); }
 
-    /* Small footer (optional, minimal) */
     .foot{
       margin-top: 12px;
       opacity: .88;
@@ -260,15 +310,125 @@
       font-size: 12px;
       text-align:center;
     }
+
+    /* ✅ Login modal */
+    .overlay{
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.62);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      z-index: 9999;
+      padding: 14px;
+    }
+    .overlay.show{ display:flex; }
+
+    .modal{
+      width: min(560px, 96vw);
+      background: rgba(20,22,30,.96);
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 22px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.55);
+      padding: 14px;
+    }
+    .modal h2{
+      margin: 0 0 6px;
+      font-size: 20px;
+      font-weight: 950;
+      letter-spacing: .2px;
+    }
+    .modal p{
+      margin: 0 0 10px;
+      opacity: .93;
+      font-weight: 750;
+      line-height: 1.35;
+      font-size: 13px;
+    }
+    .modal .row{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+      margin-top: 10px;
+    }
+    .modal input{
+      flex: 1 1 220px;
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.10);
+      color:#fff;
+      border-radius: 16px;
+      padding: 11px 12px;
+      outline:none;
+      font-weight: 900;
+    }
+    .modal input::placeholder{ color: rgba(255,255,255,.7); }
+
+    .modal .miniNote{
+      margin-top: 10px;
+      opacity:.9;
+      font-size: 12px;
+      font-weight: 750;
+      line-height: 1.35;
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.10);
+      padding: 10px 12px;
+      border-radius: 16px;
+    }
+
+    .subtleLink{
+      color: rgba(255,255,255,.92);
+      text-decoration: underline;
+      cursor:pointer;
+      font-weight: 900;
+    }
   </style>
 </head>
 
 <body>
+  <!-- ✅ Player modal -->
+  <div class="overlay" id="playerOverlay" aria-hidden="true">
+    <div class="modal">
+      <h2>👋 Welcome to Little Ollie Arcade</h2>
+      <p>
+        Pick a player name so your scores can be saved on leaderboards.
+        <br/>Or play as <b>Anon</b> (you can still play, but you <b>can’t submit scores</b>).
+      </p>
+
+      <div class="row">
+        <input id="playerInput" maxlength="20" placeholder="Enter a name (1–20 chars)" />
+        <button class="btn" id="savePlayerBtn">✅ Save Name</button>
+        <button class="btn" id="playAnonBtn">😎 Play as Anon</button>
+      </div>
+
+      <div class="miniNote">
+        <b>FYI:</b> No password. Your name is stored on your device (browser) only.
+        You can change it anytime from the Arcade page.
+      </div>
+    </div>
+  </div>
+
   <div class="wrap">
     <div class="panel">
 
-      <!-- Your existing header -->
       <img class="header" src="header.png" alt="Little Ollie Arcade" />
+
+      <!-- ✅ Status bar (player + global plays) -->
+      <div class="statusbar">
+        <div class="pill">
+          👤 <span id="playerLabel">Player: —</span>
+          <small id="playerCanSubmit" style="margin-left:6px;">—</small>
+        </div>
+
+        <div class="pill">
+          🎮 Games played: <span id="playsLabel">—</span>
+          <small id="playsStatus" style="margin-left:6px;">Loading…</small>
+        </div>
+
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <button class="btn" id="changeNameBtn">✏️ Change name</button>
+        </div>
+      </div>
 
       <div class="grid">
         <!-- Memory Game -->
@@ -381,8 +541,215 @@
     </div>
   </div>
 
-  <!-- (Optional) keep SW registration if you already have sw.js working -->
-  <script>
+  <script type="module">
+    /******************************************************************
+     * PLAYER NAME (local only)
+     ******************************************************************/
+    const STORAGE_PLAYER = "lo_arcade_player_v1";
+    const STORAGE_VISITED = "lo_arcade_visited_v1"; // used for "unique visits" if you want later
+
+    const playerOverlay = document.getElementById("playerOverlay");
+    const playerInput   = document.getElementById("playerInput");
+    const savePlayerBtn = document.getElementById("savePlayerBtn");
+    const playAnonBtn   = document.getElementById("playAnonBtn");
+    const changeNameBtn = document.getElementById("changeNameBtn");
+
+    const playerLabel   = document.getElementById("playerLabel");
+    const playerCanSubmit = document.getElementById("playerCanSubmit");
+
+    function escapeHtml(s){
+      return String(s).replace(/[&<>"']/g, m => ({
+        "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
+      }[m]));
+    }
+
+    function getPlayer(){
+      try{
+        const raw = localStorage.getItem(STORAGE_PLAYER);
+        if(!raw) return { name: "Anon", canSubmit: false };
+        const obj = JSON.parse(raw);
+        if(!obj || typeof obj.name !== "string") return { name: "Anon", canSubmit: false };
+        const name = obj.name.trim().slice(0,20);
+        const canSubmit = !!obj.canSubmit && name.toLowerCase() !== "anon";
+        return { name: name || "Anon", canSubmit };
+      }catch{
+        return { name: "Anon", canSubmit: false };
+      }
+    }
+
+    function setPlayer(name, canSubmit){
+      const clean = String(name || "").trim().slice(0,20);
+      const finalName = clean || "Anon";
+      const finalCanSubmit = !!canSubmit && finalName.toLowerCase() !== "anon";
+      localStorage.setItem(STORAGE_PLAYER, JSON.stringify({ name: finalName, canSubmit: finalCanSubmit }));
+      updatePlayerUI();
+    }
+
+    function updatePlayerUI(){
+      const p = getPlayer();
+      playerLabel.innerHTML = `Player: <b>${escapeHtml(p.name)}</b>`;
+      playerCanSubmit.textContent = p.canSubmit ? "✅ Score submit ON" : "🚫 Score submit OFF";
+    }
+
+    function openPlayerModal(){
+      playerOverlay.classList.add("show");
+      playerOverlay.setAttribute("aria-hidden","false");
+      playerInput.value = "";
+      setTimeout(() => playerInput.focus(), 80);
+    }
+
+    function closePlayerModal(){
+      playerOverlay.classList.remove("show");
+      playerOverlay.setAttribute("aria-hidden","true");
+    }
+
+    savePlayerBtn.addEventListener("click", () => {
+      const name = (playerInput.value || "").trim();
+      if(name.length < 1 || name.length > 20){
+        alert("Name must be 1–20 characters.");
+        return;
+      }
+      if(name.toLowerCase() === "anon" || name.toLowerCase() === "anonymous"){
+        alert("Please pick a different name (not Anon).");
+        return;
+      }
+      setPlayer(name, true);
+      closePlayerModal();
+    });
+
+    playAnonBtn.addEventListener("click", () => {
+      setPlayer("Anon", false);
+      closePlayerModal();
+    });
+
+    changeNameBtn.addEventListener("click", () => openPlayerModal());
+
+    // Click outside modal closes
+    playerOverlay.addEventListener("click", (e) => {
+      if(e.target === playerOverlay) closePlayerModal();
+    });
+
+    // First load: if no player chosen, show modal
+    updatePlayerUI();
+    const existing = localStorage.getItem(STORAGE_PLAYER);
+    if(!existing){
+      openPlayerModal();
+    }
+
+    /******************************************************************
+     * FIREBASE (GLOBAL "GAMES PLAYED" COUNTER)
+     * Uses your Memory Game firebase project so you don't need a new one.
+     ******************************************************************/
+    const playsLabel  = document.getElementById("playsLabel");
+    const playsStatus = document.getElementById("playsStatus");
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCpoXdJ1ASWEhp9IM4hm_LeVOW0VFqQ2hg",
+      authDomain: "little-ollie-memory.firebaseapp.com",
+      projectId: "little-ollie-memory",
+      storageBucket: "little-ollie-memory.firebasestorage.app",
+      messagingSenderId: "846792708520",
+      appId: "1:846792708520:web:851cf20bf6a80754cd8d9d",
+      measurementId: "G-CJCEBPSS2M"
+    };
+
+    let db = null;
+    let onSnapshot, doc, getFirestore, initializeApp, setDoc, updateDoc, increment, serverTimestamp;
+
+    try{
+      ({ initializeApp } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js"));
+      const fs = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js");
+      ({ getFirestore, onSnapshot, doc, setDoc, updateDoc, increment, serverTimestamp } = fs);
+
+      const app = initializeApp(firebaseConfig);
+      db = getFirestore(app);
+    }catch(e){
+      console.warn("Firebase failed on Arcade page:", e);
+      playsLabel.textContent = "—";
+      playsStatus.textContent = "Firebase not loading";
+    }
+
+    // Document that holds global stats
+    const STATS_DOC_PATH = ["arcade_stats", "global"];
+
+    async function ensureStatsDoc(){
+      if(!db) return;
+      const ref = doc(db, ...STATS_DOC_PATH);
+      try{
+        // Create if missing (safe)
+        await setDoc(ref, {
+          plays: 0,
+          visitors: 0,
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+      }catch{}
+    }
+
+    async function markVisitorOnce(){
+      // Optional: increments "visitors" once per browser
+      if(!db) return;
+      const ref = doc(db, ...STATS_DOC_PATH);
+
+      const already = localStorage.getItem(STORAGE_VISITED) === "1";
+      if(already) return;
+
+      try{
+        await updateDoc(ref, {
+          visitors: increment(1),
+          updatedAt: serverTimestamp()
+        });
+        localStorage.setItem(STORAGE_VISITED, "1");
+      }catch{}
+    }
+
+    // ✅ Expose a helper games can call later to increment plays
+    // (You’ll add ONE line in each game: window.LO_ARCADE?.trackPlay(); )
+    async function trackPlay(){
+      if(!db) return;
+      const ref = doc(db, ...STATS_DOC_PATH);
+      try{
+        await updateDoc(ref, {
+          plays: increment(1),
+          updatedAt: serverTimestamp()
+        });
+      }catch(e){
+        console.warn("trackPlay failed:", e);
+      }
+    }
+
+    // Also expose player getter so games can use the same name automatically
+    function getArcadePlayer(){
+      return getPlayer(); // {name, canSubmit}
+    }
+
+    window.LO_ARCADE = {
+      trackPlay,
+      getPlayer: getArcadePlayer
+    };
+
+    // Live display of global plays
+    async function startStatsListener(){
+      if(!db) return;
+      await ensureStatsDoc();
+      await markVisitorOnce();
+
+      const ref = doc(db, ...STATS_DOC_PATH);
+      onSnapshot(ref, (snap) => {
+        const d = snap.data() || {};
+        const plays = Number.isFinite(d.plays) ? d.plays : 0;
+        playsLabel.textContent = String(plays);
+        playsStatus.textContent = "Live";
+      }, (err) => {
+        console.warn("Stats listener error:", err);
+        playsStatus.textContent = "Stats error";
+      });
+    }
+
+    startStatsListener();
+
+    /******************************************************************
+     * SERVICE WORKER (optional)
+     ******************************************************************/
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("./sw.js").catch(() => {});
     }

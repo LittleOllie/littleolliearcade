@@ -1,4 +1,4 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -76,24 +76,21 @@
       outline: none;
     }
 
-select{
-  background: var(--btnYellow);
-  color: var(--btnText);
-  min-width: 170px;
-  font-weight: 900;
-  box-shadow: var(--btnShadow);
-  cursor: pointer;
-}
+    select{
+      background: var(--btnYellow);
+      color: var(--btnText);
+      min-width: 170px;
+      font-weight: 900;
+      box-shadow: var(--btnShadow);
+      cursor: pointer;
+    }
 
-/* keep inputs white */
-input{
-  background: rgba(255,255,255,.92);
-  color:#111;
-  min-width: 170px;
-}
+    input{
+      background: rgba(255,255,255,.92);
+      color:#111;
+      min-width: 170px;
+    }
 
-
-    /* ✅ all buttons same yellow */
     button{
       cursor:pointer;
       color: var(--btnText);
@@ -103,6 +100,7 @@ input{
     }
     button:hover{ filter: brightness(1.03); }
     button:active{ transform: scale(.98); }
+    button:disabled{ opacity:.6; cursor:not-allowed; }
 
     .stats{
       display:flex;
@@ -220,7 +218,6 @@ input{
       align-items:center;
     }
 
-    /* Leaderboard */
     .leaderboard{
       margin-top: 10px;
       border-radius: 14px;
@@ -253,6 +250,17 @@ input{
       pointer-events:none;
       z-index: 60;
       display:none;
+    }
+
+    .playerTag{
+      font-size: 13px;
+      font-weight: 950;
+      opacity: .95;
+      margin-top: 8px;
+      padding: 8px 10px;
+      border-radius: 14px;
+      background: rgba(255,255,255,.10);
+      border: 1px solid rgba(255,255,255,.12);
     }
   </style>
 </head>
@@ -307,7 +315,29 @@ input{
         <div class="hint" style="margin-top:10px;">
           <span class="muted">Note:</span> Scores are stored per grid size (3×3 / 4×4 / 5×5).
         </div>
+
+        <div class="playerTag" id="playerTag">👤 Player: …</div>
       </div>
+    </div>
+  </div>
+
+  <!-- PLAYER SETUP overlay -->
+  <div class="overlay" id="playerOverlay">
+    <div class="modal">
+      <h2>👤 Choose your player</h2>
+      <p class="hint">
+        You can play as <b>Anon</b> (no score submissions), or enter a username (no password) to submit high scores.
+      </p>
+
+      <div class="row">
+        <input id="playerSetupName" type="text" maxlength="20" placeholder="✍️ Enter username (optional)" />
+        <button id="playAsAnonBtn">Play as Anon</button>
+        <button id="saveNameBtn">Save Name</button>
+      </div>
+
+      <p class="hint" style="margin-top:10px; opacity:.9;">
+        You can change this anytime by refreshing and choosing again (we save it on your device).
+      </p>
     </div>
   </div>
 
@@ -325,7 +355,8 @@ input{
         <button id="closeWinBtn">❌ Close</button>
       </div>
 
-      <!-- ✅ NEW: leaderboard shown under submit (same pattern as memory game) -->
+      <p class="hint" id="submitHint" style="margin-top:8px; opacity:.92;"></p>
+
       <div class="leaderboard" id="winLbList" style="margin-top:12px;"></div>
 
       <div class="hint" style="margin-top:10px; opacity:.9;">
@@ -375,13 +406,13 @@ input{
       !String(firebaseConfig.apiKey).toUpperCase().includes("PASTE");
 
     let firebaseOk = false;
-    let db = null, addDoc, collection, getDocs, limit, orderBy, query, serverTimestamp, where;
+    let db = null, collection, getDocs, limit, orderBy, query, serverTimestamp, where, doc, setDoc;
 
     if (CONFIG_PRESENT) {
       try {
         const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js");
         const firestore = await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js");
-        ({ addDoc, collection, getDocs, limit, orderBy, query, serverTimestamp, where } = firestore);
+        ({ collection, getDocs, limit, orderBy, query, serverTimestamp, where, doc, setDoc } = firestore);
 
         const app = initializeApp(firebaseConfig);
         db = firestore.getFirestore(app);
@@ -392,6 +423,69 @@ input{
       }
     }
 
+    // -----------------------------
+    // Player system (Anon vs Name)
+    // -----------------------------
+    const LS_PLAYER_NAME = "lo_player_name";
+    const LS_PLAYER_IS_ANON = "lo_player_is_anon";
+
+    const playerOverlay = document.getElementById("playerOverlay");
+    const playerSetupName = document.getElementById("playerSetupName");
+    const playAsAnonBtn = document.getElementById("playAsAnonBtn");
+    const saveNameBtn = document.getElementById("saveNameBtn");
+    const playerTag = document.getElementById("playerTag");
+
+    const playerNameEl = document.getElementById("playerName"); // win input
+    const submitHint = document.getElementById("submitHint");
+
+    function getPlayer(){
+      const name = (localStorage.getItem(LS_PLAYER_NAME) || "").trim();
+      const isAnon = (localStorage.getItem(LS_PLAYER_IS_ANON) || "") === "1";
+      if (isAnon) return { mode: "anon", name: "Anon" };
+      if (name) return { mode: "named", name };
+      return { mode: "unset", name: "" };
+    }
+
+    function setPlayerAnon(){
+      localStorage.setItem(LS_PLAYER_IS_ANON, "1");
+      localStorage.removeItem(LS_PLAYER_NAME);
+      updatePlayerUI();
+      closeOverlay(playerOverlay);
+    }
+
+    function setPlayerName(name){
+      const clean = String(name || "").trim().slice(0,20);
+      if (!clean) return false;
+      localStorage.setItem(LS_PLAYER_IS_ANON, "0");
+      localStorage.setItem(LS_PLAYER_NAME, clean);
+      updatePlayerUI();
+      closeOverlay(playerOverlay);
+      return true;
+    }
+
+    function updatePlayerUI(){
+      const p = getPlayer();
+      if (p.mode === "anon") playerTag.textContent = "👤 Player: Anon (no score submissions)";
+      else if (p.mode === "named") playerTag.textContent = `👤 Player: ${p.name}`;
+      else playerTag.textContent = "👤 Player: not set";
+
+      // prefill win input too
+      if (p.mode === "named") playerNameEl.value = p.name;
+      else playerNameEl.value = "";
+    }
+
+    function openOverlay(el){ el.style.display = "flex"; }
+    function closeOverlay(el){ el.style.display = "none"; }
+
+    playAsAnonBtn.addEventListener("click", setPlayerAnon);
+    saveNameBtn.addEventListener("click", () => {
+      const ok = setPlayerName(playerSetupName.value);
+      if (!ok) alert("Name must be 1–20 characters.");
+    });
+
+    // -----------------------------
+    // Game DOM
+    // -----------------------------
     const boardEl = document.getElementById("board");
     const movesEl = document.getElementById("moves");
     const timeEl = document.getElementById("time");
@@ -411,7 +505,6 @@ input{
     const winTimeEl = document.getElementById("winTime");
     const closeWinBtn = document.getElementById("closeWinBtn");
     const submitScoreBtn = document.getElementById("submitScoreBtn");
-    const playerNameEl = document.getElementById("playerName");
     const winLbList = document.getElementById("winLbList");
 
     const lbOverlay = document.getElementById("lbOverlay");
@@ -423,6 +516,9 @@ input{
     const confettiCanvas = document.getElementById("confettiCanvas");
     const ctx = confettiCanvas.getContext("2d");
 
+    // -----------------------------
+    // State
+    // -----------------------------
     let N = 3;
     let puzzleId = 1;
     let imageSrc = "";
@@ -439,6 +535,11 @@ input{
     let canSubmitScoreThisGame = false;
     let scoreSubmittedThisGame = false;
     let isShuffling = false;
+    let winId = "";
+
+    function newWinId(){
+      return `win_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+    }
 
     function setControlsEnabled(enabled){
       difficultyEl.disabled = !enabled;
@@ -455,6 +556,8 @@ input{
       scoreSubmittedThisGame = false;
       submitScoreBtn.disabled = false;
       submitScoreBtn.textContent = "✅ Submit Score";
+      submitHint.textContent = "";
+      winId = newWinId();
     }
 
     function buildPuzzleList() {
@@ -508,6 +611,7 @@ input{
       blankPos = tiles.indexOf(-1);
 
       renderBoard();
+      updatePlayerUI();
     }
 
     function renderBoard() {
@@ -691,15 +795,25 @@ input{
       winMovesEl.textContent = String(moves);
       winTimeEl.textContent = formatTime(elapsedSec);
 
-      winOverlay.style.display = "flex";
+      // Apply player mode rules
+      const p = getPlayer();
+      if (p.mode === "anon" || p.mode === "unset") {
+        submitScoreBtn.disabled = true;
+        canSubmitScoreThisGame = false;
+        submitHint.textContent = "You’re playing as Anon — set a username to submit scores.";
+      } else {
+        playerNameEl.value = p.name;
+        submitHint.textContent = "Enter your name and submit (only once).";
+      }
+
+      openOverlay(winOverlay);
       fireConfetti();
 
-      // ✅ show leaderboard under submission immediately
       refreshLeaderboardInto(winLbList, N);
     }
 
     closeWinBtn.addEventListener("click", () => {
-      winOverlay.style.display = "none";
+      closeOverlay(winOverlay);
       stopConfetti();
     });
 
@@ -709,7 +823,20 @@ input{
         return;
       }
 
-      const name = (playerNameEl.value || "").trim().slice(0, 20) || "Anon";
+      const p = getPlayer();
+      if (p.mode !== "named") {
+        alert("Set a username (not Anon) to submit scores.");
+        return;
+      }
+
+      const name = (playerNameEl.value || "").trim().slice(0, 20);
+      if (!name) {
+        alert("Name must be 1–20 characters.");
+        return;
+      }
+
+      // keep saved name in sync if they tweak it
+      setPlayerName(name);
 
       if (!firebaseOk) {
         alert("Firebase isn't loading. Test using your GitHub Pages URL (not file://) and check Console errors.");
@@ -722,20 +849,22 @@ input{
       submitScoreBtn.textContent = "✅ Submitted";
 
       try {
-        await addDoc(collection(db, "slider_scores"), {
+        // Use winId as the document ID so rules can block duplicates
+        const ref = doc(db, "slider_scores", winId);
+
+        await setDoc(ref, {
           name,
           puzzleId,
           grid: N,
           moves,
           time: elapsedSec,
-          createdAt: new Date(),
-          createdAtServer: serverTimestamp()
+          winId,
+          createdAt: serverTimestamp()
         });
 
-        playerNameEl.value = "";
+        playerNameEl.value = name;
         alert("Score submitted! ✅");
 
-        // ✅ refresh leaderboard under the submit row
         await refreshLeaderboardInto(winLbList, N);
 
       } catch (e) {
@@ -808,11 +937,11 @@ input{
 
     leaderboardBtn.addEventListener("click", async () => {
       lbDifficulty.value = String(N);
-      lbOverlay.style.display = "flex";
+      openOverlay(lbOverlay);
       await refreshLeaderboardInto(lbList, parseInt(lbDifficulty.value, 10));
     });
 
-    lbCloseBtn.addEventListener("click", () => { lbOverlay.style.display = "none"; });
+    lbCloseBtn.addEventListener("click", () => { closeOverlay(lbOverlay); });
     lbRefreshBtn.addEventListener("click", async () => {
       await refreshLeaderboardInto(lbList, parseInt(lbDifficulty.value, 10));
     });
@@ -856,8 +985,8 @@ input{
         }
 
         let rank = 1;
-        snap.forEach(doc => {
-          const s = doc.data();
+        snap.forEach(docSnap => {
+          const s = docSnap.data();
           const row = document.createElement("div");
           row.className = "lbRow";
 
@@ -897,8 +1026,17 @@ input{
         .replaceAll("'","&#039;");
     }
 
+    // -----------------------------
+    // Init
+    // -----------------------------
     buildPuzzleList();
     puzzleSelect.value = "1";
+    updatePlayerUI();
+
+    // show player chooser if not set
+    const p0 = getPlayer();
+    if (p0.mode === "unset") openOverlay(playerOverlay);
+
     loadPuzzle(1);
   </script>
 </body>

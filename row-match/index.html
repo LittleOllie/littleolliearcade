@@ -298,9 +298,7 @@
 
       <div class="topbar">
         <div class="tabs">
-          <!-- ✅ NEW: Back to Arcade Menu button (with the other buttons) -->
           <button class="btn" id="btnBackMenu">🕹️ Arcade Menu</button>
-
           <button class="btn" id="btnLeaderboard">🏆 Leaderboard</button>
           <button class="btn" id="btnHow">📖 How To Play</button>
           <button class="btn" id="btnNew">🆕 New Game</button>
@@ -389,7 +387,7 @@
     </div>
   </div>
 
-  <!-- Firebase (compat, same style as your other games) -->
+  <!-- Firebase (compat) -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
@@ -432,7 +430,6 @@
     let winId = "";
     let scoreSubmitted = false;
 
-    // The 4 chosen images for this round (persist until New Game)
     let chosenImgs = []; // [imgNumber,...] length 4
 
     /******************************************************************
@@ -445,7 +442,7 @@
     const timeText = document.getElementById("timeText");
     const movesText = document.getElementById("movesText");
 
-    const btnBackMenu = document.getElementById("btnBackMenu"); // ✅ NEW
+    const btnBackMenu = document.getElementById("btnBackMenu");
     const btnNew = document.getElementById("btnNew");
     const btnStart = document.getElementById("btnStart");
     const btnReset = document.getElementById("btnReset");
@@ -476,7 +473,14 @@
           firebaseReady = false;
           return;
         }
-        firebase.initializeApp(firebaseConfig);
+
+        // ✅ SAFE INIT: don't crash if app already exists
+        if (firebase.apps && firebase.apps.length){
+          // reuse existing app
+        } else {
+          firebase.initializeApp(firebaseConfig);
+        }
+
         db = firebase.firestore();
         firebaseReady = true;
       }catch(e){
@@ -558,7 +562,7 @@
     }
 
     /******************************************************************
-     * SOLVED BOARD (uses current chosenImgs)
+     * SOLVED BOARD
      ******************************************************************/
     function buildSolvedBoardUsingCurrentImages(){
       if(!chosenImgs || chosenImgs.length !== 4){
@@ -599,7 +603,6 @@
       updateButtons();
     }
 
-    // New Game: pick NEW images, then show solved board
     function newGame(){
       stopTimer();
       chosenImgs = pick4UniqueImages();
@@ -662,7 +665,7 @@
       render();
     }
 
-    function checkWin(){
+    async function checkWin(){
       const rowTypes = [];
       const rowCounts = [];
 
@@ -695,6 +698,20 @@
       gameStarted = false;
       updateSubmitNote(true);
       updateButtons();
+
+      // ✅ AUTO-OPEN LEADERBOARD ON WIN
+      openModal(lbModal);
+      await loadLeaderboard();
+      updateSubmitNote(true);
+
+      // focus name input
+      setTimeout(() => {
+        try{
+          nameInput.focus();
+          nameInput.select?.();
+          nameInput.scrollIntoView?.({ behavior:"smooth", block:"center" });
+        }catch{}
+      }, 50);
     }
 
     /******************************************************************
@@ -722,7 +739,7 @@
     }
 
     /******************************************************************
-     * SHUFFLE (3 seconds fast, always solvable)
+     * SHUFFLE
      ******************************************************************/
     async function shuffleFor3Seconds(){
       shuffling = true;
@@ -750,7 +767,6 @@
       setDisabledUI(false);
       shuffling = false;
 
-      // After shuffle, reset counters + start timer
       moves = 0;
       movesText.textContent = "0";
       timeText.textContent = "0";
@@ -895,23 +911,13 @@
       }
     }
 
-    /******************************************************************
-     * BUTTON ENABLE/DISABLE (keeps things clean)
-     ******************************************************************/
     function updateButtons(){
       btnNew.disabled = shuffling;
       btnReset.disabled = shuffling;
       btnStart.disabled = shuffling || gameStarted;
     }
 
-    /******************************************************************
-     * BACK TO ARCADE MENU (✅ NEW)
-     ******************************************************************/
     function goToArcadeMenu(){
-      // Typical structure:
-      // /index.html (menu)
-      // /row-match/index.html (this game)
-      // so go up one folder:
       window.location.href = "../index.html";
     }
 
@@ -927,6 +933,7 @@
       openModal(lbModal);
       await loadLeaderboard();
       updateSubmitNote();
+      setTimeout(() => { try{ nameInput.focus(); }catch{} }, 50);
     });
     lbBack.addEventListener("click", () => closeModal(lbModal));
 

@@ -514,11 +514,12 @@
   <script type="module">
     /******************************************************************
      * PLAYER (shared across ALL games)
-     * Uses same keys as Memory Game so everything is consistent.
      ******************************************************************/
     const LS_PLAYER_NAME = "lo_player_name_v1";
     const LS_PLAYER_ID   = "lo_player_id_v1";
-    const LS_PLAYER_ANON_CHOICE = "lo_player_anon_choice_v1"; // remembers "play as anon" so we don't keep asking
+    const LS_PLAYER_ANON_CHOICE = "lo_player_anon_choice_v1";
+    // ✅ NEW: Marks that the user has already been asked on the HUB
+    const LS_PLAYER_ONBOARDED = "lo_player_onboarded_v1";
 
     const playerOverlay = document.getElementById("playerOverlay");
     const playerInput   = document.getElementById("playerInput");
@@ -529,6 +530,9 @@
     const playerLabel   = document.getElementById("playerLabel");
     const playerCanSubmit = document.getElementById("playerCanSubmit");
 
+    // ✅ NEW: if user clicked PLAY before picking, we remember where to go
+    let pendingNavUrl = null;
+
     function escapeHtml(s){
       return String(s).replace(/[&<>"']/g, m => ({
         "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
@@ -538,6 +542,14 @@
     function makeId(){
       if (crypto?.randomUUID) return crypto.randomUUID();
       return "p_" + Date.now() + "_" + Math.random().toString(16).slice(2);
+    }
+
+    function markOnboarded(){
+      localStorage.setItem(LS_PLAYER_ONBOARDED, "1");
+    }
+
+    function isOnboarded(){
+      return localStorage.getItem(LS_PLAYER_ONBOARDED) === "1";
     }
 
     function getPlayer(){
@@ -580,6 +592,20 @@
       playerOverlay.setAttribute("aria-hidden","true");
     }
 
+    function finishAndMaybeNavigate(){
+      // ✅ user has now made a choice on the hub
+      markOnboarded();
+      updatePlayerUI();
+      closePlayerModal();
+
+      // ✅ if they clicked a game first, take them there now
+      if (pendingNavUrl){
+        const go = pendingNavUrl;
+        pendingNavUrl = null;
+        window.location.href = go;
+      }
+    }
+
     savePlayerBtn.addEventListener("click", () => {
       const name = (playerInput.value || "").trim();
       if(name.length < 1 || name.length > 20){
@@ -593,37 +619,65 @@
 
       setPlayerName(name);
       setAnonChoice(false);
-      updatePlayerUI();
-      closePlayerModal();
+      finishAndMaybeNavigate();
     });
 
     playAnonBtn.addEventListener("click", () => {
-      // Anon = empty name (matches memory game behaviour: isAnon if no name)
       setPlayerName("");
       setAnonChoice(true);
-      updatePlayerUI();
-      closePlayerModal();
+      finishAndMaybeNavigate();
     });
 
-    changeNameBtn.addEventListener("click", () => openPlayerModal());
+    changeNameBtn.addEventListener("click", () => {
+      // If they hit change name, we still consider them onboarded.
+      openPlayerModal();
+    });
 
     playerOverlay.addEventListener("click", (e) => {
-      if(e.target === playerOverlay) closePlayerModal();
+      if(e.target === playerOverlay) {
+        // If they were trying to go to a game, don't trap them forever:
+        // just close and clear pending nav.
+        pendingNavUrl = null;
+        closePlayerModal();
+      }
     });
 
-    // ✅ Ask ONLY on arcade page, and only if they haven't chosen name OR anon yet
+    // ✅ Gate PLAY buttons: hub is the only place that asks.
+    function wirePlayGate(){
+      const playLinks = Array.from(document.querySelectorAll("a.playBtn[href]"));
+      playLinks.forEach(a => {
+        a.addEventListener("click", (e) => {
+          const href = a.getAttribute("href");
+          if(!href) return;
+
+          // if they've already chosen on the hub, go straight in
+          if (isOnboarded()) return;
+
+          // Otherwise: stop navigation, ask here, then go after they choose
+          e.preventDefault();
+          pendingNavUrl = href;
+          openPlayerModal();
+        });
+      });
+    }
+
+    // ✅ initial UI
     updatePlayerUI();
+
+    // ✅ if they already have a name OR chose anon before, mark onboarded so games shouldn't need to ask
     const hasName = !!(localStorage.getItem(LS_PLAYER_NAME) || "").trim();
     const choseAnonBefore = localStorage.getItem(LS_PLAYER_ANON_CHOICE) === "1";
+    if (hasName || choseAnonBefore) markOnboarded();
 
-    if(!hasName && !choseAnonBefore){
+    // ✅ If not chosen yet, ask on the hub (but ONLY on the hub)
+    if(!isOnboarded()){
       openPlayerModal();
     }
 
+    wirePlayGate();
+
     // ✅ This stays so games can read the player name/id consistently
-    window.LO_ARCADE = {
-      getPlayer
-    };
+    window.LO_ARCADE = { getPlayer };
 
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("./sw.js").catch(() => {});

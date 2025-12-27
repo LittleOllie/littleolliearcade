@@ -335,7 +335,7 @@
       </div>
 
       <p class="hint" style="margin-top:10px; opacity:.9;">
-        You can change this anytime by refreshing and choosing again (we save it on your device).
+        This choice is saved on your device.
       </p>
     </div>
   </div>
@@ -393,7 +393,7 @@
       apiKey: "AIzaSyBGMiQj1QLqcmhzV_qId4eoZzRQVSikjHo",
       authDomain: "littleolliesliderpuzzle.firebaseapp.com",
       projectId: "littleolliesliderpuzzle",
-      storageBucket: "littleolliesliderpuzzle.firebasestorage.app",
+      storageBucket: "littleolliesliderpuzzle.firebasorage.app",
       messagingSenderId: "1069415747966",
       appId: "1:1069415747966:web:a04eaed2db91802204232f",
       measurementId: "G-4R4VTGXGQH"
@@ -423,10 +423,11 @@
     }
 
     // -----------------------------
-    // Player system (Anon vs Name)
+    // Player system (SHARED with HUB)
     // -----------------------------
-    const LS_PLAYER_NAME = "lo_player_name";
-    const LS_PLAYER_IS_ANON = "lo_player_is_anon";
+    const LS_PLAYER_NAME = "lo_player_name_v1";
+    const LS_PLAYER_ID   = "lo_player_id_v1";
+    const LS_PLAYER_ANON_CHOICE = "lo_player_anon_choice_v1"; // "1" means they chose anon once
 
     const playerOverlay = document.getElementById("playerOverlay");
     const playerSetupName = document.getElementById("playerSetupName");
@@ -436,17 +437,31 @@
     const playerNameEl = document.getElementById("playerName"); // win input
     const submitHint = document.getElementById("submitHint");
 
+    function makeId(){
+      if (crypto?.randomUUID) return crypto.randomUUID();
+      return "p_" + Date.now() + "_" + Math.random().toString(16).slice(2);
+    }
+
     function getPlayer(){
-      const name = (localStorage.getItem(LS_PLAYER_NAME) || "").trim();
-      const isAnon = (localStorage.getItem(LS_PLAYER_IS_ANON) || "") === "1";
-      if (isAnon) return { mode: "anon", name: "Anon" };
-      if (name) return { mode: "named", name };
-      return { mode: "unset", name: "" };
+      const name = (localStorage.getItem(LS_PLAYER_NAME) || "").trim().slice(0,20);
+      let id = (localStorage.getItem(LS_PLAYER_ID) || "").trim();
+      if (!id){
+        id = makeId();
+        localStorage.setItem(LS_PLAYER_ID, id);
+      }
+      const choseAnonBefore = localStorage.getItem(LS_PLAYER_ANON_CHOICE) === "1";
+      const isAnon = !name; // hub rules: empty name => anon
+      const mode = name ? "named" : (choseAnonBefore ? "anon" : "unset");
+      return { mode, name: name || "Anon", rawName: name, id, choseAnonBefore };
+    }
+
+    function setAnonChoice(flag){
+      localStorage.setItem(LS_PLAYER_ANON_CHOICE, flag ? "1" : "0");
     }
 
     function setPlayerAnon(){
-      localStorage.setItem(LS_PLAYER_IS_ANON, "1");
-      localStorage.removeItem(LS_PLAYER_NAME);
+      localStorage.removeItem(LS_PLAYER_NAME); // blank name = anon
+      setAnonChoice(true);
       updatePlayerUI();
       closeOverlay(playerOverlay);
     }
@@ -454,21 +469,20 @@
     function setPlayerName(name){
       const clean = String(name || "").trim().slice(0,20);
       if (!clean) return false;
-      localStorage.setItem(LS_PLAYER_IS_ANON, "0");
+      if (clean.toLowerCase() === "anon" || clean.toLowerCase() === "anonymous") return false;
       localStorage.setItem(LS_PLAYER_NAME, clean);
+      setAnonChoice(false);
       updatePlayerUI();
       closeOverlay(playerOverlay);
       return true;
     }
 
-function updatePlayerUI(){
-  const p = getPlayer();
-
-  // Keep prefill for leaderboard submit ONLY
-  if (p.mode === "named") playerNameEl.value = p.name;
-  else playerNameEl.value = "";
-}
-
+    function updatePlayerUI(){
+      const p = getPlayer();
+      // Prefill submit input ONLY when named
+      if (p.mode === "named") playerNameEl.value = p.rawName;
+      else playerNameEl.value = "";
+    }
 
     function openOverlay(el){ el.style.display = "flex"; }
     function closeOverlay(el){ el.style.display = "none"; }
@@ -476,7 +490,7 @@ function updatePlayerUI(){
     playAsAnonBtn.addEventListener("click", setPlayerAnon);
     saveNameBtn.addEventListener("click", () => {
       const ok = setPlayerName(playerSetupName.value);
-      if (!ok) alert("Name must be 1–20 characters.");
+      if (!ok) alert("Name must be 1–20 characters (and not Anon).");
     });
 
     // -----------------------------
@@ -791,15 +805,16 @@ function updatePlayerUI(){
       winMovesEl.textContent = String(moves);
       winTimeEl.textContent = formatTime(elapsedSec);
 
-      // Apply player mode rules
+      // Apply player mode rules (shared)
       const p = getPlayer();
       if (p.mode === "anon" || p.mode === "unset") {
         submitScoreBtn.disabled = true;
         canSubmitScoreThisGame = false;
-        submitHint.textContent = "You’re playing as Anon — set a username to submit scores.";
+        submitHint.textContent = "You’re playing as Anon — set a username in the Arcade Menu to submit scores.";
+        playerNameEl.value = "";
       } else {
-        playerNameEl.value = p.name;
-        submitHint.textContent = "Enter your name and submit (only once).";
+        playerNameEl.value = p.rawName;
+        submitHint.textContent = "Submit your score (only once).";
       }
 
       openOverlay(winOverlay);
@@ -821,7 +836,7 @@ function updatePlayerUI(){
 
       const p = getPlayer();
       if (p.mode !== "named") {
-        alert("Set a username (not Anon) to submit scores.");
+        alert("Set a username (not Anon) in the Arcade Menu to submit scores.");
         return;
       }
 
@@ -831,8 +846,8 @@ function updatePlayerUI(){
         return;
       }
 
-      // keep saved name in sync if they tweak it
-      setPlayerName(name);
+      // Keep saved name in sync if they tweak it
+      if (name !== p.rawName) setPlayerName(name);
 
       if (!firebaseOk) {
         alert("Firebase isn't loading. Test using your GitHub Pages URL (not file://) and check Console errors.");
@@ -1029,7 +1044,7 @@ function updatePlayerUI(){
     puzzleSelect.value = "1";
     updatePlayerUI();
 
-    // show player chooser if not set
+    // ✅ Only ask here if Arcade Menu has NOT already set name OR anon choice
     const p0 = getPlayer();
     if (p0.mode === "unset") openOverlay(playerOverlay);
 

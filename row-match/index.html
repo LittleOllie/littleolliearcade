@@ -471,9 +471,10 @@
 
     let chosenImgs = [];
 
-    // ✅ Player system (saved like memory game)
-    const LS_PLAYER_NAME = "lo_rowmatch_playerName";
-    const LS_PLAYER_ANON = "lo_rowmatch_isAnon";
+    // ✅ SHARED Player system (same keys as Arcade hub)
+    const LS_PLAYER_NAME = "lo_player_name_v1";
+    const LS_PLAYER_ID   = "lo_player_id_v1";
+    const LS_PLAYER_ANON_CHOICE = "lo_player_anon_choice_v1"; // "1" = chose anon once
     let playerName = "";
     let isAnon = true;
 
@@ -521,7 +522,6 @@
           firebaseReady = false;
           return;
         }
-        // ✅ Guard: don't double-init
         if (firebase.apps && firebase.apps.length === 0){
           firebase.initializeApp(firebaseConfig);
         }
@@ -604,34 +604,38 @@
       el.setAttribute("aria-hidden","true");
     }
 
-    // ✅ Load player from localStorage
+    // ✅ SHARED PLAYER FUNCTIONS
     function loadPlayer(){
-      const savedName = (localStorage.getItem(LS_PLAYER_NAME) || "").trim();
-      const savedAnon = localStorage.getItem(LS_PLAYER_ANON);
+      const savedName = (localStorage.getItem(LS_PLAYER_NAME) || "").trim().slice(0,20);
+      const choseAnonBefore = localStorage.getItem(LS_PLAYER_ANON_CHOICE) === "1";
 
-      if(savedAnon === "false" && savedName.length >= 1){
+      if(savedName.length >= 1){
         playerName = savedName;
         isAnon = false;
-      }else if(savedAnon === "true"){
+      }else if(choseAnonBefore){
         playerName = "";
         isAnon = true;
-      }else if(savedName.length >= 1){
-        // if name exists but anon flag missing, assume named player
-        playerName = savedName;
-        isAnon = false;
       }else{
         playerName = "";
         isAnon = true;
+      }
+
+      // ensure id exists (hub does this too)
+      let id = (localStorage.getItem(LS_PLAYER_ID) || "").trim();
+      if(!id){
+        if (crypto?.randomUUID) id = crypto.randomUUID();
+        else id = "p_" + Date.now() + "_" + Math.random().toString(16).slice(2);
+        localStorage.setItem(LS_PLAYER_ID, id);
       }
 
       syncPlayerUI();
     }
 
     function setPlayerNamed(name){
-      playerName = name.trim().slice(0,20);
+      playerName = (name || "").trim().slice(0,20);
       isAnon = false;
       localStorage.setItem(LS_PLAYER_NAME, playerName);
-      localStorage.setItem(LS_PLAYER_ANON, "false");
+      localStorage.setItem(LS_PLAYER_ANON_CHOICE, "0");
       syncPlayerUI();
     }
 
@@ -639,7 +643,7 @@
       playerName = "";
       isAnon = true;
       localStorage.removeItem(LS_PLAYER_NAME);
-      localStorage.setItem(LS_PLAYER_ANON, "true");
+      localStorage.setItem(LS_PLAYER_ANON_CHOICE, "1");
       syncPlayerUI();
     }
 
@@ -647,7 +651,6 @@
       playerDisplay.textContent = isAnon ? "Anon" : playerName;
       nameInput.value = isAnon ? "" : playerName;
 
-      // if anon, keep placeholder and allow typing BUT it won't submit
       if(isAnon){
         nameInput.placeholder = "Anon mode (no submitting)";
       }else{
@@ -657,11 +660,10 @@
     }
 
     function ensurePlayerChosen(){
-      // Show modal if no explicit choice yet (neither anon flag nor name)
-      const hasAnonFlag = localStorage.getItem(LS_PLAYER_ANON) !== null;
+      // ✅ ONLY ask if hub hasn't stored a name OR anon choice yet
       const hasName = (localStorage.getItem(LS_PLAYER_NAME) || "").trim().length > 0;
-
-      if(!hasAnonFlag && !hasName){
+      const choseAnonBefore = localStorage.getItem(LS_PLAYER_ANON_CHOICE) === "1";
+      if(!hasName && !choseAnonBefore){
         openModal(playerModal);
         setTimeout(() => playerNameInput.focus(), 50);
       }
@@ -761,13 +763,10 @@
     }
 
     async function onWinOpenLeaderboard(){
-      // ✅ This is the missing behaviour you want:
-      // Auto-open leaderboard modal right when a win happens
       openModal(lbModal);
       await loadLeaderboard();
       updateSubmitNote(true);
 
-      // focus name box if they can submit
       if(!isAnon && !scoreSubmitted){
         setTimeout(() => nameInput.focus(), 60);
       }
@@ -806,10 +805,7 @@
       gameStarted = false;
       updateButtons();
 
-      // ✅ force note into "won" state
       updateSubmitNote(true);
-
-      // ✅ AUTO POPUP leaderboard submit
       onWinOpenLeaderboard();
     }
 
@@ -894,7 +890,6 @@
         return;
       }
 
-      // Named player
       submitScoreBtn.disabled = !(isWonNow && !scoreSubmitted);
       submitScoreBtn.style.opacity = submitScoreBtn.disabled ? 0.55 : 1;
 
@@ -967,7 +962,6 @@
       if(scoreSubmitted) return;
       if(isAnon) return;
 
-      // use saved player name (but allow editing the box if you want)
       const entered = (nameInput.value || "").trim();
       const name = entered.length ? entered : playerName;
 
@@ -976,7 +970,6 @@
         return;
       }
 
-      // if they typed a new name, persist it
       if(name !== playerName){
         setPlayerNamed(name);
       }
@@ -1068,7 +1061,6 @@
       setPlayerNamed(n);
       playerNote.textContent = "";
       closeModal(playerModal);
-      // keep leaderboard name input in sync
       nameInput.value = playerName;
       updateSubmitNote();
     });
@@ -1081,7 +1073,6 @@
     });
 
     changePlayerBtn.addEventListener("click", () => {
-      // show modal again and prefill
       playerNameInput.value = isAnon ? "" : playerName;
       playerNote.textContent = "";
       openModal(playerModal);
@@ -1100,7 +1091,7 @@
     buildSolvedBoardUsingCurrentImages();
     updateButtons();
 
-    // ✅ prompt once on first ever visit
+    // ✅ Will only show if hub hasn't set name or anon choice yet
     ensurePlayerChosen();
   </script>
 </body>

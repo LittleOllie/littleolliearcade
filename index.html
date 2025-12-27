@@ -25,7 +25,7 @@
       --radius: 22px;
       --radius2: 16px;
 
-      --accent: #ffdd55;          /* ✅ Yellow everywhere */
+      --accent: #ffdd55;
       --accentText: #161616;
       --trim: rgba(255,255,255,.14);
 
@@ -65,7 +65,6 @@
       box-shadow: var(--soft);
     }
 
-    /* ✅ Top status bar */
     .statusbar{
       margin-top: 12px;
       background: rgba(0,0,0,.16);
@@ -104,7 +103,7 @@
       cursor:pointer;
       padding: 10px 12px;
       border-radius: 16px;
-      background: var(--accent);      /* ✅ Yellow */
+      background: var(--accent);
       color: var(--accentText);
       font-weight: 950;
       letter-spacing: .2px;
@@ -130,7 +129,6 @@
       .grid{ grid-template-columns: 1fr; }
     }
 
-    /* Arcade cabinet card */
     .cabinet{
       background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.02));
       border-radius: var(--radius);
@@ -149,7 +147,6 @@
       pointer-events:none;
     }
 
-    /* Top marquee */
     .marquee{
       background: linear-gradient(180deg, rgba(0,0,0,.38), rgba(0,0,0,.18));
       padding: 12px 12px;
@@ -182,7 +179,6 @@
       opacity:.9;
     }
 
-    /* Screen */
     .screen{
       margin: 12px;
       border-radius: var(--radius2);
@@ -245,7 +241,7 @@
       padding: 12px 14px;
       font-weight: 950;
       letter-spacing: .2px;
-      background: var(--accent);      /* ✅ Yellow */
+      background: var(--accent);
       color: var(--accentText);
       box-shadow: 0 12px 26px rgba(0,0,0,.25);
       border: 1px solid rgba(255,255,255,.12);
@@ -256,7 +252,6 @@
     .playBtn:active{ transform: translateY(1px) scale(.99); }
     .playBtn:hover{ filter: brightness(1.02); }
 
-    /* Bottom controls area (purely visual) */
     .controlsBar{
       display:flex;
       justify-content:space-between;
@@ -286,11 +281,7 @@
       box-shadow: 0 8px 16px rgba(0,0,0,.25);
     }
 
-    .buttons{
-      display:flex;
-      gap:8px;
-      align-items:center;
-    }
+    .buttons{ display:flex; gap:8px; align-items:center; }
     .btnDot{
       width: 14px;
       height: 14px;
@@ -311,7 +302,6 @@
       text-align:center;
     }
 
-    /* ✅ Login modal */
     .overlay{
       position: fixed;
       inset: 0;
@@ -375,13 +365,6 @@
       padding: 10px 12px;
       border-radius: 16px;
     }
-
-    .subtleLink{
-      color: rgba(255,255,255,.92);
-      text-decoration: underline;
-      cursor:pointer;
-      font-weight: 900;
-    }
   </style>
 </head>
 
@@ -403,17 +386,15 @@
 
       <div class="miniNote">
         <b>FYI:</b> No password. Your name is stored on your device (browser) only.
-        You can change it anytime from the Arcade page.
+        Incognito/private mode may not keep it after you close the window.
       </div>
     </div>
   </div>
 
   <div class="wrap">
     <div class="panel">
-
       <img class="header" src="header.png" alt="Little Ollie Arcade" />
 
-      <!-- ✅ Status bar (player + global plays) -->
       <div class="statusbar">
         <div class="pill">
           👤 <span id="playerLabel">Player: —</span>
@@ -447,12 +428,10 @@
 
           <div class="screen">
             <div class="scanline"></div>
-
             <div class="screenTop">
               <div class="emoji">🧠</div>
               <p class="desc">Flip cards and find matching pairs.</p>
             </div>
-
             <a class="playBtn" href="./memory-game/index.html">▶️ PLAY</a>
           </div>
 
@@ -482,12 +461,10 @@
 
           <div class="screen">
             <div class="scanline"></div>
-
             <div class="screenTop">
               <div class="emoji">🧩</div>
               <p class="desc">Slide tiles to make each row match.</p>
             </div>
-
             <a class="playBtn" href="./row-match/index.html">▶️ PLAY</a>
           </div>
 
@@ -517,12 +494,10 @@
 
           <div class="screen">
             <div class="scanline"></div>
-
             <div class="screenTop">
               <div class="emoji">🧊</div>
               <p class="desc">Slide tiles to rebuild the picture.</p>
             </div>
-
             <a class="playBtn" href="./slider-puzzle/index.html">▶️ PLAY</a>
           </div>
 
@@ -543,10 +518,12 @@
 
   <script type="module">
     /******************************************************************
-     * PLAYER NAME (local only)
+     * PLAYER (shared across ALL games)
+     * Uses same keys as Memory Game so everything is consistent.
      ******************************************************************/
-    const STORAGE_PLAYER = "lo_arcade_player_v1";
-    const STORAGE_VISITED = "lo_arcade_visited_v1"; // used for "unique visits" if you want later
+    const LS_PLAYER_NAME = "lo_player_name_v1";
+    const LS_PLAYER_ID   = "lo_player_id_v1";
+    const LS_PLAYER_ANON_CHOICE = "lo_player_anon_choice_v1"; // remembers "play as anon" so we don't keep asking
 
     const playerOverlay = document.getElementById("playerOverlay");
     const playerInput   = document.getElementById("playerInput");
@@ -563,31 +540,36 @@
       }[m]));
     }
 
-    function getPlayer(){
-      try{
-        const raw = localStorage.getItem(STORAGE_PLAYER);
-        if(!raw) return { name: "Anon", canSubmit: false };
-        const obj = JSON.parse(raw);
-        if(!obj || typeof obj.name !== "string") return { name: "Anon", canSubmit: false };
-        const name = obj.name.trim().slice(0,20);
-        const canSubmit = !!obj.canSubmit && name.toLowerCase() !== "anon";
-        return { name: name || "Anon", canSubmit };
-      }catch{
-        return { name: "Anon", canSubmit: false };
-      }
+    function makeId(){
+      if (crypto?.randomUUID) return crypto.randomUUID();
+      return "p_" + Date.now() + "_" + Math.random().toString(16).slice(2);
     }
 
-    function setPlayer(name, canSubmit){
-      const clean = String(name || "").trim().slice(0,20);
-      const finalName = clean || "Anon";
-      const finalCanSubmit = !!canSubmit && finalName.toLowerCase() !== "anon";
-      localStorage.setItem(STORAGE_PLAYER, JSON.stringify({ name: finalName, canSubmit: finalCanSubmit }));
-      updatePlayerUI();
+    function getPlayer(){
+      const name = (localStorage.getItem(LS_PLAYER_NAME) || "").trim().slice(0,20);
+      let id = (localStorage.getItem(LS_PLAYER_ID) || "").trim();
+      if (!id) {
+        id = makeId();
+        localStorage.setItem(LS_PLAYER_ID, id);
+      }
+      const isAnon = !name;
+      return { name, id, isAnon, canSubmit: !isAnon };
+    }
+
+    function setPlayerName(name){
+      const clean = (name || "").trim().slice(0,20);
+      if (clean) localStorage.setItem(LS_PLAYER_NAME, clean);
+      else localStorage.removeItem(LS_PLAYER_NAME);
+    }
+
+    function setAnonChoice(flag){
+      localStorage.setItem(LS_PLAYER_ANON_CHOICE, flag ? "1" : "0");
     }
 
     function updatePlayerUI(){
       const p = getPlayer();
-      playerLabel.innerHTML = `Player: <b>${escapeHtml(p.name)}</b>`;
+      const shown = p.isAnon ? "Anon" : p.name;
+      playerLabel.innerHTML = `Player: <b>${escapeHtml(shown)}</b>`;
       playerCanSubmit.textContent = p.canSubmit ? "✅ Score submit ON" : "🚫 Score submit OFF";
     }
 
@@ -613,32 +595,38 @@
         alert("Please pick a different name (not Anon).");
         return;
       }
-      setPlayer(name, true);
+
+      setPlayerName(name);
+      setAnonChoice(false);
+      updatePlayerUI();
       closePlayerModal();
     });
 
     playAnonBtn.addEventListener("click", () => {
-      setPlayer("Anon", false);
+      // Anon = empty name (matches memory game behaviour: isAnon if no name)
+      setPlayerName("");
+      setAnonChoice(true);
+      updatePlayerUI();
       closePlayerModal();
     });
 
     changeNameBtn.addEventListener("click", () => openPlayerModal());
 
-    // Click outside modal closes
     playerOverlay.addEventListener("click", (e) => {
       if(e.target === playerOverlay) closePlayerModal();
     });
 
-    // First load: if no player chosen, show modal
+    // ✅ Ask ONLY on arcade page, and only if they haven't chosen name OR anon yet
     updatePlayerUI();
-    const existing = localStorage.getItem(STORAGE_PLAYER);
-    if(!existing){
+    const hasName = !!(localStorage.getItem(LS_PLAYER_NAME) || "").trim();
+    const choseAnonBefore = localStorage.getItem(LS_PLAYER_ANON_CHOICE) === "1";
+
+    if(!hasName && !choseAnonBefore){
       openPlayerModal();
     }
 
     /******************************************************************
      * FIREBASE (GLOBAL "GAMES PLAYED" COUNTER)
-     * Uses your Memory Game firebase project so you don't need a new one.
      ******************************************************************/
     const playsLabel  = document.getElementById("playsLabel");
     const playsStatus = document.getElementById("playsStatus");
@@ -652,6 +640,8 @@
       appId: "1:846792708520:web:851cf20bf6a80754cd8d9d",
       measurementId: "G-CJCEBPSS2M"
     };
+
+    const STORAGE_VISITED = "lo_arcade_visited_v1";
 
     let db = null;
     let onSnapshot, doc, getFirestore, initializeApp, setDoc, updateDoc, increment, serverTimestamp;
@@ -669,14 +659,12 @@
       playsStatus.textContent = "Firebase not loading";
     }
 
-    // Document that holds global stats
     const STATS_DOC_PATH = ["arcade_stats", "global"];
 
     async function ensureStatsDoc(){
       if(!db) return;
       const ref = doc(db, ...STATS_DOC_PATH);
       try{
-        // Create if missing (safe)
         await setDoc(ref, {
           plays: 0,
           visitors: 0,
@@ -686,7 +674,6 @@
     }
 
     async function markVisitorOnce(){
-      // Optional: increments "visitors" once per browser
       if(!db) return;
       const ref = doc(db, ...STATS_DOC_PATH);
 
@@ -702,8 +689,6 @@
       }catch{}
     }
 
-    // ✅ Expose a helper games can call later to increment plays
-    // (You’ll add ONE line in each game: window.LO_ARCADE?.trackPlay(); )
     async function trackPlay(){
       if(!db) return;
       const ref = doc(db, ...STATS_DOC_PATH);
@@ -717,17 +702,12 @@
       }
     }
 
-    // Also expose player getter so games can use the same name automatically
-    function getArcadePlayer(){
-      return getPlayer(); // {name, canSubmit}
-    }
-
+    // ✅ This is what games should call to get the player name/id
     window.LO_ARCADE = {
       trackPlay,
-      getPlayer: getArcadePlayer
+      getPlayer
     };
 
-    // Live display of global plays
     async function startStatsListener(){
       if(!db) return;
       await ensureStatsDoc();
@@ -747,9 +727,6 @@
 
     startStatsListener();
 
-    /******************************************************************
-     * SERVICE WORKER (optional)
-     ******************************************************************/
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("./sw.js").catch(() => {});
     }

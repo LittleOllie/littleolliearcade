@@ -51,33 +51,29 @@ body {
   align-items: center;
 }
 
-.btn {
+/* ✅ All buttons = same yellow */
+button,
+.btn,
+.overlay-box button {
   padding: 8px 16px;
   border-radius: 10px;
   border: none;
   cursor: pointer;
   background: #ffdd55;
   color: #222;
-  font-weight: 800;
+  font-weight: 900;
 }
 
-.btn:active { transform: translateY(1px); }
+button:active,
+.btn:active,
+.overlay-box button:active { transform: translateY(1px); }
 
-.btn.secondary {
-  background: rgba(255,255,255,0.22);
-  color: #fff;
-  border: 1px solid rgba(255,255,255,0.25);
+button:disabled,
+.btn:disabled,
+.overlay-box button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
-
-.small-toggle {
-  display:flex;
-  align-items:center;
-  gap:6px;
-  font-size: 13px;
-  opacity: 0.95;
-}
-
-.small-toggle input { transform: translateY(1px); }
 
 .game-board {
   display: grid;
@@ -157,16 +153,6 @@ body {
   width: min(560px, 92vw);
 }
 
-.overlay-box button {
-  padding: 12px 20px;
-  margin: 6px;
-  border-radius: 14px;
-  border: none;
-  background: #ffdd55;
-  font-weight: 800;
-  cursor: pointer;
-}
-
 hr {
   border: none;
   border-top: 1px solid rgba(255,255,255,.25);
@@ -223,11 +209,21 @@ hr {
   padding: 8px 10px;
   border-radius: 10px;
   font-size: 14px;
+  border: 1px solid rgba(255,255,255,0.12);
 }
 
-.lb-row.podium {
-  background: rgba(255,255,255,0.18);
-  border: 1px solid rgba(255,255,255,0.18);
+/* ✅ Podium shading (1st/2nd/3rd) */
+.lb-row.rank-1 {
+  background: rgba(255, 215, 0, 0.22);
+  border: 1px solid rgba(255, 215, 0, 0.35);
+}
+.lb-row.rank-2 {
+  background: rgba(192, 192, 192, 0.22);
+  border: 1px solid rgba(192, 192, 192, 0.35);
+}
+.lb-row.rank-3 {
+  background: rgba(205, 127, 50, 0.22);
+  border: 1px solid rgba(205, 127, 50, 0.35);
 }
 
 .lb-divider {
@@ -237,7 +233,7 @@ hr {
   border-radius: 999px;
 }
 
-.lb-name { font-weight: 800; }
+.lb-name { font-weight: 900; }
 .lb-meta { opacity: 0.95; }
 
 .name-row {
@@ -283,7 +279,7 @@ hr {
   color: #fff;
   padding: 10px 14px;
   border-radius: 999px;
-  font-weight: 800;
+  font-weight: 900;
   z-index: 60;
   display:none;
   max-width: 92vw;
@@ -297,13 +293,13 @@ hr {
 <!-- START -->
 <div class="overlay" id="startOverlay">
   <div class="overlay-box">
-    <h2>Choose Difficulty</h2>
-    <button data-diff="easy">Easy (12)</button>
-    <button data-diff="medium">Medium (20)</button>
-    <button data-diff="hard">Hard (30)</button>
-    <button data-diff="extra-hard">Extra Hard (42)</button>
+    <h2>🎮 Choose Difficulty</h2>
+    <button data-diff="easy">😊 Easy (12)</button>
+    <button data-diff="medium">😎 Medium (20)</button>
+    <button data-diff="hard">🔥 Hard (30)</button>
+    <button data-diff="extra-hard">☠️ Extra Hard (42)</button>
     <hr />
-    <button class="btn secondary" id="openLbFromStartBtn">🏆 Leaderboards</button>
+    <button id="openLbFromStartBtn">🏆 Leaderboards</button>
   </div>
 </div>
 
@@ -320,19 +316,15 @@ hr {
     </div>
 
     <div class="name-row">
-      <input id="playerName" placeholder="Enter your name (optional)" maxlength="20" />
-      <button class="btn" id="submitScoreBtn">Submit</button>
+      <input id="playerName" placeholder="✍️ Enter your name (optional)" maxlength="20" />
+      <button class="btn" id="submitScoreBtn">📤 Submit Score</button>
     </div>
 
-    <div class="leaderboard">
+    <!-- ✅ Leaderboard remains visible right under submission -->
+    <div class="leaderboard" id="winLeaderboardBox">
       <div class="lb-title">
         <h3>🏆 Leaderboard (<span id="lbDiff">easy</span>)</h3>
         <div class="lb-status" id="lbStatus">Loading…</div>
-      </div>
-
-      <div class="controls" style="margin:10px 0 0; padding:0;">
-        <label class="small-toggle"><input type="checkbox" id="showMoves" checked /> Show moves</label>
-        <label class="small-toggle"><input type="checkbox" id="showTime" checked /> Show time</label>
       </div>
 
       <div class="lb-divider" id="podiumDivider" style="display:none;"></div>
@@ -341,8 +333,8 @@ hr {
 
     <hr />
 
-    <button class="btn secondary" id="openLbBtn">🏆 Open Leaderboards</button>
-    <button onclick="location.reload()">Play Again</button>
+    <button class="btn" id="openLbBtn">📋 Open Leaderboards</button>
+    <button class="btn" onclick="location.reload()">🔁 Play Again</button>
   </div>
 </div>
 
@@ -351,25 +343,22 @@ hr {
   <div class="overlay-box" style="text-align:left;">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
       <h2 style="margin:0;">🏆 Leaderboards</h2>
-      <button class="btn secondary" id="closeLbOverlayBtn">↩ Return to game</button>
+      <button id="closeLbOverlayBtn">↩️ Return to game</button>
     </div>
 
     <div class="controls" style="margin-top:12px;">
-      <label style="font-weight:800;">Difficulty:</label>
-      <select id="lbSelect" style="padding:10px 12px;border-radius:12px;border:none;outline:none;font-weight:800;">
-        <option value="easy">Easy</option>
-        <option value="medium">Medium</option>
-        <option value="hard">Hard</option>
-        <option value="extra-hard">Extra Hard</option>
+      <label style="font-weight:900;">🎚️ Difficulty:</label>
+      <select id="lbSelect" style="padding:10px 12px;border-radius:12px;border:none;outline:none;font-weight:900;">
+        <option value="easy">😊 Easy</option>
+        <option value="medium">😎 Medium</option>
+        <option value="hard">🔥 Hard</option>
+        <option value="extra-hard">☠️ Extra Hard</option>
       </select>
-
-      <label class="small-toggle"><input type="checkbox" id="lbShowMoves" checked /> Show moves</label>
-      <label class="small-toggle"><input type="checkbox" id="lbShowTime" checked /> Show time</label>
     </div>
 
     <div class="leaderboard" style="margin-top:12px;">
       <div class="lb-title">
-        <h3 style="margin:0;">Top 10 (<span id="lbDiff2">easy</span>)</h3>
+        <h3 style="margin:0;">🏁 Top 10 (<span id="lbDiff2">easy</span>)</h3>
         <div class="lb-status" id="lbStatus2">Loading…</div>
       </div>
       <div class="lb-divider" id="podiumDivider2" style="display:none;"></div>
@@ -390,14 +379,12 @@ hr {
   </div>
 
   <div class="controls">
-    <!-- ✅ ADDED: Back to Arcade Menu button (sits with all the other buttons) -->
-    <button class="btn secondary" id="backMenuBtn">🕹️ Arcade Menu</button>
-
+    <button class="btn" id="backMenuBtn">🕹️ Arcade Menu</button>
     <button class="btn" id="restartBtn">🔁 Restart</button>
-    <button class="btn" id="soundBtn">My stupid voice: ON</button>
-    <button class="btn secondary" id="hintBtn">💡 Hint (1)</button>
-    <button class="btn secondary" id="leaderboardsBtn">🏆 Leaderboards</button>
-    <button class="btn secondary" id="shareBtn" style="display:none;">📣 Share</button>
+    <button class="btn" id="soundBtn">🔊 My stupid voice: ON</button>
+    <button class="btn" id="hintBtn">💡 Hint (1)</button>
+    <button class="btn" id="leaderboardsBtn">🏆 Leaderboards</button>
+    <button class="btn" id="shareBtn" style="display:none;">📣 Share</button>
   </div>
 
   <div class="game-board" id="board"></div>
@@ -491,9 +478,8 @@ const submitScoreBtn = document.getElementById("submitScoreBtn");
 const lbDiffEl = document.getElementById("lbDiff");
 const lbStatusEl = document.getElementById("lbStatus");
 const lbListEl = document.getElementById("lbList");
-const showMovesEl = document.getElementById("showMoves");
-const showTimeEl = document.getElementById("showTime");
 const podiumDivider = document.getElementById("podiumDivider");
+const winLeaderboardBox = document.getElementById("winLeaderboardBox");
 
 const openLbBtn = document.getElementById("openLbBtn");
 const openLbFromStartBtn = document.getElementById("openLbFromStartBtn");
@@ -503,18 +489,13 @@ const lbSelect = document.getElementById("lbSelect");
 const lbDiff2 = document.getElementById("lbDiff2");
 const lbStatus2 = document.getElementById("lbStatus2");
 const lbList2 = document.getElementById("lbList2");
-const lbShowMoves = document.getElementById("lbShowMoves");
-const lbShowTime = document.getElementById("lbShowTime");
 const podiumDivider2 = document.getElementById("podiumDivider2");
 
 const toastEl = document.getElementById("toast");
 
-/* ✅ ADDED: Back to Arcade Menu */
+/* Back to Arcade Menu */
 const backMenuBtn = document.getElementById("backMenuBtn");
-backMenuBtn.onclick = () => {
-  // memory-game/ -> go back to root index.html
-  location.href = "../index.html";
-};
+backMenuBtn.onclick = () => location.href = "../index.html";
 
 /* FUN UI bits */
 const rankBadge = document.getElementById("rankBadge");
@@ -595,7 +576,7 @@ function resetStats(){
   gameStartMs = Date.now();
   submittedThisWin = false;
   submitScoreBtn.disabled = false;
-  submitScoreBtn.textContent = "Submit";
+  submitScoreBtn.textContent = "📤 Submit Score";
 }
 
 function startTimer(){
@@ -732,7 +713,7 @@ async function doOneTileHint(){
 
   hintUsed = true;
   hintBtn.disabled = true;
-  hintBtn.textContent = "💡 Hint used";
+  hintBtn.textContent = "✅ Hint used";
   lock = true;
 
   const pick = candidates[Math.floor(Math.random() * candidates.length)];
@@ -779,7 +760,7 @@ board.addEventListener("click", (e) => {
 
         launchConfetti(110);
 
-        winStats.textContent = `${moves} moves · ${seconds}s`;
+        winStats.textContent = `🧠 ${moves} moves · ⏱️ ${seconds}s`;
         winOverlay.style.display = "flex";
 
         lastWin = { moves, time: seconds, diff: currentDiff, gameStartMs };
@@ -807,7 +788,7 @@ restartBtn.onclick = () => location.reload();
 
 soundBtn.onclick = () => {
   soundEnabled = !soundEnabled;
-  soundBtn.textContent = `My stupid voice: ${soundEnabled ? "ON" : "OFF"}`;
+  soundBtn.textContent = `🔊 My stupid voice: ${soundEnabled ? "ON" : "OFF"}`;
 };
 
 hintBtn.onclick = () => doOneTileHint();
@@ -837,9 +818,6 @@ lbSelect.addEventListener("change", () => {
   startLeaderboardListener(lbSelect.value, "screen");
 });
 
-lbShowMoves.addEventListener("change", () => startLeaderboardListener(lbSelect.value, "screen"));
-lbShowTime.addEventListener("change", () => startLeaderboardListener(lbSelect.value, "screen"));
-
 /* Share */
 shareBtn.onclick = async () => {
   if (!lastWin) return;
@@ -850,7 +828,7 @@ shareBtn.onclick = async () => {
       await navigator.share({ title: "Little Ollie Memory Game", text, url });
     } else {
       await navigator.clipboard.writeText(`${text}\n${url}`);
-      toast("Copied share text ✅");
+      toast("✅ Copied share text");
     }
   } catch {}
 };
@@ -869,11 +847,14 @@ function medalForRank(i){
   return "";
 }
 
-function renderLeaderboardInto(items, listEl, statusEl, opts){
-  const showMoves = opts.showMoves;
-  const showTime = opts.showTime;
-  const dividerEl = opts.dividerEl;
+function rankClass(i){
+  if (i === 0) return " rank-1";
+  if (i === 1) return " rank-2";
+  if (i === 2) return " rank-3";
+  return "";
+}
 
+function renderLeaderboardInto(items, listEl, statusEl, dividerEl){
   listEl.innerHTML = "";
 
   if (!items.length){
@@ -887,13 +868,10 @@ function renderLeaderboardInto(items, listEl, statusEl, opts){
 
   items.forEach((it, idx) => {
     const name = it.name || "Anonymous";
-    const parts = [];
-    if (showMoves) parts.push(`${it.moves} moves`);
-    if (showTime) parts.push(`${it.time}s`);
-    const meta = parts.join(" · ");
+    const meta = `${it.moves} moves · ${it.time}s`; // ✅ always show both
 
     const li = document.createElement("li");
-    li.className = "lb-row" + (idx < 3 ? " podium" : "");
+    li.className = "lb-row" + rankClass(idx);
     li.innerHTML = `
       <span class="lb-name">${medalForRank(idx)}#${idx + 1} ${escapeHtml(name)}</span>
       <span class="lb-meta">${meta}</span>
@@ -916,9 +894,6 @@ function startLeaderboardListener(diff, context){
   const listEl   = isWin ? lbListEl   : lbList2;
   const statusEl = isWin ? lbStatusEl : lbStatus2;
   const dividerEl= isWin ? podiumDivider : podiumDivider2;
-
-  const showMoves = isWin ? showMovesEl.checked : lbShowMoves.checked;
-  const showTime  = isWin ? showTimeEl.checked  : lbShowTime.checked;
 
   if (isWin){
     if (leaderboardUnsub) leaderboardUnsub();
@@ -953,11 +928,7 @@ function startLeaderboardListener(diff, context){
           items = items.filter(it => it.difficulty === diff).slice(0, 10);
         }
 
-        renderLeaderboardInto(items, listEl, statusEl, {
-          showMoves,
-          showTime,
-          dividerEl
-        });
+        renderLeaderboardInto(items, listEl, statusEl, dividerEl);
 
         if (isFallback){
           statusEl.textContent = `Top ${items.length} shown (fallback mode)`;
@@ -1011,11 +982,16 @@ function markSubmitted(winId){
   saveSubmittedWins(arr);
 }
 
+function scrollToWinLeaderboard(){
+  try { winLeaderboardBox.scrollIntoView({ behavior: "smooth", block: "start" }); } catch {}
+}
+
 submitScoreBtn.addEventListener("click", async () => {
   if (!lastWin) return;
 
   if (submittedThisWin){
-    toast("Already submitted ✅");
+    toast("✅ Already submitted");
+    scrollToWinLeaderboard();
     return;
   }
 
@@ -1023,9 +999,10 @@ submitScoreBtn.addEventListener("click", async () => {
 
   if (isSubmittedAlready(winId)){
     submitScoreBtn.disabled = true;
-    submitScoreBtn.textContent = "Submitted ✅";
-    toast("Already submitted ✅");
+    submitScoreBtn.textContent = "✅ Submitted";
+    toast("✅ Already submitted");
     submittedThisWin = true;
+    scrollToWinLeaderboard();
     return;
   }
 
@@ -1033,11 +1010,9 @@ submitScoreBtn.addEventListener("click", async () => {
   const name = rawName.slice(0, 20) || "Anonymous";
 
   submitScoreBtn.disabled = true;
-  submitScoreBtn.textContent = "Submitting…";
+  submitScoreBtn.textContent = "⏳ Submitting…";
 
   try {
-    const winId = getWinId(lastWin);
-
     await addDoc(collection(db, "scores"), {
       name,
       difficulty: lastWin.diff,
@@ -1050,13 +1025,16 @@ submitScoreBtn.addEventListener("click", async () => {
     markSubmitted(winId);
     submittedThisWin = true;
 
-    submitScoreBtn.textContent = "Submitted ✅";
+    submitScoreBtn.textContent = "✅ Submitted";
+    toast("🏆 Score added!");
+    startLeaderboardListener(lastWin.diff, "win"); // ✅ refresh leaderboard after submit
     updateRankAndCelebrate();
+    scrollToWinLeaderboard();
 
   } catch (err) {
     console.error("Submit score error:", err);
     alert(`Could not submit score:\n${err.code || ""}\n${err.message || ""}`);
-    submitScoreBtn.textContent = "Submit";
+    submitScoreBtn.textContent = "📤 Submit Score";
     submitScoreBtn.disabled = false;
   }
 });
@@ -1079,8 +1057,8 @@ function updateStreakBadges(){
     localStorage.setItem(STORAGE_KEYS.streak, String(streak));
   }
 
-  dailyBadge.textContent = `Daily: ${day}`;
-  streakBadge.textContent = `Streak: ${streak}🔥`;
+  dailyBadge.textContent = `📅 Daily: ${day}`;
+  streakBadge.textContent = `🔥 Streak: ${streak}`;
 }
 
 async function updateRankAndCelebrate(){
@@ -1104,14 +1082,14 @@ async function updateRankAndCelebrate(){
     if (idx >= 0){
       const rankNum = idx + 1;
       const emoji = rankNum === 1 ? "🥇" : rankNum === 2 ? "🥈" : rankNum === 3 ? "🥉" : "🏁";
-      rankBadge.textContent = `Rank: ${emoji} #${rankNum}`;
+      rankBadge.textContent = `🏅 Rank: ${emoji} #${rankNum}`;
 
       if (rankNum === 1){
         launchConfetti(160);
-        toast("NEW #1! 🥇");
+        toast("🥇 NEW #1!");
       }
     } else {
-      rankBadge.textContent = "Rank: (not in top 10 yet)";
+      rankBadge.textContent = "🏁 Rank: (not in top 10 yet)";
     }
   } catch {
     // keep —

@@ -8,10 +8,18 @@
   <style>
     * { box-sizing: border-box; }
     :root{
-      --gap: 4px;          /* smaller gaps */
-      --radius: 8px;       /* less rounded */
+      --gap: 4px;
+      --radius: 8px;
       --tileShadow: 0 10px 20px rgba(0,0,0,.25);
       --panel: rgba(0,0,0,.20);
+
+      --btnYellow:#ffdd55;
+      --btnText:#222;
+      --btnShadow: 0 8px 18px rgba(0,0,0,.18);
+
+      --gold: rgba(255,215,0,.22);
+      --silver: rgba(192,192,192,.18);
+      --bronze: rgba(205,127,50,.18);
     }
 
     body{
@@ -63,38 +71,45 @@
       border: none;
       border-radius: 12px;
       padding: 10px 12px;
-      font-weight: 700;
+      font-weight: 900;
       font-size: 14px;
       outline: none;
     }
 
-    select, input{
-      background: rgba(255,255,255,.92);
-      color:#111;
-      min-width: 170px;
-    }
+select{
+  background: var(--btnYellow);
+  color: var(--btnText);
+  min-width: 170px;
+  font-weight: 900;
+  box-shadow: var(--btnShadow);
+  cursor: pointer;
+}
 
+/* keep inputs white */
+input{
+  background: rgba(255,255,255,.92);
+  color:#111;
+  min-width: 170px;
+}
+
+
+    /* ✅ all buttons same yellow */
     button{
       cursor:pointer;
-      color:#111;
-      background: rgba(255,255,255,.92);
-      box-shadow: 0 8px 18px rgba(0,0,0,.18);
-      transition: transform .06s ease;
+      color: var(--btnText);
+      background: var(--btnYellow);
+      box-shadow: var(--btnShadow);
+      transition: transform .06s ease, filter .15s ease;
     }
+    button:hover{ filter: brightness(1.03); }
     button:active{ transform: scale(.98); }
-    button.primary{
-      background: #fff;
-    }
-    button.ghost{
-      background: rgba(255,255,255,.75);
-    }
 
     .stats{
       display:flex;
       gap:12px;
       align-items:center;
       flex-wrap:wrap;
-      font-weight: 800;
+      font-weight: 900;
     }
     .pill{
       background: rgba(0,0,0,.22);
@@ -120,7 +135,6 @@
       box-shadow: 0 12px 26px rgba(0,0,0,.25);
     }
 
-    /* Board */
     .board{
       width: 100%;
       aspect-ratio: 1 / 1;
@@ -144,7 +158,6 @@
       overflow:hidden;
       transform: translateZ(0);
     }
-
     .tile:active{ transform: scale(.995); }
 
     .tile.blank{
@@ -153,7 +166,6 @@
       cursor: default;
     }
 
-    /* Sidebar */
     .sideCard{
       background: rgba(0,0,0,.18);
       border-radius: 18px;
@@ -161,7 +173,7 @@
       box-shadow: 0 12px 26px rgba(0,0,0,.25);
     }
     .sideTitle{
-      font-weight: 900;
+      font-weight: 950;
       font-size: 16px;
       margin: 0 0 8px;
     }
@@ -171,9 +183,8 @@
       line-height: 1.3;
       margin-bottom: 10px;
     }
-    .muted{ opacity:.9; font-weight:700; }
+    .muted{ opacity:.9; font-weight:800; }
 
-    /* Win modal */
     .overlay{
       position: fixed;
       inset:0;
@@ -185,7 +196,7 @@
       padding: 14px;
     }
     .modal{
-      width: 520px;
+      width: 560px;
       max-width: 95vw;
       background: rgba(20,20,28,.96);
       border-radius: 18px;
@@ -194,15 +205,12 @@
       position: relative;
       overflow:hidden;
     }
-    .modal h2{
-      margin: 0 0 6px;
-      font-size: 20px;
-    }
+    .modal h2{ margin: 0 0 6px; font-size: 20px; }
     .modal p{
       margin: 0 0 10px;
       opacity: .95;
       line-height: 1.3;
-      font-weight: 700;
+      font-weight: 800;
     }
     .modal .row{
       display:flex;
@@ -212,7 +220,7 @@
       align-items:center;
     }
 
-    /* Leaderboard modal content */
+    /* Leaderboard */
     .leaderboard{
       margin-top: 10px;
       border-radius: 14px;
@@ -224,14 +232,14 @@
       justify-content:space-between;
       gap:10px;
       padding: 8px 10px;
-      font-weight: 700;
+      font-weight: 800;
       border-bottom: 1px solid rgba(255,255,255,.10);
       font-size: 13px;
     }
     .lbRow:last-child{ border-bottom:none; }
-    .lbRow.top1{ background: rgba(255,215,0,.22); }
-    .lbRow.top2{ background: rgba(192,192,192,.18); }
-    .lbRow.top3{ background: rgba(205,127,50,.18); }
+    .lbRow.top1{ background: var(--gold); }
+    .lbRow.top2{ background: var(--silver); }
+    .lbRow.top3{ background: var(--bronze); }
     .lbDivider{
       height: 1px;
       background: rgba(255,255,255,.18);
@@ -257,26 +265,26 @@
 
     <div class="topbar">
       <div class="controls">
-        <button id="menuBtn" class="ghost">🕹️ Arcade Menu</button>
+        <button id="menuBtn">🕹️ Arcade Menu</button>
 
         <select id="difficulty">
-          <option value="3">Easy (3×3)</option>
-          <option value="4">Medium (4×4)</option>
-          <option value="5">Hard (5×5)</option>
+          <option value="3">😊 Easy (3×3)</option>
+          <option value="4">😎 Medium (4×4)</option>
+          <option value="5">🔥 Hard (5×5)</option>
         </select>
 
         <select id="puzzleSelect"></select>
 
-        <button id="randomBtn" class="ghost">🎲 Random</button>
-        <button id="startBtn" class="primary">▶️ Start</button>
-        <button id="resetBtn" class="ghost">↩️ Reset</button>
-        <button id="leaderboardBtn" class="ghost">🏆 Leaderboard</button>
+        <button id="randomBtn">🎲 Random</button>
+        <button id="startBtn">▶️ Start</button>
+        <button id="resetBtn">↩️ Reset</button>
+        <button id="leaderboardBtn">🏆 Leaderboard</button>
       </div>
 
       <div class="stats">
-        <div class="pill">Moves: <span id="moves">0</span></div>
-        <div class="pill">Time: <span id="time">0:00</span></div>
-        <div class="pill">Puzzle: <span id="puzzleLabel">1</span></div>
+        <div class="pill">🧠 Moves: <span id="moves">0</span></div>
+        <div class="pill">⏱️ Time: <span id="time">0:00</span></div>
+        <div class="pill">🖼️ Puzzle: <span id="puzzleLabel">1</span></div>
       </div>
     </div>
 
@@ -286,18 +294,18 @@
       </div>
 
       <div class="sideCard">
-        <p class="sideTitle">How to play</p>
+        <p class="sideTitle">📖 How to play</p>
         <div class="hint">
           Scroll puzzles — the tiles preview the image in order.<br/>
-          Press <b>Start</b> to scramble and play.
+          Press <b>▶️ Start</b> to scramble and play.
         </div>
 
         <div class="hint" style="margin-top:10px;">
-          <span class="muted">Tip:</span> For best quality on 5×5, use higher-res source images (e.g. 1000px+).
+          <span class="muted">Tip:</span> For best quality on 5×5, use higher-res source images (1000px+).
         </div>
 
         <div class="hint" style="margin-top:10px;">
-          <span class="muted">Note:</span> Firebase scores are stored per grid size (3×3 / 4×4 / 5×5).
+          <span class="muted">Note:</span> Scores are stored per grid size (3×3 / 4×4 / 5×5).
         </div>
       </div>
     </div>
@@ -312,13 +320,16 @@
       </p>
 
       <div class="row">
-        <input id="playerName" type="text" maxlength="20" placeholder="Name (for leaderboard)" />
-        <button id="submitScoreBtn" class="primary">🏆 Submit Score</button>
-        <button id="closeWinBtn" class="ghost">Close</button>
+        <input id="playerName" type="text" maxlength="20" placeholder="✍️ Name (leaderboard)" />
+        <button id="submitScoreBtn">✅ Submit Score</button>
+        <button id="closeWinBtn">❌ Close</button>
       </div>
 
+      <!-- ✅ NEW: leaderboard shown under submit (same pattern as memory game) -->
+      <div class="leaderboard" id="winLbList" style="margin-top:12px;"></div>
+
       <div class="hint" style="margin-top:10px; opacity:.9;">
-        Scores are saved per difficulty (3×3 / 4×4 / 5×5).
+        Ranking: lowest moves, then lowest time.
       </div>
     </div>
   </div>
@@ -327,18 +338,16 @@
   <div class="overlay" id="lbOverlay">
     <div class="modal">
       <h2>🏆 Leaderboard</h2>
-      <p class="hint" style="margin-bottom:6px;">
-        Showing top 10 for:
-      </p>
+      <p class="hint" style="margin-bottom:6px;">Showing top 10 for:</p>
 
       <div class="row" style="margin-top:0;">
         <select id="lbDifficulty">
-          <option value="3">Easy (3×3)</option>
-          <option value="4">Medium (4×4)</option>
-          <option value="5">Hard (5×5)</option>
+          <option value="3">😊 Easy (3×3)</option>
+          <option value="4">😎 Medium (4×4)</option>
+          <option value="5">🔥 Hard (5×5)</option>
         </select>
-        <button id="lbRefreshBtn" class="primary">🔄 Refresh</button>
-        <button id="lbCloseBtn" class="ghost">Close</button>
+        <button id="lbRefreshBtn">🔄 Refresh</button>
+        <button id="lbCloseBtn">❌ Close</button>
       </div>
 
       <div class="leaderboard" id="lbList" style="margin-top:12px;"></div>
@@ -350,7 +359,6 @@
   </div>
 
   <script type="module">
-    /************ 1) FIREBASE CONFIG (KEEP THIS AS-IS) ************/
     const firebaseConfig = {
       apiKey: "AIzaSyBGMiQj1QLqcmhzV_qId4eoZzRQVSikjHo",
       authDomain: "littleolliesliderpuzzle.firebaseapp.com",
@@ -361,14 +369,12 @@
       measurementId: "G-4R4VTGXGQH"
     };
 
-    // This is only "true" if you actually have keys present
     const CONFIG_PRESENT =
       !!firebaseConfig?.apiKey &&
       !!firebaseConfig?.projectId &&
       !String(firebaseConfig.apiKey).toUpperCase().includes("PASTE");
 
-    /************ 2) FIREBASE IMPORTS (CDN) ************/
-    let firebaseOk = false; // becomes true only if imports + init work
+    let firebaseOk = false;
     let db = null, addDoc, collection, getDocs, limit, orderBy, query, serverTimestamp, where;
 
     if (CONFIG_PRESENT) {
@@ -386,7 +392,6 @@
       }
     }
 
-    /************ 3) GAME STATE ************/
     const boardEl = document.getElementById("board");
     const movesEl = document.getElementById("moves");
     const timeEl = document.getElementById("time");
@@ -398,32 +403,27 @@
     const puzzleLabel = document.getElementById("puzzleLabel");
     const leaderboardBtn = document.getElementById("leaderboardBtn");
 
-    // 🕹️ menu
     const menuBtn = document.getElementById("menuBtn");
-    menuBtn.addEventListener("click", () => {
-      window.location.href = "../index.html";
-    });
+    menuBtn.addEventListener("click", () => window.location.href = "../index.html");
 
-    // Win overlay
     const winOverlay = document.getElementById("winOverlay");
     const winMovesEl = document.getElementById("winMoves");
     const winTimeEl = document.getElementById("winTime");
     const closeWinBtn = document.getElementById("closeWinBtn");
     const submitScoreBtn = document.getElementById("submitScoreBtn");
     const playerNameEl = document.getElementById("playerName");
+    const winLbList = document.getElementById("winLbList");
 
-    // Leaderboard overlay
     const lbOverlay = document.getElementById("lbOverlay");
     const lbDifficulty = document.getElementById("lbDifficulty");
     const lbRefreshBtn = document.getElementById("lbRefreshBtn");
     const lbCloseBtn = document.getElementById("lbCloseBtn");
     const lbList = document.getElementById("lbList");
 
-    // Confetti
     const confettiCanvas = document.getElementById("confettiCanvas");
     const ctx = confettiCanvas.getContext("2d");
 
-    let N = 3; // grid size
+    let N = 3;
     let puzzleId = 1;
     let imageSrc = "";
     let tiles = [];
@@ -436,30 +436,27 @@
     let startTime = 0;
     let elapsedSec = 0;
 
-    // NEW: prevent spam submissions + manage shuffle animation
     let canSubmitScoreThisGame = false;
     let scoreSubmittedThisGame = false;
     let isShuffling = false;
 
     function setControlsEnabled(enabled){
-      // Don’t change visuals, just disable
       difficultyEl.disabled = !enabled;
       puzzleSelect.disabled = !enabled;
       randomBtn.disabled = !enabled;
       startBtn.disabled = !enabled;
       resetBtn.disabled = !enabled;
       leaderboardBtn.disabled = !enabled;
-      menuBtn.disabled = !enabled; // keep consistent
+      menuBtn.disabled = !enabled;
     }
 
     function resetScoreSubmissionLock(){
       canSubmitScoreThisGame = false;
       scoreSubmittedThisGame = false;
       submitScoreBtn.disabled = false;
-      submitScoreBtn.textContent = "🏆 Submit Score";
+      submitScoreBtn.textContent = "✅ Submit Score";
     }
 
-    /************ 4) PUZZLE LIST ************/
     function buildPuzzleList() {
       puzzleSelect.innerHTML = "";
       for (let i = 1; i <= 100; i++) {
@@ -470,7 +467,6 @@
       }
     }
 
-    /************ 5) IMAGE SLICE BACKGROUND HELPERS ************/
     function setBoardCssVars() {
       boardEl.style.setProperty("--bgSize", `${N * 100}% ${N * 100}%`);
     }
@@ -483,7 +479,6 @@
       return `${x}% ${y}%`;
     }
 
-    /************ 6) BUILD / RENDER ************/
     function buildSolvedState() {
       solved = [];
       for (let i = 0; i < N * N - 1; i++) solved.push(i);
@@ -540,7 +535,6 @@
       }
     }
 
-    /************ 7) MOVES ************/
     function posToRC(pos){ return [Math.floor(pos / N), pos % N]; }
     function rcToPos(r,c){ return r*N + c; }
 
@@ -564,7 +558,6 @@
       movesEl.textContent = String(moves);
 
       renderBoard();
-
       if (checkWin()) onWin();
     }
 
@@ -575,7 +568,6 @@
       return true;
     }
 
-    /************ 8) SCRAMBLE (SOLVABLE) ************/
     function getBlankNeighbors(blank) {
       const [r,c] = posToRC(blank);
       const out = [];
@@ -587,7 +579,6 @@
     }
 
     async function animateScrambleSolvable(durationMs = 3500, movesPerSecond = 22) {
-      // Always start from solved so it's 100% solvable
       tiles = [...solved];
       blankPos = tiles.indexOf(-1);
 
@@ -595,7 +586,6 @@
       started = false;
       setControlsEnabled(false);
 
-      // Ensure timer/moves reset BEFORE scramble begins
       stopTimer();
       elapsedSec = 0;
       timeEl.textContent = formatTime(0);
@@ -603,8 +593,6 @@
       movesEl.textContent = "0";
 
       resetScoreSubmissionLock();
-
-      // Render initial solved board
       renderBoard();
 
       const intervalMs = Math.max(25, Math.floor(1000 / movesPerSecond));
@@ -615,7 +603,6 @@
       await new Promise(resolve => {
         let step = 0;
         const id = setInterval(() => {
-          // one legal move per tick (never unsolvable)
           const neighbors = getBlankNeighbors(blankPos).filter(p => p !== lastBlank);
           const pick = neighbors[Math.floor(Math.random() * neighbors.length)];
           lastBlank = blankPos;
@@ -639,7 +626,6 @@
       startTimer();
     }
 
-    /************ 9) TIMER ************/
     function startTimer() {
       stopTimer();
       startTime = Date.now();
@@ -648,23 +634,18 @@
         timeEl.textContent = formatTime(elapsedSec);
       }, 250);
     }
-    function stopTimer(){
-      if (timer) clearInterval(timer);
-      timer = null;
-    }
+    function stopTimer(){ if (timer) clearInterval(timer); timer = null; }
+
     function formatTime(sec){
       const m = Math.floor(sec / 60);
       const s = sec % 60;
       return `${m}:${String(s).padStart(2, "0")}`;
     }
 
-    /************ 10) BUTTONS ************/
     startBtn.addEventListener("click", async () => {
       if (isShuffling) return;
-
       N = parseInt(difficultyEl.value, 10);
       buildSolvedState();
-
       const duration = 3500;
       const mps = (N === 5) ? 26 : 22;
       await animateScrambleSolvable(duration, mps);
@@ -697,7 +678,6 @@
     puzzleSelect.addEventListener("change", () => loadPuzzle(parseInt(puzzleSelect.value, 10)));
     difficultyEl.addEventListener("change", () => loadPuzzle(puzzleId));
 
-    /************ 11) WIN + CONFETTI ************/
     function onWin() {
       started = false;
       isShuffling = false;
@@ -706,13 +686,16 @@
       canSubmitScoreThisGame = true;
       scoreSubmittedThisGame = false;
       submitScoreBtn.disabled = false;
-      submitScoreBtn.textContent = "🏆 Submit Score";
+      submitScoreBtn.textContent = "✅ Submit Score";
 
       winMovesEl.textContent = String(moves);
       winTimeEl.textContent = formatTime(elapsedSec);
 
       winOverlay.style.display = "flex";
       fireConfetti();
+
+      // ✅ show leaderboard under submission immediately
+      refreshLeaderboardInto(winLbList, N);
     }
 
     closeWinBtn.addEventListener("click", () => {
@@ -748,17 +731,20 @@
           createdAt: new Date(),
           createdAtServer: serverTimestamp()
         });
+
         playerNameEl.value = "";
         alert("Score submitted! ✅");
+
+        // ✅ refresh leaderboard under the submit row
+        await refreshLeaderboardInto(winLbList, N);
+
       } catch (e) {
         console.error(e);
-
         scoreSubmittedThisGame = false;
         canSubmitScoreThisGame = true;
         submitScoreBtn.disabled = false;
-        submitScoreBtn.textContent = "🏆 Submit Score";
-
-        alert("Couldn’t submit score. Check Firestore rules + indexes. (Open Console for the exact error.)");
+        submitScoreBtn.textContent = "✅ Submit Score";
+        alert("Couldn’t submit score. Check Firestore rules + indexes. (Open Console for exact error.)");
       }
     });
 
@@ -795,12 +781,8 @@
 
       const tick = (t) => {
         ctx.clearRect(0,0,confettiCanvas.width,confettiCanvas.height);
-
         for (const p of confetti){
-          p.x += p.vx;
-          p.y += p.vy;
-          p.a += p.va;
-
+          p.x += p.vx; p.y += p.vy; p.a += p.va;
           if (p.x < -50) p.x = confettiCanvas.width + 50;
           if (p.x > confettiCanvas.width + 50) p.x = -50;
 
@@ -811,7 +793,6 @@
           ctx.fillRect(-p.r, -p.r*0.6, p.r*2, p.r*1.2);
           ctx.restore();
         }
-
         if (t - start < dur) confettiAnim = requestAnimationFrame(tick);
         else stopConfetti();
       };
@@ -825,38 +806,33 @@
       confettiCanvas.style.display = "none";
     }
 
-    /************ 12) LEADERBOARD POPUP ************/
     leaderboardBtn.addEventListener("click", async () => {
       lbDifficulty.value = String(N);
       lbOverlay.style.display = "flex";
-      await refreshLeaderboard(parseInt(lbDifficulty.value, 10));
+      await refreshLeaderboardInto(lbList, parseInt(lbDifficulty.value, 10));
     });
 
-    lbCloseBtn.addEventListener("click", () => {
-      lbOverlay.style.display = "none";
-    });
-
+    lbCloseBtn.addEventListener("click", () => { lbOverlay.style.display = "none"; });
     lbRefreshBtn.addEventListener("click", async () => {
-      await refreshLeaderboard(parseInt(lbDifficulty.value, 10));
+      await refreshLeaderboardInto(lbList, parseInt(lbDifficulty.value, 10));
     });
-
     lbDifficulty.addEventListener("change", async () => {
-      await refreshLeaderboard(parseInt(lbDifficulty.value, 10));
+      await refreshLeaderboardInto(lbList, parseInt(lbDifficulty.value, 10));
     });
 
-    async function refreshLeaderboard(gridSize){
-      lbList.innerHTML = "";
+    async function refreshLeaderboardInto(targetEl, gridSize){
+      targetEl.innerHTML = "";
 
       const header = document.createElement("div");
       header.className = "lbRow";
       header.innerHTML = `<span class="muted">Top 10 (Grid ${gridSize}×${gridSize})</span><span class="muted">Moves • Time</span>`;
-      lbList.appendChild(header);
+      targetEl.appendChild(header);
 
       if (!firebaseOk) {
         const row = document.createElement("div");
         row.className = "lbRow";
         row.innerHTML = `<span class="muted">Firebase failed to load</span><span class="muted">Check Console</span>`;
-        lbList.appendChild(row);
+        targetEl.appendChild(row);
         return;
       }
 
@@ -875,7 +851,7 @@
           const row = document.createElement("div");
           row.className = "lbRow";
           row.innerHTML = `<span class="muted">No scores yet</span><span class="muted">—</span>`;
-          lbList.appendChild(row);
+          targetEl.appendChild(row);
           return;
         }
 
@@ -893,13 +869,12 @@
             <span>${rank}. ${escapeHtml(s.name || "Anon")} <span class="muted">(P${s.puzzleId})</span></span>
             <span>${s.moves} • ${formatTime(s.time || 0)}</span>
           `;
-
-          lbList.appendChild(row);
+          targetEl.appendChild(row);
 
           if (rank === 3) {
             const div = document.createElement("div");
             div.className = "lbDivider";
-            lbList.appendChild(div);
+            targetEl.appendChild(div);
           }
 
           rank++;
@@ -909,7 +884,7 @@
         const row = document.createElement("div");
         row.className = "lbRow";
         row.innerHTML = `<span class="muted">Leaderboard error</span><span class="muted">Rules/index</span>`;
-        lbList.appendChild(row);
+        targetEl.appendChild(row);
       }
     }
 
@@ -922,7 +897,6 @@
         .replaceAll("'","&#039;");
     }
 
-    /************ 13) INIT ************/
     buildPuzzleList();
     puzzleSelect.value = "1";
     loadPuzzle(1);

@@ -13,6 +13,8 @@
       --panel: rgba(0,0,0,.18);
       --shadow: 0 12px 28px rgba(0,0,0,.35);
       --tileShadow: 0 10px 20px rgba(0,0,0,.25);
+      --btnYellow: #ffdd55;
+      --btnText: #222;
     }
 
     body{
@@ -63,23 +65,24 @@
       align-items:center;
     }
 
+    /* ✅ ALL BUTTONS SAME YELLOW */
     .btn{
       border:0;
       cursor:pointer;
       padding:10px 12px;
       border-radius: 14px;
-      background: rgba(255,255,255,.16);
-      color:#fff;
-      font-weight: 800;
+      background: var(--btnYellow);
+      color: var(--btnText);
+      font-weight: 950;
       letter-spacing:.2px;
       box-shadow: 0 10px 18px rgba(0,0,0,.18);
-      transition: transform .08s ease, background .15s ease;
+      transition: transform .08s ease, filter .15s ease;
       user-select:none;
       display:flex;
       align-items:center;
       gap:8px;
     }
-    .btn:hover{ transform: translateY(-1px); background: rgba(255,255,255,.22); }
+    .btn:hover{ transform: translateY(-1px); filter: brightness(1.02); }
     .btn:active{ transform: translateY(0px) scale(.99); }
     .btn:disabled{ cursor:not-allowed; opacity:.6; transform:none; }
 
@@ -89,7 +92,7 @@
       flex-wrap:wrap;
       align-items:center;
       justify-content:flex-end;
-      font-weight: 800;
+      font-weight: 900;
     }
     .pill{
       padding:10px 12px;
@@ -105,7 +108,6 @@
       gap: 12px;
     }
 
-    /* Board is 5x4 */
     .board-wrap{
       position:relative;
       border-radius: 20px;
@@ -154,7 +156,6 @@
 
     .disabled .tile button{ cursor: default; }
 
-    /* Shuffle overlay */
     .overlay{
       position:absolute;
       inset:0;
@@ -164,15 +165,13 @@
       background: rgba(0,0,0,.35);
       backdrop-filter: blur(2px);
       border-radius: 20px;
-      font-weight: 900;
+      font-weight: 950;
       letter-spacing: .3px;
       text-align:center;
       padding: 18px;
-      z-index: 10;
     }
     .overlay.show{ display:flex; }
 
-    /* Modal */
     .modal{
       position:fixed;
       inset:0;
@@ -234,14 +233,15 @@
       padding:10px 10px;
       border-bottom: 1px solid rgba(255,255,255,.10);
       text-align:left;
-      font-weight: 750;
+      font-weight: 800;
       font-size: 14px;
     }
     th{
       opacity:.95;
-      font-weight: 900;
+      font-weight: 950;
     }
 
+    /* ✅ Podium shades */
     tr.top1{ background: rgba(255, 215, 0, .18); }
     tr.top2{ background: rgba(192, 192, 192, .16); }
     tr.top3{ background: rgba(205, 127, 50, .14); }
@@ -259,14 +259,14 @@
       background: rgba(255,255,255,.08);
       color:#fff;
       outline:none;
-      font-weight: 800;
+      font-weight: 900;
       width: min(320px, 80vw);
     }
     input::placeholder{ color: rgba(255,255,255,.7); }
 
     .note{
       opacity:.88;
-      font-weight: 700;
+      font-weight: 750;
       font-size: 13px;
       margin-top: 8px;
       line-height:1.35;
@@ -319,7 +319,7 @@
           <div class="board" id="board"></div>
 
           <div class="win-banner" id="winBanner">
-            🎉 You did it! Rows are matched. Enter your name to save your score.
+            🎉 You did it! Rows are matched. Open 🏆 Leaderboard to submit your score & see the top scores.
           </div>
         </div>
       </div>
@@ -329,7 +329,7 @@
 
   <!-- HOW TO PLAY MODAL -->
   <div class="modal" id="howModal" aria-hidden="true">
-    <div class="modal-card" id="howCard">
+    <div class="modal-card">
       <div class="modal-head">
         <div class="modal-title">📖 How To Play</div>
         <button class="btn" id="howBack">⬅️ Back</button>
@@ -342,10 +342,10 @@
           <li>Three characters have <b>5 tiles</b> each.</li>
           <li>One character has <b>4 tiles</b> (because there’s <b>1 empty space</b> you slide into).</li>
         </ul>
-        <p><b>How to move:</b> Tap a tile next to the empty space (up/down/left/right).</p>
+        <p><b>How to move:</b> Tap a tile that is directly next to the empty space (up/down/left/right) to slide it.</p>
         <p><b>New Game:</b> Picks 4 new characters and shows a solved board.</p>
-        <p><b>Start:</b> Shuffles for 3 seconds (always solvable).</p>
-        <p><b>Reset:</b> Returns to solved using the current characters.</p>
+        <p><b>Start:</b> Shuffles the <b>current</b> characters for 3 seconds (always solvable).</p>
+        <p><b>Reset:</b> Returns to solved using the <b>current</b> characters.</p>
         <p><b>Scoring:</b> Faster time is better. If time ties, fewer moves wins.</p>
       </div>
     </div>
@@ -353,15 +353,16 @@
 
   <!-- LEADERBOARD MODAL -->
   <div class="modal" id="lbModal" aria-hidden="true">
-    <div class="modal-card" id="lbCard">
+    <div class="modal-card">
       <div class="modal-head">
         <div class="modal-title">🏆 Leaderboard (Top 10)</div>
         <button class="btn" id="lbBack">⬅️ Back</button>
       </div>
 
+      <!-- ✅ Submit area sits above leaderboard (same idea as memory game) -->
       <div class="section">
         <div class="row">
-          <input id="nameInput" maxlength="20" placeholder="Your name (1–20 chars)" />
+          <input id="nameInput" maxlength="20" placeholder="✍️ Your name (1–20 chars)" />
           <button class="btn" id="submitScoreBtn">✅ Submit Score</button>
         </div>
         <div class="note" id="submitNote">
@@ -388,17 +389,14 @@
     </div>
   </div>
 
-  <!-- Firebase (compat) -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
   <script>
-    /******************************************************************
-     * CONFIG / ASSETS
-     ******************************************************************/
     const PUZZLE_FOLDER = "puzzles";
     const MIN_IMG = 1;
     const MAX_IMG = 100;
+
     const SCORES_COLLECTION = "scores";
 
     const firebaseConfig = {
@@ -411,10 +409,8 @@
       measurementId: "G-WGK6L2JGLS"
     };
 
-    /******************************************************************
-     * GAME STATE
-     ******************************************************************/
-    const W = 5, H = 4, N = W * H; // 20
+    const W = 5, H = 4, N = W * H;
+
     let board = new Array(N).fill(-1);
     let emptyIndex = N - 1;
 
@@ -429,11 +425,8 @@
     let winId = "";
     let scoreSubmitted = false;
 
-    let chosenImgs = []; // [imgNumber,...] length 4
+    let chosenImgs = [];
 
-    /******************************************************************
-     * DOM
-     ******************************************************************/
     const boardEl = document.getElementById("board");
     const overlayEl = document.getElementById("overlay");
     const boardWrapEl = document.getElementById("boardWrap");
@@ -450,11 +443,9 @@
 
     const howModal = document.getElementById("howModal");
     const howBack = document.getElementById("howBack");
-    const howCard = document.getElementById("howCard");
 
     const lbModal = document.getElementById("lbModal");
     const lbBack = document.getElementById("lbBack");
-    const lbCard = document.getElementById("lbCard");
     const lbBody = document.getElementById("lbBody");
     const nameInput = document.getElementById("nameInput");
     const submitScoreBtn = document.getElementById("submitScoreBtn");
@@ -462,9 +453,6 @@
 
     const winBanner = document.getElementById("winBanner");
 
-    /******************************************************************
-     * FIREBASE
-     ******************************************************************/
     let db = null;
     let firebaseReady = false;
 
@@ -474,12 +462,7 @@
           firebaseReady = false;
           return;
         }
-        // ✅ Prevent "Firebase App named '[DEFAULT]' already exists" from breaking things
-        if (firebase.apps && firebase.apps.length){
-          // already inited
-        } else {
-          firebase.initializeApp(firebaseConfig);
-        }
+        firebase.initializeApp(firebaseConfig);
         db = firebase.firestore();
         firebaseReady = true;
       }catch(e){
@@ -488,9 +471,6 @@
       }
     }
 
-    /******************************************************************
-     * HELPERS
-     ******************************************************************/
     function randInt(min, max){
       return Math.floor(Math.random() * (max - min + 1)) + min;
     }
@@ -508,13 +488,8 @@
       return `${PUZZLE_FOLDER}/${imgNum}.png`;
     }
 
-    function idxToRC(i){
-      return { r: Math.floor(i / W), c: i % W };
-    }
-
-    function rcToIdx(r,c){
-      return r * W + c;
-    }
+    function idxToRC(i){ return { r: Math.floor(i / W), c: i % W }; }
+    function rcToIdx(r,c){ return r * W + c; }
 
     function neighbors(i){
       const {r,c} = idxToRC(i);
@@ -526,9 +501,7 @@
       return out;
     }
 
-    function canMove(i){
-      return neighbors(i).includes(emptyIndex);
-    }
+    function canMove(i){ return neighbors(i).includes(emptyIndex); }
 
     function setDisabledUI(disabled){
       if(disabled) boardWrapEl.classList.add("disabled");
@@ -560,9 +533,6 @@
         .replaceAll("'","&#039;");
     }
 
-    /******************************************************************
-     * SOLVED BOARD
-     ******************************************************************/
     function buildSolvedBoardUsingCurrentImages(){
       if(!chosenImgs || chosenImgs.length !== 4){
         chosenImgs = pick4UniqueImages();
@@ -570,17 +540,15 @@
 
       board = new Array(N).fill(-1);
 
-      // Row0: type0 x4 + empty at col4
       for(let c=0;c<4;c++){
         board[rcToIdx(0,c)] = 0;
       }
       board[rcToIdx(0,4)] = -1;
       emptyIndex = rcToIdx(0,4);
 
-      // Rows1-3: type1/2/3 full rows
       for(let r=1;r<4;r++){
         for(let c=0;c<5;c++){
-          board[rcToIdx(r,c)] = r; // 1,2,3
+          board[rcToIdx(r,c)] = r;
         }
       }
 
@@ -608,11 +576,9 @@
       buildSolvedBoardUsingCurrentImages();
     }
 
-    /******************************************************************
-     * RENDER
-     ******************************************************************/
     function render(){
       boardEl.innerHTML = "";
+
       for(let i=0;i<N;i++){
         const v = board[i];
         const tile = document.createElement("div");
@@ -635,7 +601,10 @@
           if(!gameStarted) return;
           if(won) return;
           if(v === -1) return;
-          if(canMove(i)) doMove(i, true);
+
+          if(canMove(i)){
+            doMove(i, true);
+          }
         });
 
         tile.appendChild(btn);
@@ -643,9 +612,6 @@
       }
     }
 
-    /******************************************************************
-     * MOVES / WIN CHECK
-     ******************************************************************/
     function doMove(tileIndex, countMove){
       const t = board[tileIndex];
       board[tileIndex] = -1;
@@ -658,18 +624,6 @@
         checkWin();
       }
       render();
-    }
-
-    // ✅ NEW: open leaderboard automatically on win
-    async function openLeaderboardAfterWin(){
-      openModal(lbModal);
-      await loadLeaderboard();
-      updateSubmitNote(true);
-
-      // Focus name input
-      setTimeout(() => {
-        try { nameInput.focus(); nameInput.select(); } catch(e){}
-      }, 50);
     }
 
     function checkWin(){
@@ -703,19 +657,10 @@
       stopTimer();
       winBanner.classList.add("show");
       gameStarted = false;
-
-      // allow submit for this win
-      scoreSubmitted = false;
       updateSubmitNote(true);
       updateButtons();
-
-      // ✅ POP the leaderboard modal automatically
-      openLeaderboardAfterWin();
     }
 
-    /******************************************************************
-     * TIMER
-     ******************************************************************/
     function startTimer(){
       startTimeMs = Date.now();
       stopTimer();
@@ -737,9 +682,6 @@
       return Math.max(0, Math.floor((Date.now() - startTimeMs) / 1000));
     }
 
-    /******************************************************************
-     * SHUFFLE (3 seconds fast, always solvable)
-     ******************************************************************/
     async function shuffleFor3Seconds(){
       shuffling = true;
       setDisabledUI(true);
@@ -751,6 +693,7 @@
 
       while(performance.now() < end){
         const neigh = neighbors(emptyIndex);
+
         let options = neigh.filter(n => n !== lastEmpty);
         if(options.length === 0) options = neigh;
 
@@ -782,9 +725,6 @@
       updateButtons();
     }
 
-    /******************************************************************
-     * MODALS
-     ******************************************************************/
     function openModal(el){
       el.classList.add("show");
       el.setAttribute("aria-hidden","false");
@@ -794,14 +734,11 @@
       el.setAttribute("aria-hidden","true");
     }
 
-    /******************************************************************
-     * LEADERBOARD
-     ******************************************************************/
     function updateSubmitNote(forceWon){
       const isWon = forceWon || won;
 
       if(!firebaseReady){
-        submitNote.textContent = "Firebase not ready (check Console / GitHub Pages).";
+        submitNote.textContent = "Leaderboard saving is OFF until Firebase config is added.";
         submitScoreBtn.disabled = true;
         submitScoreBtn.style.opacity = 0.55;
         return;
@@ -820,12 +757,12 @@
     }
 
     async function loadLeaderboard(){
-      lbBody.innerHTML = `<tr><td colspan="5">Loading…</td></tr>`;
-
-      if(!firebaseReady || !db){
-        lbBody.innerHTML = `<tr><td colspan="5">Firebase not configured/ready.</td></tr>`;
+      if(!firebaseReady){
+        lbBody.innerHTML = `<tr><td colspan="5">Firebase not configured yet.</td></tr>`;
         return;
       }
+
+      lbBody.innerHTML = `<tr><td colspan="5">Loading…</td></tr>`;
 
       try{
         const snap = await db.collection(SCORES_COLLECTION)
@@ -869,12 +806,12 @@
 
       }catch(e){
         console.warn(e);
-        lbBody.innerHTML = `<tr><td colspan="5">Error loading leaderboard (rules/index?).</td></tr>`;
+        lbBody.innerHTML = `<tr><td colspan="5">Error loading leaderboard.</td></tr>`;
       }
     }
 
     async function submitScore(){
-      if(!firebaseReady || !db) return;
+      if(!firebaseReady) return;
       if(!won) return;
       if(scoreSubmitted) return;
 
@@ -905,29 +842,20 @@
         console.warn(e);
         scoreSubmitted = false;
         updateSubmitNote(true);
-        submitNote.textContent = "Submit failed (Firebase rules/config).";
+        submitNote.textContent = "Submit failed (Firebase rules/config). We’ll fix it next.";
       }
     }
 
-    /******************************************************************
-     * BUTTON ENABLE/DISABLE
-     ******************************************************************/
     function updateButtons(){
       btnNew.disabled = shuffling;
       btnReset.disabled = shuffling;
       btnStart.disabled = shuffling || gameStarted;
     }
 
-    /******************************************************************
-     * BACK TO ARCADE MENU
-     ******************************************************************/
     function goToArcadeMenu(){
       window.location.href = "../index.html";
     }
 
-    /******************************************************************
-     * EVENTS
-     ******************************************************************/
     btnBackMenu.addEventListener("click", goToArcadeMenu);
 
     btnHow.addEventListener("click", () => openModal(howModal));
@@ -937,7 +865,6 @@
       openModal(lbModal);
       await loadLeaderboard();
       updateSubmitNote();
-      setTimeout(() => { try { nameInput.focus(); } catch(e){} }, 50);
     });
     lbBack.addEventListener("click", () => closeModal(lbModal));
 
@@ -962,25 +889,9 @@
       updateSubmitNote();
     });
 
-    // Close modals by clicking outside the card
     howModal.addEventListener("click", (e) => { if(e.target === howModal) closeModal(howModal); });
     lbModal.addEventListener("click", (e) => { if(e.target === lbModal) closeModal(lbModal); });
 
-    // Prevent clicks inside the card from closing (extra safe)
-    howCard.addEventListener("click", (e) => e.stopPropagation());
-    lbCard.addEventListener("click", (e) => e.stopPropagation());
-
-    // ESC to close
-    document.addEventListener("keydown", (e) => {
-      if(e.key === "Escape"){
-        closeModal(howModal);
-        closeModal(lbModal);
-      }
-    });
-
-    /******************************************************************
-     * INIT
-     ******************************************************************/
     initFirebaseIfConfigured();
     chosenImgs = pick4UniqueImages();
     buildSolvedBoardUsingCurrentImages();

@@ -401,11 +401,6 @@
           <small id="playerCanSubmit" style="margin-left:6px;">—</small>
         </div>
 
-        <div class="pill">
-          🎮 Games played: <span id="playsLabel">—</span>
-          <small id="playsStatus" style="margin-left:6px;">Loading…</small>
-        </div>
-
         <div style="display:flex; gap:10px; flex-wrap:wrap;">
           <button class="btn" id="changeNameBtn">✏️ Change name</button>
         </div>
@@ -625,107 +620,10 @@
       openPlayerModal();
     }
 
-    /******************************************************************
-     * FIREBASE (GLOBAL "GAMES PLAYED" COUNTER)
-     ******************************************************************/
-    const playsLabel  = document.getElementById("playsLabel");
-    const playsStatus = document.getElementById("playsStatus");
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyCpoXdJ1ASWEhp9IM4hm_LeVOW0VFqQ2hg",
-      authDomain: "little-ollie-memory.firebaseapp.com",
-      projectId: "little-ollie-memory",
-      storageBucket: "little-ollie-memory.firebasestorage.app",
-      messagingSenderId: "846792708520",
-      appId: "1:846792708520:web:851cf20bf6a80754cd8d9d",
-      measurementId: "G-CJCEBPSS2M"
-    };
-
-    const STORAGE_VISITED = "lo_arcade_visited_v1";
-
-    let db = null;
-    let onSnapshot, doc, getFirestore, initializeApp, setDoc, updateDoc, increment, serverTimestamp;
-
-    try{
-      ({ initializeApp } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js"));
-      const fs = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js");
-      ({ getFirestore, onSnapshot, doc, setDoc, updateDoc, increment, serverTimestamp } = fs);
-
-      const app = initializeApp(firebaseConfig);
-      db = getFirestore(app);
-    }catch(e){
-      console.warn("Firebase failed on Arcade page:", e);
-      playsLabel.textContent = "—";
-      playsStatus.textContent = "Firebase not loading";
-    }
-
-    const STATS_DOC_PATH = ["arcade_stats", "global"];
-
-    async function ensureStatsDoc(){
-      if(!db) return;
-      const ref = doc(db, ...STATS_DOC_PATH);
-      try{
-        await setDoc(ref, {
-          plays: 0,
-          visitors: 0,
-          updatedAt: serverTimestamp()
-        }, { merge: true });
-      }catch{}
-    }
-
-    async function markVisitorOnce(){
-      if(!db) return;
-      const ref = doc(db, ...STATS_DOC_PATH);
-
-      const already = localStorage.getItem(STORAGE_VISITED) === "1";
-      if(already) return;
-
-      try{
-        await updateDoc(ref, {
-          visitors: increment(1),
-          updatedAt: serverTimestamp()
-        });
-        localStorage.setItem(STORAGE_VISITED, "1");
-      }catch{}
-    }
-
-    async function trackPlay(){
-      if(!db) return;
-      const ref = doc(db, ...STATS_DOC_PATH);
-      try{
-        await updateDoc(ref, {
-          plays: increment(1),
-          updatedAt: serverTimestamp()
-        });
-      }catch(e){
-        console.warn("trackPlay failed:", e);
-      }
-    }
-
-    // ✅ This is what games should call to get the player name/id
+    // ✅ This stays so games can read the player name/id consistently
     window.LO_ARCADE = {
-      trackPlay,
       getPlayer
     };
-
-    async function startStatsListener(){
-      if(!db) return;
-      await ensureStatsDoc();
-      await markVisitorOnce();
-
-      const ref = doc(db, ...STATS_DOC_PATH);
-      onSnapshot(ref, (snap) => {
-        const d = snap.data() || {};
-        const plays = Number.isFinite(d.plays) ? d.plays : 0;
-        playsLabel.textContent = String(plays);
-        playsStatus.textContent = "Live";
-      }, (err) => {
-        console.warn("Stats listener error:", err);
-        playsStatus.textContent = "Stats error";
-      });
-    }
-
-    startStatsListener();
 
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("./sw.js").catch(() => {});

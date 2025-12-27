@@ -316,7 +316,6 @@
           <span class="muted">Note:</span> Scores are stored per grid size (3×3 / 4×4 / 5×5).
         </div>
 
-        <div class="playerTag" id="playerTag">👤 Player: …</div>
       </div>
     </div>
   </div>
@@ -433,7 +432,6 @@
     const playerSetupName = document.getElementById("playerSetupName");
     const playAsAnonBtn = document.getElementById("playAsAnonBtn");
     const saveNameBtn = document.getElementById("saveNameBtn");
-    const playerTag = document.getElementById("playerTag");
 
     const playerNameEl = document.getElementById("playerName"); // win input
     const submitHint = document.getElementById("submitHint");
@@ -463,16 +461,14 @@
       return true;
     }
 
-    function updatePlayerUI(){
-      const p = getPlayer();
-      if (p.mode === "anon") playerTag.textContent = "👤 Player: Anon (no score submissions)";
-      else if (p.mode === "named") playerTag.textContent = `👤 Player: ${p.name}`;
-      else playerTag.textContent = "👤 Player: not set";
+function updatePlayerUI(){
+  const p = getPlayer();
 
-      // prefill win input too
-      if (p.mode === "named") playerNameEl.value = p.name;
-      else playerNameEl.value = "";
-    }
+  // Keep prefill for leaderboard submit ONLY
+  if (p.mode === "named") playerNameEl.value = p.name;
+  else playerNameEl.value = "";
+}
+
 
     function openOverlay(el){ el.style.display = "flex"; }
     function closeOverlay(el){ el.style.display = "none"; }

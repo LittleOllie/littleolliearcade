@@ -14,6 +14,8 @@ const CORE_ASSETS = [
   "./row-match/index.html",
   "./memory-game/index.html",
   "./slider-puzzle/index.html"
+"./noughts-and-crosses/index.html"
+
 ];
 
 // Install: precache core (optional)

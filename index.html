@@ -65,39 +65,6 @@
       box-shadow: var(--soft);
     }
 
-    .statusbar{
-      margin-top: 12px;
-      background: rgba(0,0,0,.16);
-      border: 1px solid rgba(255,255,255,.12);
-      border-radius: 18px;
-      padding: 10px 12px;
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap: 10px;
-      flex-wrap: wrap;
-      box-shadow: 0 10px 22px rgba(0,0,0,.18);
-    }
-
-    .pill{
-      display:flex;
-      align-items:center;
-      gap:8px;
-      padding: 10px 12px;
-      border-radius: 16px;
-      background: rgba(255,255,255,.10);
-      border: 1px solid rgba(255,255,255,.12);
-      font-weight: 900;
-      letter-spacing: .2px;
-      white-space:nowrap;
-    }
-
-    .pill small{
-      opacity:.9;
-      font-weight: 800;
-      letter-spacing: .1px;
-    }
-
     .btn{
       border:0;
       cursor:pointer;
@@ -253,7 +220,6 @@
     .playBtn:active{ transform: translateY(1px) scale(.99); }
     .playBtn:hover{ filter: brightness(1.02); }
 
-    /* ✅ NEW: disabled/locked PLAY button style */
     .playBtn.disabled{
       opacity:.65;
       pointer-events:none;
@@ -311,71 +277,6 @@
       text-align:center;
     }
 
-    .overlay{
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,.62);
-      display:none;
-      align-items:center;
-      justify-content:center;
-      z-index: 9999;
-      padding: 14px;
-    }
-    .overlay.show{ display:flex; }
-
-    .modal{
-      width: min(560px, 96vw);
-      background: rgba(20,22,30,.96);
-      border: 1px solid rgba(255,255,255,.12);
-      border-radius: 22px;
-      box-shadow: 0 20px 60px rgba(0,0,0,.55);
-      padding: 14px;
-    }
-    .modal h2{
-      margin: 0 0 6px;
-      font-size: 20px;
-      font-weight: 950;
-      letter-spacing: .2px;
-    }
-    .modal p{
-      margin: 0 0 10px;
-      opacity: .93;
-      font-weight: 750;
-      line-height: 1.35;
-      font-size: 13px;
-    }
-    .modal .row{
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-      align-items:center;
-      margin-top: 10px;
-    }
-    .modal input{
-      flex: 1 1 220px;
-      border: 1px solid rgba(255,255,255,.14);
-      background: rgba(255,255,255,.10);
-      color:#fff;
-      border-radius: 16px;
-      padding: 11px 12px;
-      outline:none;
-      font-weight: 900;
-    }
-    .modal input::placeholder{ color: rgba(255,255,255,.7); }
-
-    .modal .miniNote{
-      margin-top: 10px;
-      opacity:.9;
-      font-size: 12px;
-      font-weight: 750;
-      line-height: 1.35;
-      background: rgba(255,255,255,.06);
-      border: 1px solid rgba(255,255,255,.10);
-      padding: 10px 12px;
-      border-radius: 16px;
-    }
-
-    /* ✅ NEW: Under construction tape */
     .tape{
       position:absolute;
       left:-18%;
@@ -386,8 +287,8 @@
       font-weight: 950;
       letter-spacing: .9px;
       text-transform: uppercase;
-color: #ffffff;
-text-shadow: 0 2px 4px rgba(0,0,0,.8);
+      color: #ffffff;
+      text-shadow: 0 2px 4px rgba(0,0,0,.8);
       background: repeating-linear-gradient(
         45deg,
         rgba(255,221,85,.92) 0px,
@@ -406,42 +307,9 @@ text-shadow: 0 2px 4px rgba(0,0,0,.8);
 </head>
 
 <body>
-  <!-- ✅ Player modal -->
-  <div class="overlay" id="playerOverlay" aria-hidden="true">
-    <div class="modal">
-      <h2>👋 Welcome to Little Ollie Arcade</h2>
-      <p>
-        Pick a player name so your scores can be saved on leaderboards.
-        <br/>Or play as <b>Anon</b> (you can still play, but you <b>can’t submit scores</b>).
-      </p>
-
-      <div class="row">
-        <input id="playerInput" maxlength="20" placeholder="Enter a name (1–20 chars)" />
-        <button class="btn" id="savePlayerBtn">✅ Save Name</button>
-        <button class="btn" id="playAnonBtn">😎 Play as Anon</button>
-      </div>
-
-      <div class="miniNote">
-        <b>FYI:</b> No password. Your name is stored on your device (browser) only.
-        Incognito/private mode may not keep it after you close the window.
-      </div>
-    </div>
-  </div>
-
   <div class="wrap">
     <div class="panel">
       <img class="header" src="header.png" alt="Little Ollie Arcade" />
-
-      <div class="statusbar">
-        <div class="pill">
-          👤 <span id="playerLabel">Player: —</span>
-          <small id="playerCanSubmit" style="margin-left:6px;">—</small>
-        </div>
-
-        <div style="display:flex; gap:10px; flex-wrap:wrap;">
-          <button class="btn" id="changeNameBtn">✏️ Change name</button>
-        </div>
-      </div>
 
       <div class="grid">
         <!-- Memory Game -->
@@ -543,9 +411,7 @@ text-shadow: 0 2px 4px rgba(0,0,0,.8);
           </div>
         </div>
 
-        <!-- ✅ NEW ROW (3 more cabinets) -->
-
-        <!-- Noughts & Crosses (X's + O's) -->
+        <!-- X's + O's -->
         <div class="cabinet">
           <div class="marquee">
             <h3>
@@ -565,8 +431,7 @@ text-shadow: 0 2px 4px rgba(0,0,0,.8);
               <div class="emoji">✖️⭕</div>
               <p class="desc">Play 2-player or vs Computer. Get 3 in a row to win.</p>
             </div>
-            <!-- NOTE: adjust the folder name if yours is different -->
-<a class="playBtn" href="./noughts-and-crosses/index.html">▶️ PLAY</a>
+            <a class="playBtn" href="./noughts-and-crosses/index.html">▶️ PLAY</a>
           </div>
 
           <div class="controlsBar">
@@ -655,188 +520,17 @@ text-shadow: 0 2px 4px rgba(0,0,0,.8);
   </div>
 
   <script type="module">
-    /******************************************************************
-     * PLAYER (shared across ALL games)
-     ******************************************************************/
-    const LS_PLAYER_NAME = "lo_player_name_v1";
-    const LS_PLAYER_ID   = "lo_player_id_v1";
-    const LS_PLAYER_ANON_CHOICE = "lo_player_anon_choice_v1";
-    // ✅ NEW: Marks that the user has already been asked on the HUB
-    const LS_PLAYER_ONBOARDED = "lo_player_onboarded_v1";
-
-    const playerOverlay = document.getElementById("playerOverlay");
-    const playerInput   = document.getElementById("playerInput");
-    const savePlayerBtn = document.getElementById("savePlayerBtn");
-    const playAnonBtn   = document.getElementById("playAnonBtn");
-    const changeNameBtn = document.getElementById("changeNameBtn");
-
-    const playerLabel   = document.getElementById("playerLabel");
-    const playerCanSubmit = document.getElementById("playerCanSubmit");
-
-    // ✅ NEW: if user clicked PLAY before picking, we remember where to go
-    let pendingNavUrl = null;
-
-    function escapeHtml(s){
-      return String(s).replace(/[&<>"']/g, m => ({
-        "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
-      }[m]));
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker
+        .register("./sw.js")
+        .then((reg) => {
+          reg.update();
+          navigator.serviceWorker.addEventListener("controllerchange", () => {
+            window.location.reload();
+          });
+        })
+        .catch(() => {});
     }
-
-    function makeId(){
-      if (crypto?.randomUUID) return crypto.randomUUID();
-      return "p_" + Date.now() + "_" + Math.random().toString(16).slice(2);
-    }
-
-    function markOnboarded(){
-      localStorage.setItem(LS_PLAYER_ONBOARDED, "1");
-    }
-
-    function isOnboarded(){
-      return localStorage.getItem(LS_PLAYER_ONBOARDED) === "1";
-    }
-
-    function getPlayer(){
-      const name = (localStorage.getItem(LS_PLAYER_NAME) || "").trim().slice(0,20);
-      let id = (localStorage.getItem(LS_PLAYER_ID) || "").trim();
-      if (!id) {
-        id = makeId();
-        localStorage.setItem(LS_PLAYER_ID, id);
-      }
-      const isAnon = !name;
-      return { name, id, isAnon, canSubmit: !isAnon };
-    }
-
-    function setPlayerName(name){
-      const clean = (name || "").trim().slice(0,20);
-      if (clean) localStorage.setItem(LS_PLAYER_NAME, clean);
-      else localStorage.removeItem(LS_PLAYER_NAME);
-    }
-
-    function setAnonChoice(flag){
-      localStorage.setItem(LS_PLAYER_ANON_CHOICE, flag ? "1" : "0");
-    }
-
-    function updatePlayerUI(){
-      const p = getPlayer();
-      const shown = p.isAnon ? "Anon" : p.name;
-      playerLabel.innerHTML = `Player: <b>${escapeHtml(shown)}</b>`;
-      playerCanSubmit.textContent = p.canSubmit ? "✅ Score submit ON" : "🚫 Score submit OFF";
-    }
-
-    function openPlayerModal(){
-      playerOverlay.classList.add("show");
-      playerOverlay.setAttribute("aria-hidden","false");
-      playerInput.value = "";
-      setTimeout(() => playerInput.focus(), 80);
-    }
-
-    function closePlayerModal(){
-      playerOverlay.classList.remove("show");
-      playerOverlay.setAttribute("aria-hidden","true");
-    }
-
-    function finishAndMaybeNavigate(){
-      // ✅ user has now made a choice on the hub
-      markOnboarded();
-      updatePlayerUI();
-      closePlayerModal();
-
-      // ✅ if they clicked a game first, take them there now
-      if (pendingNavUrl){
-        const go = pendingNavUrl;
-        pendingNavUrl = null;
-        window.location.href = go;
-      }
-    }
-
-    savePlayerBtn.addEventListener("click", () => {
-      const name = (playerInput.value || "").trim();
-      if(name.length < 1 || name.length > 20){
-        alert("Name must be 1–20 characters.");
-        return;
-      }
-      if(name.toLowerCase() === "anon" || name.toLowerCase() === "anonymous"){
-        alert("Please pick a different name (not Anon).");
-        return;
-      }
-
-      setPlayerName(name);
-      setAnonChoice(false);
-      finishAndMaybeNavigate();
-    });
-
-    playAnonBtn.addEventListener("click", () => {
-      setPlayerName("");
-      setAnonChoice(true);
-      finishAndMaybeNavigate();
-    });
-
-    changeNameBtn.addEventListener("click", () => {
-      // If they hit change name, we still consider them onboarded.
-      openPlayerModal();
-    });
-
-    playerOverlay.addEventListener("click", (e) => {
-      if(e.target === playerOverlay) {
-        // If they were trying to go to a game, don't trap them forever:
-        // just close and clear pending nav.
-        pendingNavUrl = null;
-        closePlayerModal();
-      }
-    });
-
-    // ✅ Gate PLAY buttons: hub is the only place that asks.
-    function wirePlayGate(){
-      const playLinks = Array.from(document.querySelectorAll("a.playBtn[href]:not(.disabled)"));
-      playLinks.forEach(a => {
-        a.addEventListener("click", (e) => {
-          const href = a.getAttribute("href");
-          if(!href) return;
-
-          // if they've already chosen on the hub, go straight in
-          if (isOnboarded()) return;
-
-          // Otherwise: stop navigation, ask here, then go after they choose
-          e.preventDefault();
-          pendingNavUrl = href;
-          openPlayerModal(
-        });
-      });
-    }
-
-    // ✅ initial UI
-    updatePlayerUI();
-
-    // ✅ if they already have a name OR chose anon before, mark onboarded so games shouldn't need to ask
-    const hasName = !!(localStorage.getItem(LS_PLAYER_NAME) || "").trim();
-    const choseAnonBefore = localStorage.getItem(LS_PLAYER_ANON_CHOICE) === "1";
-    if (hasName || choseAnonBefore) markOnboarded();
-
-    // ✅ If not chosen yet, ask on the hub (but ONLY on the hub)
-    if(!isOnboarded()){
-      openPlayerModal();
-    }
-
-    wirePlayGate();
-
-    // ✅ This stays so games can read the player name/id consistently
-    window.LO_ARCADE = { getPlayer };
-
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker
-    .register("./sw.js")
-    .then((reg) => {
-      // 👇 forces a check for an updated sw.js
-      reg.update();
-
-      // 👇 auto-refresh page when new SW takes control
-      navigator.serviceWorker.addEventListener("controllerchange", () => {
-        window.location.reload();
-      });
-    })
-    .catch(() => {});
-}
-
   </script>
 </body>
 </html>

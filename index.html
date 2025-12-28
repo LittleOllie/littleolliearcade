@@ -822,9 +822,21 @@ text-shadow: 0 2px 4px rgba(0,0,0,.8);
     // ✅ This stays so games can read the player name/id consistently
     window.LO_ARCADE = { getPlayer };
 
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("./sw.js").catch(() => {});
-    }
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker
+    .register("./sw.js")
+    .then((reg) => {
+      // 👇 forces a check for an updated sw.js
+      reg.update();
+
+      // 👇 auto-refresh page when new SW takes control
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        window.location.reload();
+      });
+    })
+    .catch(() => {});
+}
+
   </script>
 </body>
 </html>

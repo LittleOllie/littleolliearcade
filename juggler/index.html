@@ -1,0 +1,1094 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Little Ollie Juggle</title>
+
+  <style>
+    *{ box-sizing:border-box; }
+    :root{
+      --bg1:#6de0ff;
+      --bg2:#4c6fff;
+
+      --panel: rgba(0,0,0,.18);
+      --panel2: rgba(0,0,0,.22);
+      --shadow: 0 12px 28px rgba(0,0,0,.35);
+
+      --btnYellow:#ffdd55;
+      --btnYellow2:#ffd22e;
+      --btnText:#222;
+      --btnShadow: 0 10px 20px rgba(0,0,0,.22);
+
+      --text:#fff;
+      --radius: 18px;
+      --gap: 10px;
+
+      --gold: rgba(255,215,0,.22);
+      --silver: rgba(192,192,192,.18);
+      --bronze: rgba(205,127,50,.18);
+    }
+
+    body{
+      margin:0;
+      min-height:100vh;
+      display:flex;
+      justify-content:center;
+      align-items:flex-start;
+      padding:18px 10px 30px;
+      background: radial-gradient(circle at top, var(--bg1), var(--bg2));
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      color: var(--text);
+    }
+
+    .wrap{
+      width: 980px;
+      max-width: 96vw;
+      display:flex;
+      flex-direction:column;
+      gap: 12px;
+    }
+
+    .card{
+      background: var(--panel);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+      padding: 14px;
+      overflow:hidden;
+    }
+
+    .header-img{
+      width:100%;
+      display:block;
+      border-radius: 18px;
+      margin-bottom: 10px;
+    }
+
+    /* === controls row like your Noughts & Crosses (one line, all yellow) === */
+    .controls{
+      display:flex;
+      gap: 8px;
+      flex-wrap: nowrap;          /* one line */
+      justify-content:flex-start; /* all left */
+      width:100%;
+      align-items:center;
+      overflow-x:auto;
+      -webkit-overflow-scrolling: touch;
+      padding-bottom: 2px;
+    }
+
+    .btn{
+      appearance:none;
+      border:0;
+      cursor:pointer;
+      background: var(--btnYellow);
+      color: var(--btnText);
+      font-weight: 900;
+      padding: 10px 12px;
+      border-radius: 12px;
+      box-shadow: 0 8px 18px rgba(0,0,0,.18);
+      transition: transform .08s ease, filter .15s ease;
+      font-size: 13px;
+      line-height:1;
+      user-select:none;
+      white-space:nowrap;
+    }
+    .btn:active{ transform: translateY(1px) scale(.99); }
+    .btn.small{ padding: 9px 10px; font-size: 12.5px; border-radius: 11px; }
+
+    .select{
+      background: var(--btnYellow);
+      color:#222;
+      border:0;
+      border-radius: 12px;
+      padding: 10px 12px;
+      font-weight: 900;
+      box-shadow: 0 8px 18px rgba(0,0,0,.18);
+      cursor:pointer;
+      font-size: 13px;
+      line-height:1;
+      outline:none;
+      -webkit-appearance: none;
+      appearance: none;
+      white-space:nowrap;
+    }
+
+    /* Arena */
+    .arena{
+      position: relative;
+      border-radius: 20px;
+      overflow:hidden;
+      background: rgba(0,0,0,.14);
+      border: 1px solid rgba(255,255,255,.14);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.06);
+      height: 560px; /* extra height = easier */
+    }
+
+    /* Optional watermark logo in play area */
+    .arena::before{
+      content:"";
+      position:absolute;
+      inset:0;
+      background-image: url("logo.png");
+      background-repeat: no-repeat;
+      background-position: center;
+      background-size: 55%;
+      opacity: .10;
+      pointer-events:none;
+      filter: saturate(1.1);
+    }
+
+    canvas{
+      width:100%;
+      height:100%;
+      display:block;
+    }
+
+    /* Big Juggles/Speed panel */
+    .statsCard{
+      background: var(--panel2);
+      border: 1px solid rgba(255,255,255,.14);
+      border-radius: 18px;
+      padding: 12px;
+      display:flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items:stretch;
+      justify-content:space-between;
+    }
+
+    .statBox{
+      flex:1;
+      min-width: 220px;
+      background: rgba(0,0,0,.16);
+      border: 1px solid rgba(255,255,255,.14);
+      border-radius: 16px;
+      padding: 12px;
+      box-shadow: 0 10px 22px rgba(0,0,0,.18);
+      position: relative;
+      overflow:hidden;
+    }
+
+    .statLabel{
+      font-weight: 1000;
+      letter-spacing: .2px;
+      opacity:.95;
+      font-size: 14px;
+      display:flex;
+      gap: 8px;
+      align-items:center;
+      justify-content:space-between;
+      margin-bottom: 10px;
+      white-space:nowrap;
+    }
+
+    .statValue{
+      width:100%;
+      background: rgba(255,255,255,.10);
+      border: 1px solid rgba(255,255,255,.14);
+      border-radius: 14px;
+      padding: 12px 12px;
+      font-weight: 1000;
+      font-size: 34px;
+      letter-spacing: .5px;
+      text-align:center;
+      line-height:1;
+      text-shadow: 0 12px 26px rgba(0,0,0,.25);
+    }
+
+    .statusRow{
+      margin-top: 10px;
+      background: rgba(0,0,0,.12);
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 14px;
+      padding: 10px 12px;
+      display:flex;
+      gap: 10px;
+      align-items:center;
+      justify-content:space-between;
+      flex-wrap: wrap;
+    }
+
+    .statusText{
+      font-weight: 900;
+      font-size: 13px;
+      letter-spacing:.2px;
+      opacity:.98;
+      display:flex;
+      gap: 8px;
+      align-items:center;
+      flex: 1;
+      min-width: 220px;
+    }
+
+    .hintPill{
+      font-size: 12px;
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.14);
+      border: 1px solid rgba(255,255,255,.18);
+      font-weight: 900;
+      white-space:nowrap;
+    }
+
+    .toast{
+      position: fixed;
+      left: 50%;
+      bottom: 18px;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,.70);
+      border: 1px solid rgba(255,255,255,.18);
+      padding: 10px 12px;
+      border-radius: 12px;
+      box-shadow: 0 18px 44px rgba(0,0,0,.35);
+      opacity: 0;
+      pointer-events:none;
+      transition: opacity .2s ease, transform .2s ease;
+      max-width: 92vw;
+      z-index: 50;
+    }
+    .toast.show{
+      opacity: 1;
+      transform: translateX(-50%) translateY(-2px);
+    }
+
+    /* modal */
+    .modal-back{
+      position:fixed; inset:0;
+      background: rgba(0,0,0,.55);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding: 16px;
+      z-index: 100;
+    }
+    .modal{
+      width: 560px;
+      max-width: 96vw;
+      background: rgba(10,10,20,.92);
+      border: 1px solid rgba(255,255,255,.16);
+      border-radius: 20px;
+      box-shadow: 0 18px 44px rgba(0,0,0,.45);
+      padding: 14px;
+    }
+    .modal h3{
+      margin: 0 0 6px 0;
+      font-size: 18px;
+      font-weight: 1000;
+    }
+    .modal p{
+      margin: 0 0 10px 0;
+      opacity:.92;
+      line-height:1.35;
+      font-size: 14px;
+    }
+    .modal input{
+      width:100%;
+      padding: 12px 12px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,.18);
+      background: rgba(255,255,255,.08);
+      color:#fff;
+      outline:none;
+      font-weight: 800;
+      margin-bottom: 10px;
+    }
+    .modal-actions{
+      display:flex;
+      gap: 10px;
+      justify-content:flex-end;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+
+    /* leaderboard table */
+    table{
+      width:100%;
+      border-collapse: collapse;
+      overflow:hidden;
+      border-radius: 14px;
+      background: rgba(0,0,0,.14);
+      border: 1px solid rgba(255,255,255,.12);
+    }
+    th, td{
+      padding: 10px 10px;
+      text-align:left;
+      border-bottom: 1px solid rgba(255,255,255,.10);
+      font-size: 14px;
+    }
+    th{
+      font-size: 12px;
+      opacity:.9;
+      letter-spacing:.4px;
+      text-transform: uppercase;
+    }
+    tr:last-child td{ border-bottom:none; }
+    .r1{ background: var(--gold); }
+    .r2{ background: var(--silver); }
+    .r3{ background: var(--bronze); }
+
+    @media (max-width: 860px){
+      .arena{ height: 560px; }
+      .statValue{ font-size: 30px; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <div class="card">
+      <img class="header-img" src="header.png" alt="Little Ollie Arcade" onerror="this.style.display='none'">
+
+      <!-- ONE LINE, ALL YELLOW -->
+      <div class="controls">
+        <button class="btn small" id="btnMenu" type="button">🕹️ Arcade Menu</button>
+
+        <select class="select" id="difficulty" title="Difficulty">
+          <option value="easy">Difficulty - 🟢 Easy (3)</option>
+          <option value="medium">Difficulty - 🟡 Medium (4)</option>
+          <option value="hard">Difficulty - 🔴 Hard (5)</option>
+        </select>
+
+        <!-- ✅ Start emoji changed to PLAY -->
+        <button class="btn small" id="btnStart" type="button">▶️ Start</button>
+        <button class="btn small" id="btnRestart" type="button">🔁 Restart</button>
+        <button class="btn small" id="btnLB" type="button">🏆 Leaderboard</button>
+      </div>
+    </div>
+
+    <!-- Big Juggles + Speed area -->
+    <div class="statsCard">
+      <div class="statBox">
+        <div class="statLabel">
+          <span>🤹 Juggles</span>
+          <span style="opacity:.85;font-weight:900;font-size:12px;" id="diffPill">Easy</span>
+        </div>
+        <div class="statValue" id="score">0</div>
+      </div>
+
+      <div class="statBox">
+        <div class="statLabel">
+          <span>⚡ Speed</span>
+          <span style="opacity:.85;font-weight:900;font-size:12px;">every 10 = +0.1</span>
+        </div>
+        <div class="statValue" id="speed">1.0x</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="arena">
+        <canvas id="cv"></canvas>
+      </div>
+
+      <div class="statusRow">
+        <div class="statusText">
+          <span style="font-weight:1000;">Status:</span>
+          <span id="status">Press ▶️ Start</span>
+        </div>
+        <div class="hintPill" id="hint">🎯 Click only the NEXT ball (after it passes the middle)</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- Game over submit modal (manual submit, NOT auto) -->
+  <div class="modal-back" id="modalBack">
+    <div class="modal" role="dialog" aria-modal="true">
+      <h3 id="modalTitle">Game Over</h3>
+      <p id="modalText">Enter a name to submit your score (optional).</p>
+      <input id="nameInput" maxlength="20" placeholder="Name (optional) — leave blank for Anon" />
+      <div class="modal-actions">
+        <button class="btn small" id="btnSkip" type="button">🙅 Skip</button>
+        <button class="btn small" id="btnSubmit" type="button">📤 Submit</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Leaderboard modal -->
+  <div class="modal-back" id="lbBack">
+    <div class="modal" role="dialog" aria-modal="true">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+        <h3 style="margin:0;">🏆 Leaderboard (Top 10)</h3>
+        <button class="btn small" id="btnLbClose" type="button">❌ Close</button>
+      </div>
+      <p style="margin-top:8px;" id="lbSubtitle">Difficulty: Easy</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th style="width:22%;">Rank</th>
+            <th>Name</th>
+            <th style="width:26%;">Juggles</th>
+          </tr>
+        </thead>
+        <tbody id="lbBody">
+          <tr><td colspan="3" style="opacity:.9;">Loading…</td></tr>
+        </tbody>
+      </table>
+
+      <div style="opacity:.88;font-size:12px;margin-top:10px;">
+        🥇🥈🥉 Top 3 are highlighted. Submit your score after game over.
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    /***********************
+     * FIREBASE (Firestore)
+     ***********************/
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
+    import {
+      getFirestore, collection, addDoc, query, where, orderBy, limit, getDocs, serverTimestamp
+    } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
+
+    // ✅ Replace with your Firebase config (same as your other games)
+const firebaseConfig = {
+  apiKey: "AIzaSyClQdJX2Y2eqt6Gtrm024lhFI6W5zYXpUw",
+  authDomain: "little-ollie-juggler.firebaseapp.com",
+  projectId: "little-ollie-juggler",
+  storageBucket: "little-ollie-juggler.firebasestorage.app",
+  messagingSenderId: "92860450512",
+  appId: "1:92860450512:web:07aa24fb5b3b40ac03c0d5",
+  measurementId: "G-07LZ4EJNRE"
+};
+
+
+    let db = null;
+    try{
+      const app = initializeApp(firebaseConfig);
+      db = getFirestore(app);
+    }catch(e){
+      console.warn("Firebase not configured yet:", e);
+    }
+
+    const COLLECTION = "juggle_scores";
+
+    /***********************
+     * UI HOOKS
+     ***********************/
+    const cv = document.getElementById("cv");
+    const ctx = cv.getContext("2d");
+
+    const scoreEl = document.getElementById("score");
+    const speedEl = document.getElementById("speed");
+    const statusEl = document.getElementById("status");
+    const toastEl = document.getElementById("toast");
+
+    const btnStart = document.getElementById("btnStart");
+    const btnRestart = document.getElementById("btnRestart");
+    const btnMenu = document.getElementById("btnMenu");
+    const btnLB = document.getElementById("btnLB");
+    const difficultySel = document.getElementById("difficulty");
+    const diffPill = document.getElementById("diffPill");
+
+    const modalBack = document.getElementById("modalBack");
+    const nameInput = document.getElementById("nameInput");
+    const btnSkip = document.getElementById("btnSkip");
+    const btnSubmit = document.getElementById("btnSubmit");
+    const modalTitle = document.getElementById("modalTitle");
+    const modalText = document.getElementById("modalText");
+
+    const lbBack = document.getElementById("lbBack");
+    const btnLbClose = document.getElementById("btnLbClose");
+    const lbBody = document.getElementById("lbBody");
+    const lbSubtitle = document.getElementById("lbSubtitle");
+
+    function toast(msg){
+      toastEl.textContent = msg;
+      toastEl.classList.add("show");
+      clearTimeout(toastEl._t);
+      toastEl._t = setTimeout(()=>toastEl.classList.remove("show"), 1600);
+    }
+
+    /***********************
+     * CANVAS SIZE
+     ***********************/
+    function resize(){
+      const r = cv.getBoundingClientRect();
+      const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+      cv.width = Math.floor(r.width * dpr);
+      cv.height = Math.floor(r.height * dpr);
+      ctx.setTransform(dpr,0,0,dpr,0,0); // draw in CSS pixels
+    }
+    window.addEventListener("resize", resize);
+    resize();
+
+    /***********************
+     * GAME SETTINGS
+     ***********************/
+    const DIFF = {
+      easy:   { balls: 3, beatStart: 1050, beatMin: 520 },
+      medium: { balls: 4, beatStart: 980,  beatMin: 480 },
+      hard:   { balls: 5, beatStart: 920,  beatMin: 440 },
+    };
+
+    const COLORS = [
+      "#ffdd55", // yellow
+      "#ff6b6b", // red
+      "#6dffb2", // green
+      "#6de0ff", // cyan
+      "#b88cff", // purple
+      "#ffa94d"  // orange
+    ];
+
+    /***********************
+     * JUGGLE MODEL (cascade)
+     ***********************/
+    let running = false;
+    let gameOver = false;
+
+    let difficulty = "easy";
+    let numBalls = 3;
+
+    let beatStart = 1050;
+    let beatMs = 1050;
+    let beatMin = 520;
+    let flightMs = 0;
+    let lastBeat = 0;
+    let startTime = 0;
+
+    let score = 0;
+    let nextIdToClick = 0;
+    let spawnedId = 0;
+
+    let balls = []; // active balls
+
+    function difficultyLabel(d){
+      if(d==="easy") return "Easy";
+      if(d==="medium") return "Medium";
+      return "Hard";
+    }
+
+    // positions (CSS pixels)
+    function hands(){
+      const w = cv.getBoundingClientRect().width;
+      const h = cv.getBoundingClientRect().height;
+
+      // ✅ Midline lifted up for more space below (easier near bottom)
+      // was ~50% before; now ~44%
+      const midY = h * 0.44;
+
+      return {
+        w,h,
+        leftX:  w*0.30,
+        rightX: w*0.70,
+        handY:  h*0.90,
+        peakY:  h*0.16,
+        midY
+      };
+    }
+
+    function ballRadius(){
+      const h = cv.getBoundingClientRect().height;
+      return Math.max(24, Math.min(38, h*0.062));
+    }
+
+    function resetGame(){
+      running = false;
+      gameOver = false;
+      balls = [];
+      score = 0;
+      nextIdToClick = 0;
+      spawnedId = 0;
+
+      const s = DIFF[difficulty];
+      numBalls = s.balls;
+      beatStart = s.beatStart;
+      beatMin = s.beatMin;
+
+      beatMs = beatStart;
+      flightMs = Math.floor(numBalls * beatMs);
+
+      scoreEl.textContent = "0";
+      speedEl.textContent = "1.0x";
+      statusEl.textContent = "Press ▶️ Start";   // ✅ updated
+      diffPill.textContent = difficultyLabel(difficulty);
+      draw();
+    }
+
+    function currentSpeedMult(){
+      // ✅ +0.1 every 10 juggles
+      const steps = Math.floor(score / 10);
+      return 1 + steps * 0.1;
+    }
+
+    function applySpeedFromScore(){
+      const mult = currentSpeedMult();
+      // make beat faster by multiplier, but clamp to beatMin
+      beatMs = Math.max(beatMin, Math.floor(beatStart / mult));
+      speedEl.textContent = `${mult.toFixed(1)}x`;
+      // keep cascade consistent
+      flightMs = Math.floor(numBalls * beatMs);
+    }
+
+    function start(){
+      if(running) return;
+      // close any modals
+      modalBack.style.display = "none";
+      lbBack.style.display = "none";
+
+      running = true;
+      gameOver = false;
+      statusEl.textContent = "Juggle!";
+      startTime = performance.now();
+      lastBeat = startTime;
+
+      // prime a couple throws so it looks alive instantly
+      spawnThrow(lastBeat);
+      spawnThrow(lastBeat + beatMs*0.50);
+
+      requestAnimationFrame(loop);
+    }
+
+    function endGame(reason="You dropped it!"){
+      if(gameOver) return;
+      running = false;
+      gameOver = true;
+      statusEl.textContent = reason;
+
+      // ✅ Always show submit modal after game ends
+      modalTitle.textContent = "Game Over";
+      modalText.textContent = `You got ${score} juggles on ${difficultyLabel(difficulty)}. Submit your score?`;
+      nameInput.value = "";
+      modalBack.style.display = "flex";
+      setTimeout(()=>{ try{ nameInput.focus(); }catch{} }, 30);
+    }
+
+    function spawnThrow(now){
+      const { leftX, rightX, handY } = hands();
+
+      // alternate throw direction each beat
+      const fromLeft = (spawnedId % 2 === 0);
+      const fromX = fromLeft ? leftX : rightX;
+      const toX = fromLeft ? rightX : leftX;
+
+      const id = spawnedId;
+      const colorIndex = id % numBalls;
+      const color = COLORS[colorIndex % COLORS.length];
+
+      // flight time depends on beat
+      flightMs = Math.floor(numBalls * beatMs);
+
+      balls.push({
+        id,
+        color,
+        spawn: now,
+        flight: flightMs,
+        fromX, toX,
+        x: fromX,
+        y: handY,
+        t: 0,
+        clicked: false,
+        fade: 0,     // fade-out after click
+        canClick: false
+      });
+
+      spawnedId++;
+    }
+
+    /***********************
+     * DRAW
+     ***********************/
+    function draw(){
+      const r = cv.getBoundingClientRect();
+      const w = r.width, h = r.height;
+
+      ctx.clearRect(0,0,w,h);
+
+      // subtle vignette
+      const g = ctx.createRadialGradient(w/2, h*0.22, 20, w/2, h/2, Math.max(w,h));
+      g.addColorStop(0, "rgba(255,255,255,0.10)");
+      g.addColorStop(1, "rgba(0,0,0,0.18)");
+      ctx.fillStyle = g;
+      ctx.fillRect(0,0,w,h);
+
+      const { leftX, rightX, handY, midY } = hands();
+
+      // hands
+      ctx.globalAlpha = 0.18;
+      ctx.strokeStyle = "rgba(255,255,255,.50)";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(leftX, handY, 18, 0, Math.PI*2);
+      ctx.arc(rightX, handY, 18, 0, Math.PI*2);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+
+      // midline hint (subtle) - used for click gating
+      ctx.globalAlpha = 0.10;
+      ctx.strokeStyle = "rgba(255,255,255,.8)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(w*0.06, midY);
+      ctx.lineTo(w*0.94, midY);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+
+      // next target ring (only after it passes midline)
+      const nextBall = balls.find(b => b.id === nextIdToClick);
+      if(nextBall && nextBall.canClick){
+        const rad = ballRadius();
+        ctx.globalAlpha = 0.30;
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.arc(nextBall.x, nextBall.y, rad+11, 0, Math.PI*2);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
+
+      // draw balls
+      const rad = ballRadius();
+      for(const b of balls){
+        const alpha = b.clicked ? Math.max(0, 1 - b.fade) : 1;
+        if(alpha <= 0) continue;
+
+        // shadow
+        ctx.globalAlpha = 0.22 * alpha;
+        ctx.fillStyle = "rgba(0,0,0,.8)";
+        ctx.beginPath();
+        ctx.ellipse(b.x, b.y + rad*0.55, rad*0.80, rad*0.30, 0, 0, Math.PI*2);
+        ctx.fill();
+        ctx.globalAlpha = 1 * alpha;
+
+        // ball
+        ctx.fillStyle = b.color;
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, rad, 0, Math.PI*2);
+        ctx.fill();
+
+        // outline
+        ctx.lineWidth = 5;
+        ctx.strokeStyle = "rgba(0,0,0,.35)";
+        ctx.stroke();
+
+        // highlight
+        ctx.globalAlpha = 0.25 * alpha;
+        ctx.fillStyle = "#ffffff";
+        ctx.beginPath();
+        ctx.arc(b.x - rad*0.28, b.y - rad*0.28, rad*0.36, 0, Math.PI*2);
+        ctx.fill();
+        ctx.globalAlpha = 1 * alpha;
+
+        // "not clickable yet" dim on next ball (before midline)
+        if(b.id === nextIdToClick && !b.canClick){
+          ctx.globalAlpha = 0.22;
+          ctx.fillStyle = "rgba(0,0,0,.35)";
+          ctx.beginPath();
+          ctx.arc(b.x, b.y, rad+2, 0, Math.PI*2);
+          ctx.fill();
+          ctx.globalAlpha = 1;
+        }
+      }
+
+      // idle overlay
+      if(!running && !gameOver){
+        ctx.globalAlpha = 0.92;
+        ctx.fillStyle = "rgba(0,0,0,.25)";
+        ctx.fillRect(0,0,w,h);
+
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = "#fff";
+        ctx.font = "900 26px system-ui, -apple-system, BlinkMacSystemFont, sans-serif";
+        ctx.fillText("Click the balls in order (true juggle timing)!", 22, 44);
+
+        ctx.font = "700 15px system-ui, -apple-system, BlinkMacSystemFont, sans-serif";
+        ctx.globalAlpha = 0.95;
+        ctx.fillText("You can only click the NEXT ball after it passes the middle line.", 22, 68);
+        ctx.fillText("Speed goes up +0.1 every 10 juggles.", 22, 90);
+        ctx.globalAlpha = 1;
+      }
+    }
+
+    function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+    function lerp(a,b,t){ return a + (b-a)*t; }
+
+    function ballPos(b, t){
+      const { handY, peakY } = hands();
+      const x = lerp(b.fromX, b.toX, t);
+
+      // parabola peak in the middle
+      const y = handY - 4*(handY - peakY)*t*(1-t);
+
+      // gentle sway
+      const sway = Math.sin(t*Math.PI) * 10 * (b.id % 2 === 0 ? 1 : -1);
+
+      return { x: x + sway, y };
+    }
+
+    /***********************
+     * LOOP
+     ***********************/
+    function loop(now){
+      if(!running) return;
+
+      // spawn new throws on beat
+      if(now - lastBeat >= beatMs){
+        while(now - lastBeat >= beatMs){
+          lastBeat += beatMs;
+          spawnThrow(lastBeat);
+        }
+      }
+
+      const { midY } = hands();
+
+      // update balls positions & check drops
+      for(const b of balls){
+        const t = (now - b.spawn) / b.flight;
+        const tt = clamp(t, 0, 1);
+        const p = ballPos(b, tt);
+        b.x = p.x;
+        b.y = p.y;
+        b.t = tt;
+
+        // ✅ canClick only after it passes the midline (on the way down)
+        // require y > midY + buffer
+        b.canClick = (b.y > (midY + 10));
+
+        // clicked ball disappears quickly
+        if(b.clicked){
+          b.fade = Math.min(1, b.fade + 0.12);
+        }
+
+        // if ball lands and it's still the next one to click => drop
+        if(t >= 1 && b.id === nextIdToClick && !b.clicked){
+          endGame("Dropped the next ball!");
+          draw();
+          return;
+        }
+      }
+
+      // cleanup:
+      balls = balls.filter(b => !(b.clicked && b.fade >= 1) && (now - b.spawn) < (b.flight + 900));
+
+      draw();
+      requestAnimationFrame(loop);
+    }
+
+    /***********************
+     * INPUT: CLICK / TAP
+     ***********************/
+    function canvasPoint(evt){
+      const rect = cv.getBoundingClientRect();
+      const clientX = evt.touches ? evt.touches[0].clientX : evt.clientX;
+      const clientY = evt.touches ? evt.touches[0].clientY : evt.clientY;
+      return { x: (clientX - rect.left), y: (clientY - rect.top) };
+    }
+
+    function hitNextBall(pt){
+      const rad = ballRadius();
+
+      const target = balls.find(b => b.id === nextIdToClick && !b.clicked);
+      if(!target) return null;
+
+      // ✅ not clickable until after midline
+      if(!target.canClick) return { target, blocked:true };
+
+      const dx = pt.x - target.x;
+      const dy = pt.y - target.y;
+      const rr = (rad * 1.45);
+      if(dx*dx + dy*dy <= rr*rr) return { target, blocked:false };
+      return null;
+    }
+
+    function onPress(evt){
+      if(!running) return;
+      evt.preventDefault();
+
+      const pt = canvasPoint(evt);
+      const res = hitNextBall(pt);
+      if(!res) return;
+
+      if(res.blocked){
+        toast("⏳ Wait — click it after it drops past the middle!");
+        return;
+      }
+
+      // ✅ correct click
+      res.target.clicked = true;   // it will fade out and disappear
+      score++;
+      scoreEl.textContent = String(score);
+      nextIdToClick++;
+
+      // ✅ update speed every 10
+      applySpeedFromScore();
+    }
+
+    cv.addEventListener("mousedown", onPress);
+    cv.addEventListener("touchstart", onPress, { passive:false });
+
+    /***********************
+     * LEADERBOARD (manual submit, Top 10, top 3 styled)
+     ***********************/
+    function rankEmoji(i){
+      if(i===1) return "🥇";
+      if(i===2) return "🥈";
+      if(i===3) return "🥉";
+      return `#${i}`;
+    }
+
+    async function loadLeaderboard(){
+      lbSubtitle.textContent = `Difficulty: ${difficultyLabel(difficulty)}`;
+      lbBody.innerHTML = `<tr><td colspan="3" style="opacity:.9;">Loading…</td></tr>`;
+
+      if(!db){
+        lbBody.innerHTML = `<tr><td colspan="3" style="opacity:.9;">Firebase not set up yet (add config).</td></tr>`;
+        return;
+      }
+
+      try{
+        const qy = query(
+          collection(db, COLLECTION),
+          where("difficulty","==",difficulty),
+          orderBy("score","desc"),
+          limit(10)
+        );
+        const snap = await getDocs(qy);
+
+        if(snap.empty){
+          lbBody.innerHTML = `<tr><td colspan="3" style="opacity:.9;">No scores yet — be the first!</td></tr>`;
+          return;
+        }
+
+        let i=0;
+        let html = "";
+        snap.forEach(doc=>{
+          i++;
+          const d = doc.data();
+          const name = (d.name || "Anon").toString().slice(0,20);
+          const sc = (d.score ?? 0);
+
+          const rowClass = (i===1) ? "r1" : (i===2) ? "r2" : (i===3) ? "r3" : "";
+          html += `
+            <tr class="${rowClass}">
+              <td><b>${rankEmoji(i)}</b></td>
+              <td>${escapeHtml(name)}</td>
+              <td><b>${sc}</b></td>
+            </tr>
+          `;
+        });
+        lbBody.innerHTML = html;
+      }catch(e){
+        console.warn(e);
+        lbBody.innerHTML = `<tr><td colspan="3" style="opacity:.9;">Couldn’t load leaderboard.</td></tr>`;
+      }
+    }
+
+    function escapeHtml(str){
+      return str.replace(/[&<>"']/g, m => ({
+        "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"
+      }[m]));
+    }
+
+    async function submitScore(name){
+      if(!db) return;
+      const cleanName = (name || "").trim().slice(0,20) || "Anon";
+      const winId = `${Date.now()}_${Math.random().toString(16).slice(2)}`;
+
+      await addDoc(collection(db, COLLECTION), {
+        name: cleanName,
+        difficulty,
+        score,
+        winId,
+        createdAt: serverTimestamp()
+      });
+    }
+
+    /***********************
+     * MODALS
+     ***********************/
+    btnSkip.addEventListener("click", async ()=>{
+      modalBack.style.display = "none";
+      toast("Skipped submission.");
+    });
+
+    btnSubmit.addEventListener("click", async ()=>{
+      btnSubmit.disabled = true;
+      try{
+        await submitScore(nameInput.value);
+        modalBack.style.display = "none";
+        toast("Score submitted!");
+      }catch(e){
+        console.warn(e);
+        toast("Couldn’t submit score.");
+      }finally{
+        btnSubmit.disabled = false;
+      }
+    });
+
+    modalBack.addEventListener("click", (e)=>{
+      if(e.target === modalBack) modalBack.style.display = "none";
+    });
+
+    btnLB.addEventListener("click", async ()=>{
+      lbBack.style.display = "flex";
+      await loadLeaderboard();
+    });
+
+    btnLbClose.addEventListener("click", ()=>{
+      lbBack.style.display = "none";
+    });
+
+    lbBack.addEventListener("click", (e)=>{
+      if(e.target === lbBack) lbBack.style.display = "none";
+    });
+
+    /***********************
+     * BUTTONS
+     ***********************/
+    btnStart.addEventListener("click", ()=>{
+      if(gameOver){
+        resetGame();
+      }
+      start();
+    });
+
+    btnRestart.addEventListener("click", ()=>{
+      modalBack.style.display = "none";
+      lbBack.style.display = "none";
+      resetGame();
+      toast("Restarted!");
+    });
+
+    btnMenu.addEventListener("click", ()=>{
+      // ✅ Change if needed
+      window.location.href = "../index.html";
+    });
+
+    difficultySel.addEventListener("change", ()=>{
+      difficulty = difficultySel.value;
+      resetGame();
+    });
+
+    /***********************
+     * INIT
+     ***********************/
+    resetGame();
+
+    /***********************
+     * FIRESTORE RULES (paste in Firebase Console > Firestore Rules)
+     *
+     * rules_version = '2';
+     * service cloud.firestore {
+     *   match /databases/{database}/documents {
+     *     match /juggle_scores/{docId} {
+     *       allow read: if true;
+     *       allow create: if
+     *         request.resource.data.keys().hasOnly(["name","difficulty","score","winId","createdAt"]) &&
+     *         request.resource.data.name is string &&
+     *         request.resource.data.name.size() >= 1 &&
+     *         request.resource.data.name.size() <= 20 &&
+     *         request.resource.data.difficulty in ["easy","medium","hard"] &&
+     *         request.resource.data.score is int &&
+     *         request.resource.data.score >= 0 &&
+     *         request.resource.data.score <= 200000 &&
+     *         request.resource.data.winId is string &&
+     *         request.resource.data.winId.size() >= 6;
+     *     }
+     *   }
+     * }
+     ***********************/
+  </script>
+</body>
+</html>

@@ -17,8 +17,6 @@
 <meta http-equiv="X-Content-Type-Options" content="nosniff">
 <meta http-equiv="X-Frame-Options" content="DENY">
 
-
-
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Little Ollie Memory Game</title>
@@ -380,19 +378,6 @@ hr {
   </div>
 </div>
 
-<!-- START -->
-<div class="overlay" id="startOverlay">
-  <div class="overlay-box">
-    <h2>🎮 Choose Difficulty</h2>
-    <button data-diff="easy">😊 Easy (12)</button>
-    <button data-diff="medium">😎 Medium (20)</button>
-    <button data-diff="hard">🔥 Hard (30)</button>
-    <button data-diff="extra-hard">☠️ Extra Hard (42)</button>
-    <hr />
-    <button id="openLbFromStartBtn">🏆 Leaderboards</button>
-  </div>
-</div>
-
 <!-- WIN -->
 <div class="overlay" id="winOverlay" style="display:none">
   <div class="overlay-box">
@@ -469,10 +454,23 @@ hr {
 
   <div class="controls">
     <button class="btn" id="backMenuBtn">🕹️ Arcade Menu</button>
+
+    <!-- ✅ Start + Difficulty in the main controls -->
+    <button class="btn" id="startBtn">▶️ Start</button>
+
+    <select id="diffSelect" title="Difficulty">
+      <option value="easy">🎚️ Difficulty: 😊 Easy (12)</option>
+      <option value="medium">🎚️ Difficulty: 😎 Medium (20)</option>
+      <option value="hard">🎚️ Difficulty: 🔥 Hard (30)</option>
+      <option value="extra-hard">🎚️ Difficulty: ☠️ Extra Hard (42)</option>
+    </select>
+
     <button class="btn" id="restartBtn">🔁 Restart</button>
+    <button class="btn" id="leaderboardsBtn">🏆 Leaderboards</button>
+
+    <!-- keep your extras exactly as you had them -->
     <button class="btn" id="soundBtn">🔊 My stupid voice: ON</button>
     <button class="btn" id="hintBtn">💡 Hint (1)</button>
-    <button class="btn" id="leaderboardsBtn">🏆 Leaderboards</button>
     <button class="btn" id="shareBtn" style="display:none;">📣 Share</button>
   </div>
 
@@ -586,7 +584,6 @@ function playWrong(){ play(wrongSounds[Math.floor(Math.random() * wrongSounds.le
 
 /* DOM */
 const board = document.getElementById("board");
-const startOverlay = document.getElementById("startOverlay");
 const winOverlay = document.getElementById("winOverlay");
 const leaderboardOverlay = document.getElementById("leaderboardOverlay");
 
@@ -612,7 +609,6 @@ const podiumDivider = document.getElementById("podiumDivider");
 const winLeaderboardBox = document.getElementById("winLeaderboardBox");
 
 const openLbBtn = document.getElementById("openLbBtn");
-const openLbFromStartBtn = document.getElementById("openLbFromStartBtn");
 
 const closeLbOverlayBtn = document.getElementById("closeLbOverlayBtn");
 const lbSelect = document.getElementById("lbSelect");
@@ -622,6 +618,10 @@ const lbList2 = document.getElementById("lbList2");
 const podiumDivider2 = document.getElementById("podiumDivider2");
 
 const toastEl = document.getElementById("toast");
+
+/* ✅ Start + difficulty controls */
+const startBtn = document.getElementById("startBtn");
+const diffSelect = document.getElementById("diffSelect");
 
 /* Back to Arcade Menu */
 const backMenuBtn = document.getElementById("backMenuBtn");
@@ -654,6 +654,9 @@ let submittedThisWin = false;
 /* hint */
 let hintUsed = false;
 
+/* ✅ game started flag (so Start only works when idle) */
+let gameStarted = false;
+
 /* daily + streak */
 const STORAGE_KEYS = {
   streak: "lo_mem_streak_v1",
@@ -685,6 +688,11 @@ function toast(msg){
   toastEl._t = setTimeout(() => toastEl.style.display = "none", 1400);
 }
 
+function setStartUi(isStarted){
+  startBtn.disabled = isStarted;
+  diffSelect.disabled = isStarted;
+}
+
 function resetStats(){
   cards = [];
   flipped = [];
@@ -707,6 +715,10 @@ function resetStats(){
   submittedThisWin = false;
   submitScoreBtn.disabled = false;
   submitScoreBtn.textContent = "📤 Submit Score";
+
+  // ✅ keep idle until Start pressed
+  gameStarted = false;
+  setStartUi(false);
 }
 
 function startTimer(){
@@ -745,6 +757,45 @@ function buildOrderedPairs(totalPairs){
   return paired;
 }
 
+/* ✅ NEW: render a visible idle board (easy by default) */
+function renderIdleBoard(diffKey = "easy"){
+  currentDiff = diffKey;
+  diffSelect.value = currentDiff;
+
+  const cfg = DIFFS[diffKey];
+  if (!cfg) return;
+
+  // reset counters + keep game locked (no timer, no clicks)
+  resetStats();
+  lock = true;
+  gameStarted = false;
+  setStartUi(false);
+
+  totalPairs = cfg.pairs;
+  totalEl.textContent = totalPairs;
+  board.style.gridTemplateColumns = `repeat(${cfg.cols}, 1fr)`;
+
+  // build a simple face-down board so something is visible
+  const paired = buildOrderedPairs(totalPairs);
+  cards = paired.map((img, i) => ({ id: i, img }));
+
+  board.innerHTML = "";
+  cards.forEach((c) => {
+    const d = document.createElement("div");
+    d.className = "card";
+    d.dataset.id = c.id;
+    d.innerHTML = `
+      <div class="card-inner">
+        <div class="card-face card-back"><img src="logo.png" alt="Logo"></div>
+        <div class="card-face card-front"><img src="${c.img}" alt="Card"></div>
+      </div>`;
+    board.appendChild(d);
+  });
+
+  winOverlay.style.display = "none";
+  leaderboardOverlay.style.display = "none";
+}
+
 /* ✅ Optional tracking: log a "play" when the game starts */
 async function logPlay(diffKey){
   try{
@@ -770,8 +821,8 @@ function startGame(diffKey){
   currentDiff = diffKey;
   resetStats();
 
-  startOverlay.style.display = "none";
   winOverlay.style.display = "none";
+  leaderboardOverlay.style.display = "none";
 
   const cfg = DIFFS[diffKey];
   if (!cfg) { alert("Difficulty key not found: " + diffKey); return; }
@@ -798,6 +849,10 @@ function startGame(diffKey){
       </div>`;
     board.appendChild(d);
   });
+
+  // ✅ mark started + lock Start/Difficulty
+  gameStarted = true;
+  setStartUi(true);
 
   previewThenMix();
 }
@@ -951,8 +1006,22 @@ soundBtn.onclick = () => {
 
 hintBtn.onclick = () => doOneTileHint();
 
-document.querySelectorAll("#startOverlay button[data-diff]").forEach(btn => {
-  btn.onclick = () => startGame(btn.dataset.diff);
+/* ✅ Start + Difficulty handlers */
+diffSelect.value = currentDiff;
+diffSelect.addEventListener("change", () => {
+  currentDiff = diffSelect.value;
+
+  // ✅ If not started yet, update the preview board to match
+  if (!gameStarted) {
+    renderIdleBoard(currentDiff);
+  } else {
+    toast(`Difficulty set: ${currentDiff}`);
+  }
+});
+
+startBtn.addEventListener("click", () => {
+  if (gameStarted) return;
+  startGame(currentDiff);
 });
 
 /* LEADERBOARD SCREEN */
@@ -968,7 +1037,6 @@ function closeLeaderboardOverlay(){
 
 leaderboardsBtn.onclick = () => openLeaderboardOverlay(currentDiff);
 openLbBtn.onclick = () => openLeaderboardOverlay(currentDiff);
-openLbFromStartBtn.onclick = () => openLeaderboardOverlay("easy");
 closeLbOverlayBtn.onclick = () => closeLeaderboardOverlay();
 
 lbSelect.addEventListener("change", () => {
@@ -1149,9 +1217,6 @@ function syncPlayerToWinInput(){
   const p = getPlayer();
   if (!p.isAnon) {
     playerNameEl.value = p.name;
-  } else {
-    // keep whatever they typed, but you can also force blank:
-    // playerNameEl.value = "";
   }
 }
 
@@ -1163,7 +1228,6 @@ function applySubmitRulesForPlayer(){
     submitScoreBtn.textContent = "🚫 Set name to submit";
     toast("Anon mode: no score submissions");
   } else {
-    // only re-enable if not already submitted by anti-spam logic
     if (!submittedThisWin) {
       submitScoreBtn.disabled = false;
       submitScoreBtn.textContent = "📤 Submit Score";
@@ -1197,7 +1261,6 @@ submitScoreBtn.addEventListener("click", async () => {
     return;
   }
 
-  // Use saved name unless they typed something different
   const rawName = (playerNameEl.value || "").trim();
   const name = rawName.slice(0, 20) || p.name || "Anonymous";
 
@@ -1297,18 +1360,15 @@ function showPlayerOverlayIfNeeded(){
   // If a name already exists, skip overlay
   if (!p.isAnon) {
     playerOverlay.style.display = "none";
-    startOverlay.style.display = "flex";
     return;
   }
 
   // else show overlay first
   playerOverlay.style.display = "flex";
-  startOverlay.style.display = "none";
 }
 
-function proceedToStart(){
+function proceedToGameUi(){
   playerOverlay.style.display = "none";
-  startOverlay.style.display = "flex";
 }
 
 savePlayerBtn.addEventListener("click", () => {
@@ -1322,7 +1382,6 @@ savePlayerBtn.addEventListener("click", () => {
 });
 
 continueAnonBtn.addEventListener("click", () => {
-  // do nothing, stay anon
   toast("Continuing as Anon");
 });
 
@@ -1333,17 +1392,19 @@ clearPlayerBtn.addEventListener("click", () => {
 });
 
 playerOverlayOkBtn.addEventListener("click", () => {
-  // if they typed something but didn't press save, save it anyway
   const typed = (playerGateInput.value || "").trim();
   if (typed) setPlayerName(typed.slice(0,20));
-  proceedToStart();
+  proceedToGameUi();
 });
 
-/* On load, prefill gate if existing (usually none) */
+/* On load */
 (function initPlayer(){
   const p = getPlayer();
   if (!p.isAnon) playerGateInput.value = p.name;
   showPlayerOverlayIfNeeded();
+
+  // ✅ show easy cards immediately (idle preview)
+  renderIdleBoard("easy");
 })();
 </script>
 </body>

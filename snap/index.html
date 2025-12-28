@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Little Ollie Snap</title>
+
+  <style>
+    *{ box-sizing:border-box; }
+    :root{
+      --bg1:#6de0ff;
+      --bg2:#4c6fff;
+
+      --panel: rgba(0,0,0,.18);
+      --panel2: rgba(0,0,0,.22);
+      --shadow: 0 14px 34px rgba(0,0,0,.35);
+
+      --btnYellow:#ffdd55;
+      --btnYellow2:#ffd22e;
+      --btnText:#222;
+      --btnShadow: 0 10px 20px rgba(0,0,0,.22);
+
+      --text:#fff;
+      --radius: 18px;
+      --gap: 10px;
+    }
+
+    body{
+      margin:0;
+      min-height:100vh;
+      display:flex;
+      justify-content:center;
+      align-items:flex-start;
+      padding:18px 10px 30px;
+      background: radial-gradient(circle at top, var(--bg1), var(--bg2));
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      color:var(--text);
+    }
+
+    .wrap{
+      width: 980px;
+      max-width: 96vw;
+      display:flex;
+      flex-direction:column;
+      gap: 12px;
+    }
+
+    .header{
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      padding: 8px 6px 2px;
+    }
+    .header img{
+      width: min(760px, 96vw);
+      height:auto;
+      display:block;
+      filter: drop-shadow(0 12px 22px rgba(0,0,0,.25));
+      user-select:none;
+      -webkit-user-drag:none;
+    }
+
+    .topbar{
+      background: var(--panel);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 12px;
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+      justify-content:space-between;
+    }
+
+    .controls{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+    }
+
+    .btn{
+      border:0;
+      border-radius: 14px;
+      padding: 10px 14px;
+      font-weight: 900;
+      cursor:pointer;
+      background: linear-gradient(#fff2a3, var(--btnYellow2));
+      color: var(--btnText);
+      box-shadow: var(--btnShadow);
+      transition: transform .08s ease;
+      user-select:none;
+    }
+    .btn:active{ transform: translateY(1px) scale(.99); }
+    .btn[disabled]{ opacity:.55; cursor:not-allowed; }
+
+    .select{
+      border:0;
+      border-radius: 14px;
+      padding: 10px 12px;
+      font-weight: 900;
+      background: linear-gradient(#fff2a3, var(--btnYellow2));
+      color: var(--btnText);
+      box-shadow: var(--btnShadow);
+      cursor:pointer;
+      outline:none;
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
+    .cardPanel{
+      background: var(--panel);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 14px;
+    }
+
+    .statsRow{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      align-items:center;
+      justify-content:space-between;
+      margin-bottom: 10px;
+    }
+
+    .pill{
+      background: var(--panel2);
+      border-radius: 999px;
+      padding: 10px 12px;
+      font-weight: 900;
+      display:flex;
+      gap:10px;
+      align-items:center;
+    }
+
+    .status{
+      background: var(--panel2);
+      border-radius: 14px;
+      padding: 10px 12px;
+      font-weight: 900;
+      width:100%;
+      margin-top:10px;
+    }
+
+    /* Snap pile area */
+    .pileArea{
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      gap:10px;
+      padding: 10px 0 0;
+    }
+
+    .pileStack{
+      position:relative;
+      width: min(420px, 82vw);
+      aspect-ratio: 1 / 1; /* square */
+      border-radius: 18px;
+      background: rgba(255,255,255,.10);
+      outline: 2px dashed rgba(255,255,255,.20);
+      box-shadow: inset 0 0 0 2px rgba(255,255,255,.06);
+      overflow:hidden;
+    }
+
+    /* each stacked card */
+    .pileStack .cardLayer{
+      position:absolute;
+      inset: 8%;
+      width: 84%;
+      height: 84%;
+      object-fit: contain;
+      filter: drop-shadow(0 14px 20px rgba(0,0,0,.28));
+      border-radius: 14px;
+      background: rgba(0,0,0,.08);
+      transform-origin: 50% 60%;
+      transition: transform .08s ease;
+      user-select:none;
+      -webkit-user-drag:none;
+    }
+
+    .pileStack .ghost{
+      position:absolute;
+      inset: 8%;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-weight: 1000;
+      font-size: 44px;
+      opacity:.25;
+      user-select:none;
+    }
+
+    .underPileBtns{
+      display:flex;
+      gap:12px;
+      flex-wrap:wrap;
+      justify-content:center;
+      align-items:center;
+      margin-top: 6px;
+    }
+
+    /* BIG buttons (Play + Snap) */
+    .bigBtn{
+      padding: 14px 18px;
+      border-radius: 16px;
+      font-size: 18px;
+      font-weight: 1000;
+    }
+
+    .snapGlow{
+      animation: glow 0.9s ease-in-out infinite alternate;
+    }
+    @keyframes glow{
+      from{ filter: drop-shadow(0 0 0 rgba(255,221,85,.0)) drop-shadow(0 0 0 rgba(255,221,85,.0)); }
+      to{   filter: drop-shadow(0 0 18px rgba(255,221,85,.55)) drop-shadow(0 0 34px rgba(255,221,85,.35)); }
+    }
+
+    /* Modal */
+    .modal{
+      position:fixed; inset:0;
+      background: rgba(0,0,0,.55);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding: 16px;
+      z-index: 99;
+    }
+    .modal.open{ display:flex; }
+    .modalCard{
+      width: min(720px, 96vw);
+      background: rgba(20,25,45,.92);
+      border-radius: 18px;
+      box-shadow: 0 18px 44px rgba(0,0,0,.45);
+      border: 1px solid rgba(255,255,255,.12);
+      padding: 14px;
+      color:#fff;
+      backdrop-filter: blur(8px);
+    }
+    .modalActions{
+      display:flex;
+      justify-content:flex-end;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-top: 12px;
+    }
+    .lbTitle{
+      font-weight: 1000;
+      font-size: 18px;
+      margin: 0 0 10px;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:10px;
+    }
+    .muted{ opacity:.9; font-weight:800; }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+
+    <div class="header">
+      <img src="header.png" alt="Little Ollie Arcade" />
+    </div>
+
+    <!-- TOP BUTTONS (order you asked) -->
+    <div class="topbar">
+      <div class="controls">
+        <button class="btn" id="btnMenu">🕹️ Arcade Menu</button>
+        <button class="btn" id="btnStart">▶️ Start</button>
+
+        <select class="select" id="difficulty">
+          <option value="easy">😌 Easy</option>
+          <option value="medium" selected>😎 Medium</option>
+          <option value="hard">😈 Hard</option>
+        </select>
+      </div>
+
+      <div class="controls">
+        <div class="pill">🃏 You: <span id="youCount">0</span></div>
+        <div class="pill">🤖 CPU: <span id="cpuCount">0</span></div>
+        <div class="pill">📥 Pile: <span id="pileCount">0</span></div>
+      </div>
+
+      <div class="status" id="status">Press ▶️ Start</div>
+    </div>
+
+    <div class="grid">
+      <!-- GAME -->
+      <div class="cardPanel">
+        <div class="pileArea">
+          <div class="pileStack" id="pileStack">
+            <div class="ghost" id="ghost">🃏</div>
+            <!-- card layers injected here -->
+          </div>
+
+          <!-- Buttons under snap pile -->
+          <div class="underPileBtns">
+            <button class="btn bigBtn" id="btnPlay" disabled>🃏 Play Card</button>
+            <button class="btn bigBtn" id="btnSnap" disabled>⚡ SNAP!</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Win modal -->
+    <div class="modal" id="winModal" aria-hidden="true">
+      <div class="modalCard">
+        <div class="lbTitle">
+          <span id="winTitle">🎉 You Win!</span>
+          <button class="btn" id="btnCloseWin">❌ Close</button>
+        </div>
+
+        <div class="muted" id="winSummary"></div>
+
+        <div class="modalActions">
+          <button class="btn" id="btnPlayAgain">🔁 Play Again</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // ---------- Helpers ----------
+    const $ = (id) => document.getElementById(id);
+
+    function shuffle(arr){
+      for(let i = arr.length - 1; i > 0; i--){
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
+    // ---------- Game State ----------
+    let you = [];
+    let cpu = [];
+    let pile = [];       // pile of played cards (values 1..100)
+    let snapOpen = false;
+    let gameOn = false;
+    let waitingCPU = false;
+
+    let cpuSnapTimeout = null;
+    let cpuAutoPlayTimeout = null;
+
+    // For visual stacking (keep last N for display)
+    const renderStack = [];
+    const MAX_RENDER = 14;
+
+    const TOTAL_CARDS = 54;  // 27 pairs
+    const PAIRS = 27;
+
+const diffCfg = {
+  easy:   { cpuSnapMin: 1200, cpuSnapMax: 2200 },
+  medium: { cpuSnapMin: 900,  cpuSnapMax: 1600 },
+  hard:   { cpuSnapMin: 600,  cpuSnapMax: 1200 },
+};
+
+
+    // ---------- UI Elements ----------
+    const statusEl = $("status");
+    const youCountEl = $("youCount");
+    const cpuCountEl = $("cpuCount");
+    const pileCountEl = $("pileCount");
+    const pileStackEl = $("pileStack");
+    const ghost = $("ghost");
+
+    const btnPlay = $("btnPlay");
+    const btnSnap = $("btnSnap");
+    const btnStart = $("btnStart");
+    const btnMenu = $("btnMenu");
+
+    // ---------- Core Game ----------
+    function setStatus(msg){
+      statusEl.textContent = msg;
+    }
+
+    function updateCounts(){
+      youCountEl.textContent = you.length;
+      cpuCountEl.textContent = cpu.length;
+      pileCountEl.textContent = pile.length;
+    }
+
+    function clearCpuTimers(){
+      if(cpuSnapTimeout){ clearTimeout(cpuSnapTimeout); cpuSnapTimeout = null; }
+      if(cpuAutoPlayTimeout){ clearTimeout(cpuAutoPlayTimeout); cpuAutoPlayTimeout = null; }
+    }
+
+    function setSnapState(on){
+      snapOpen = on;
+      if(on) pileStackEl.classList.add("snapGlow");
+      else pileStackEl.classList.remove("snapGlow");
+    }
+
+    function buildDeck(){
+      // Choose 27 unique cards from 1..100, then duplicate each to create pairs (54 total)
+      const all = Array.from({length:100}, (_,i)=>i+1);
+      shuffle(all);
+      const chosen = all.slice(0, PAIRS);
+      const deck = [];
+      for(const c of chosen){
+        deck.push(c);
+        deck.push(c);
+      }
+      shuffle(deck);
+      return deck;
+    }
+
+    function resetRenderStack(){
+      renderStack.length = 0;
+      renderPileStack();
+    }
+
+    function renderPileStack(){
+      // Remove existing layers
+      pileStackEl.querySelectorAll(".cardLayer").forEach(n => n.remove());
+
+      if(renderStack.length === 0){
+        ghost.style.display = "flex";
+        return;
+      }
+
+      ghost.style.display = "none";
+
+      // draw from bottom -> top
+      for(let i = 0; i < renderStack.length; i++){
+        const it = renderStack[i];
+        const img = document.createElement("img");
+        img.className = "cardLayer";
+        img.src = `cards/${it.v}.png`;
+        img.alt = `Card ${it.v}`;
+
+        // Slightly smaller for older cards, keeps top card prominent
+        const depth = (renderStack.length - 1 - i);
+        const scale = 1 - Math.min(0.045 * depth, 0.18);
+
+        img.style.transform = `translate(${it.dx}px, ${it.dy}px) rotate(${it.rot}deg) scale(${scale})`;
+        img.style.zIndex = String(10 + i);
+
+        pileStackEl.appendChild(img);
+      }
+    }
+
+    function pushRenderCard(v){
+      // random small offset + tiny rotation so you can SEE stacking
+      const dx = Math.round((Math.random() * 18) - 9);   // -9..9
+      const dy = Math.round((Math.random() * 18) - 9);   // -9..9
+      const rot = ((Math.random() * 6) - 3).toFixed(2);  // -3..3 deg
+
+      renderStack.push({ v, dx, dy, rot: Number(rot) });
+      if(renderStack.length > MAX_RENDER) renderStack.shift();
+      renderPileStack();
+    }
+
+    function dealNewGame(){
+      clearCpuTimers();
+      you = [];
+      cpu = [];
+      pile = [];
+      setSnapState(false);
+      waitingCPU = false;
+
+      const deck = buildDeck();
+      you = deck.slice(0, 27);
+      cpu = deck.slice(27, 54);
+
+      updateCounts();
+      resetRenderStack();
+    }
+
+    function beginGame(){
+      dealNewGame();
+      gameOn = true;
+      btnPlay.disabled = false;
+      btnSnap.disabled = false;
+      setStatus("Your turn — press 🃏 Play Card");
+    }
+
+    function endGame(playerWon){
+      gameOn = false;
+      btnPlay.disabled = true;
+      btnSnap.disabled = true;
+      clearCpuTimers();
+      setSnapState(false);
+
+      $("winTitle").textContent = playerWon ? "🎉 You Win!" : "💀 Computer Wins!";
+      $("winSummary").textContent =
+        `Final cards: You ${you.length} / CPU ${cpu.length}`;
+
+      $("winModal").classList.add("open");
+    }
+
+    function checkWin(){
+      if(you.length === TOTAL_CARDS){ endGame(true); return true; }
+      if(cpu.length === TOTAL_CARDS){ endGame(false); return true; }
+      return false;
+    }
+
+    function playFrom(who){
+      const hand = (who === "you") ? you : cpu;
+      if(hand.length === 0) return false;
+
+      const card = hand.shift();
+      pile.push(card);
+
+      updateCounts();
+      pushRenderCard(card);
+
+      // check match of last two
+      if(pile.length >= 2){
+        const a = pile[pile.length - 1];
+        const b = pile[pile.length - 2];
+        if(a === b){
+          setSnapState(true);
+          setStatus("⚡ SNAP available! Hit ⚡ SNAP!");
+          scheduleCpuSnap();
+        }else{
+          setSnapState(false);
+          setStatus("Keep going… 🃏");
+        }
+      }else{
+        setSnapState(false);
+        setStatus("Keep going… 🃏");
+      }
+
+      return true;
+    }
+
+    function scheduleCpuSnap(){
+      clearTimeout(cpuSnapTimeout);
+
+      const diff = $("difficulty").value;
+      const cfg = diffCfg[diff] || diffCfg.medium;
+      const delay = Math.floor(cfg.cpuSnapMin + Math.random()*(cfg.cpuSnapMax - cfg.cpuSnapMin));
+
+      cpuSnapTimeout = setTimeout(()=>{
+        if(gameOn && snapOpen){
+          cpuSnap();
+        }
+      }, delay);
+    }
+
+    function awardPileTo(winner){
+      if(pile.length === 0) return;
+
+      if(winner === "you"){
+        you.push(...pile);
+        setStatus(`✅ You snapped! You win the pile (+${pile.length}).`);
+      }else{
+        cpu.push(...pile);
+        setStatus(`🤖 CPU snapped! CPU wins the pile (+${pile.length}).`);
+      }
+
+      pile = [];
+      setSnapState(false);
+      updateCounts();
+      resetRenderStack();
+      clearCpuTimers();
+      checkWin();
+    }
+
+    function falseSnapPenalty(){
+      // False snap -> pile goes to the opposition (as you requested)
+      if(pile.length === 0){
+        setStatus("❌ False snap — no pile. Keep playing.");
+        return;
+      }
+      cpu.push(...pile);
+      setStatus(`❌ False snap! Pile goes to CPU (+${pile.length}).`);
+      pile = [];
+      setSnapState(false);
+      updateCounts();
+      resetRenderStack();
+      clearCpuTimers();
+      checkWin();
+    }
+
+    function youSnap(){
+      if(!gameOn) return;
+      if(snapOpen){
+        awardPileTo("you");
+      }else{
+        falseSnapPenalty();
+      }
+    }
+
+    function cpuSnap(){
+      if(!gameOn) return;
+      if(snapOpen){
+        awardPileTo("cpu");
+      }
+    }
+
+    function youPlayTurn(){
+      if(!gameOn) return;
+      if(waitingCPU) return;
+
+      if(you.length === 0){
+        // You can't play -> CPU wins
+        cpu = cpu.concat(pile);
+        pile = [];
+        updateCounts();
+        resetRenderStack();
+        endGame(false);
+        return;
+      }
+
+      waitingCPU = true;
+      btnPlay.disabled = true;
+
+      // YOU plays
+      playFrom("you");
+      if(checkWin()) return;
+
+      // CPU allowed to play 1.0s after you (your request)
+      cpuAutoPlayTimeout = setTimeout(()=>{
+        if(!gameOn) return;
+
+        if(cpu.length === 0){
+          // CPU can't play -> you win
+          you = you.concat(pile);
+          pile = [];
+          updateCounts();
+          resetRenderStack();
+          endGame(true);
+          return;
+        }
+
+        playFrom("cpu");
+        if(checkWin()) return;
+
+        waitingCPU = false;
+        btnPlay.disabled = false;
+
+        if(!snapOpen) setStatus("Your turn — press 🃏 Play Card");
+      }, 1000);
+    }
+
+    // ---------- Events ----------
+    btnMenu.addEventListener("click", ()=>{
+      window.location.href = "../index.html";
+    });
+
+    btnStart.addEventListener("click", ()=>{
+      $("winModal").classList.remove("open");
+      beginGame();
+    });
+
+    btnPlay.addEventListener("click", youPlayTurn);
+    btnSnap.addEventListener("click", youSnap);
+
+    $("btnCloseWin").addEventListener("click", ()=> $("winModal").classList.remove("open"));
+    $("btnPlayAgain").addEventListener("click", ()=>{
+      $("winModal").classList.remove("open");
+      beginGame();
+    });
+
+    // ---------- Init ----------
+    updateCounts();
+    resetRenderStack();
+    setStatus("Press ▶️ Start");
+  </script>
+</body>
+</html>

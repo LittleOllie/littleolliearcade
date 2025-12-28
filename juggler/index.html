@@ -64,12 +64,12 @@
       margin-bottom: 10px;
     }
 
-    /* === controls row like your Noughts & Crosses (one line, all yellow) === */
+    /* === controls row (one line, all yellow) === */
     .controls{
       display:flex;
       gap: 8px;
-      flex-wrap: nowrap;          /* one line */
-      justify-content:flex-start; /* all left */
+      flex-wrap: nowrap;
+      justify-content:flex-start;
       width:100%;
       align-items:center;
       overflow-x:auto;
@@ -113,39 +113,9 @@
       white-space:nowrap;
     }
 
-    /* Arena */
-    .arena{
-      position: relative;
-      border-radius: 20px;
-      overflow:hidden;
-      background: rgba(0,0,0,.14);
-      border: 1px solid rgba(255,255,255,.14);
-      box-shadow: inset 0 0 0 1px rgba(255,255,255,.06);
-      height: 560px; /* extra height = easier */
-    }
-
-    /* Optional watermark logo in play area */
-    .arena::before{
-      content:"";
-      position:absolute;
-      inset:0;
-      background-image: url("logo.png");
-      background-repeat: no-repeat;
-      background-position: center;
-      background-size: 55%;
-      opacity: .10;
-      pointer-events:none;
-      filter: saturate(1.1);
-    }
-
-    canvas{
-      width:100%;
-      height:100%;
-      display:block;
-    }
-
     /* Big Juggles/Speed panel */
     .statsCard{
+      margin-top: 10px; /* now lives under controls inside top card */
       background: var(--panel2);
       border: 1px solid rgba(255,255,255,.14);
       border-radius: 18px;
@@ -194,6 +164,36 @@
       text-align:center;
       line-height:1;
       text-shadow: 0 12px 26px rgba(0,0,0,.25);
+    }
+
+    /* Arena */
+    .arena{
+      position: relative;
+      border-radius: 20px;
+      overflow:hidden;
+      background: rgba(0,0,0,.14);
+      border: 1px solid rgba(255,255,255,.14);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.06);
+      height: 560px;
+    }
+
+    .arena::before{
+      content:"";
+      position:absolute;
+      inset:0;
+      background-image: url("logo.png");
+      background-repeat: no-repeat;
+      background-position: center;
+      background-size: 55%;
+      opacity: .10;
+      pointer-events:none;
+      filter: saturate(1.1);
+    }
+
+    canvas{
+      width:100%;
+      height:100%;
+      display:block;
     }
 
     .statusRow{
@@ -336,6 +336,7 @@
 
 <body>
   <div class="wrap">
+    <!-- TOP PLAYER PANEL -->
     <div class="card">
       <img class="header-img" src="header.png" alt="Little Ollie Arcade" onerror="this.style.display='none'">
 
@@ -343,52 +344,58 @@
       <div class="controls">
         <button class="btn small" id="btnMenu" type="button">🕹️ Arcade Menu</button>
 
+        <!-- ✅ Start moved BEFORE Difficulty -->
+        <button class="btn small" id="btnStart" type="button">▶️ Start</button>
+
         <select class="select" id="difficulty" title="Difficulty">
           <option value="easy">Difficulty - 🟢 Easy (3)</option>
           <option value="medium">Difficulty - 🟡 Medium (4)</option>
           <option value="hard">Difficulty - 🔴 Hard (5)</option>
         </select>
 
-        <!-- ✅ Start emoji changed to PLAY -->
-        <button class="btn small" id="btnStart" type="button">▶️ Start</button>
-        <button class="btn small" id="btnRestart" type="button">🔁 Restart</button>
+        <!-- ✅ Restart removed -->
         <button class="btn small" id="btnLB" type="button">🏆 Leaderboard</button>
       </div>
+
+
     </div>
 
-    <!-- Big Juggles + Speed area -->
-    <div class="statsCard">
-      <div class="statBox">
-        <div class="statLabel">
-          <span>🤹 Juggles</span>
-          <span style="opacity:.85;font-weight:900;font-size:12px;" id="diffPill">Easy</span>
-        </div>
-        <div class="statValue" id="score">0</div>
-      </div>
-
-      <div class="statBox">
-        <div class="statLabel">
-          <span>⚡ Speed</span>
-          <span style="opacity:.85;font-weight:900;font-size:12px;">every 10 = +0.1</span>
-        </div>
-        <div class="statValue" id="speed">1.0x</div>
-      </div>
-    </div>
-
+    <!-- GAME AREA -->
     <div class="card">
       <div class="arena">
         <canvas id="cv"></canvas>
       </div>
 
-      <div class="statusRow">
-        <div class="statusText">
-          <span style="font-weight:1000;">Status:</span>
-          <span id="status">Press ▶️ Start</span>
-        </div>
-        <div class="hintPill" id="hint">🎯 Click only the NEXT ball (after it passes the middle)</div>
-      </div>
+<!-- JUGGLES + SPEED -->
+<div class="statsCard">
+  <div class="statBox">
+    <div class="statLabel">
+      <span>🤹 Juggles</span>
+      <span style="opacity:.85;font-weight:900;font-size:12px;" id="diffPill">Easy</span>
     </div>
+    <div class="statValue" id="score">0</div>
   </div>
+
+  <div class="statBox">
+    <div class="statLabel">
+      <span>⚡ Speed</span>
+      <span style="opacity:.85;font-weight:900;font-size:12px;">every 10 = +0.1</span>
+    </div>
+    <div class="statValue" id="speed">1.0x</div>
+  </div>
+</div>
+
+<!-- STATUS (NOW BELOW STATS) -->
+<div class="statusRow">
+  <div class="statusText">
+    <span style="font-weight:1000;">Status:</span>
+    <span id="status">Press ▶️ Start</span>
+  </div>
+  <div class="hintPill" id="hint">
+    🎯 Click only the NEXT ball (after it passes the middle)
+  </div>
+</div>
+
 
   <div class="toast" id="toast"></div>
 
@@ -442,17 +449,15 @@
       getFirestore, collection, addDoc, query, where, orderBy, limit, getDocs, serverTimestamp
     } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
 
-    // ✅ Replace with your Firebase config (same as your other games)
-const firebaseConfig = {
-  apiKey: "AIzaSyClQdJX2Y2eqt6Gtrm024lhFI6W5zYXpUw",
-  authDomain: "little-ollie-juggler.firebaseapp.com",
-  projectId: "little-ollie-juggler",
-  storageBucket: "little-ollie-juggler.firebasestorage.app",
-  messagingSenderId: "92860450512",
-  appId: "1:92860450512:web:07aa24fb5b3b40ac03c0d5",
-  measurementId: "G-07LZ4EJNRE"
-};
-
+    const firebaseConfig = {
+      apiKey: "AIzaSyClQdJX2Y2eqt6Gtrm024lhFI6W5zYXpUw",
+      authDomain: "little-ollie-juggler.firebaseapp.com",
+      projectId: "little-ollie-juggler",
+      storageBucket: "little-ollie-juggler.firebasestorage.app",
+      messagingSenderId: "92860450512",
+      appId: "1:92860450512:web:07aa24fb5b3b40ac03c0d5",
+      measurementId: "G-07LZ4EJNRE"
+    };
 
     let db = null;
     try{
@@ -476,7 +481,6 @@ const firebaseConfig = {
     const toastEl = document.getElementById("toast");
 
     const btnStart = document.getElementById("btnStart");
-    const btnRestart = document.getElementById("btnRestart");
     const btnMenu = document.getElementById("btnMenu");
     const btnLB = document.getElementById("btnLB");
     const difficultySel = document.getElementById("difficulty");
@@ -509,7 +513,7 @@ const firebaseConfig = {
       const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
       cv.width = Math.floor(r.width * dpr);
       cv.height = Math.floor(r.height * dpr);
-      ctx.setTransform(dpr,0,0,dpr,0,0); // draw in CSS pixels
+      ctx.setTransform(dpr,0,0,dpr,0,0);
     }
     window.addEventListener("resize", resize);
     resize();
@@ -524,16 +528,16 @@ const firebaseConfig = {
     };
 
     const COLORS = [
-      "#ffdd55", // yellow
-      "#ff6b6b", // red
-      "#6dffb2", // green
-      "#6de0ff", // cyan
-      "#b88cff", // purple
-      "#ffa94d"  // orange
+      "#ffdd55",
+      "#ff6b6b",
+      "#6dffb2",
+      "#6de0ff",
+      "#b88cff",
+      "#ffa94d"
     ];
 
     /***********************
-     * JUGGLE MODEL (cascade)
+     * JUGGLE MODEL
      ***********************/
     let running = false;
     let gameOver = false;
@@ -552,7 +556,7 @@ const firebaseConfig = {
     let nextIdToClick = 0;
     let spawnedId = 0;
 
-    let balls = []; // active balls
+    let balls = [];
 
     function difficultyLabel(d){
       if(d==="easy") return "Easy";
@@ -560,15 +564,10 @@ const firebaseConfig = {
       return "Hard";
     }
 
-    // positions (CSS pixels)
     function hands(){
       const w = cv.getBoundingClientRect().width;
       const h = cv.getBoundingClientRect().height;
-
-      // ✅ Midline lifted up for more space below (easier near bottom)
-      // was ~50% before; now ~44%
       const midY = h * 0.44;
-
       return {
         w,h,
         leftX:  w*0.30,
@@ -602,29 +601,25 @@ const firebaseConfig = {
 
       scoreEl.textContent = "0";
       speedEl.textContent = "1.0x";
-      statusEl.textContent = "Press ▶️ Start";   // ✅ updated
+      statusEl.textContent = "Press ▶️ Start";
       diffPill.textContent = difficultyLabel(difficulty);
       draw();
     }
 
     function currentSpeedMult(){
-      // ✅ +0.1 every 10 juggles
       const steps = Math.floor(score / 10);
       return 1 + steps * 0.1;
     }
 
     function applySpeedFromScore(){
       const mult = currentSpeedMult();
-      // make beat faster by multiplier, but clamp to beatMin
       beatMs = Math.max(beatMin, Math.floor(beatStart / mult));
       speedEl.textContent = `${mult.toFixed(1)}x`;
-      // keep cascade consistent
       flightMs = Math.floor(numBalls * beatMs);
     }
 
     function start(){
       if(running) return;
-      // close any modals
       modalBack.style.display = "none";
       lbBack.style.display = "none";
 
@@ -634,7 +629,6 @@ const firebaseConfig = {
       startTime = performance.now();
       lastBeat = startTime;
 
-      // prime a couple throws so it looks alive instantly
       spawnThrow(lastBeat);
       spawnThrow(lastBeat + beatMs*0.50);
 
@@ -647,7 +641,6 @@ const firebaseConfig = {
       gameOver = true;
       statusEl.textContent = reason;
 
-      // ✅ Always show submit modal after game ends
       modalTitle.textContent = "Game Over";
       modalText.textContent = `You got ${score} juggles on ${difficultyLabel(difficulty)}. Submit your score?`;
       nameInput.value = "";
@@ -657,8 +650,6 @@ const firebaseConfig = {
 
     function spawnThrow(now){
       const { leftX, rightX, handY } = hands();
-
-      // alternate throw direction each beat
       const fromLeft = (spawnedId % 2 === 0);
       const fromX = fromLeft ? leftX : rightX;
       const toX = fromLeft ? rightX : leftX;
@@ -667,7 +658,6 @@ const firebaseConfig = {
       const colorIndex = id % numBalls;
       const color = COLORS[colorIndex % COLORS.length];
 
-      // flight time depends on beat
       flightMs = Math.floor(numBalls * beatMs);
 
       balls.push({
@@ -680,23 +670,19 @@ const firebaseConfig = {
         y: handY,
         t: 0,
         clicked: false,
-        fade: 0,     // fade-out after click
+        fade: 0,
         canClick: false
       });
 
       spawnedId++;
     }
 
-    /***********************
-     * DRAW
-     ***********************/
     function draw(){
       const r = cv.getBoundingClientRect();
       const w = r.width, h = r.height;
 
       ctx.clearRect(0,0,w,h);
 
-      // subtle vignette
       const g = ctx.createRadialGradient(w/2, h*0.22, 20, w/2, h/2, Math.max(w,h));
       g.addColorStop(0, "rgba(255,255,255,0.10)");
       g.addColorStop(1, "rgba(0,0,0,0.18)");
@@ -705,7 +691,6 @@ const firebaseConfig = {
 
       const { leftX, rightX, handY, midY } = hands();
 
-      // hands
       ctx.globalAlpha = 0.18;
       ctx.strokeStyle = "rgba(255,255,255,.50)";
       ctx.lineWidth = 3;
@@ -715,7 +700,6 @@ const firebaseConfig = {
       ctx.stroke();
       ctx.globalAlpha = 1;
 
-      // midline hint (subtle) - used for click gating
       ctx.globalAlpha = 0.10;
       ctx.strokeStyle = "rgba(255,255,255,.8)";
       ctx.lineWidth = 2;
@@ -725,7 +709,6 @@ const firebaseConfig = {
       ctx.stroke();
       ctx.globalAlpha = 1;
 
-      // next target ring (only after it passes midline)
       const nextBall = balls.find(b => b.id === nextIdToClick);
       if(nextBall && nextBall.canClick){
         const rad = ballRadius();
@@ -738,13 +721,11 @@ const firebaseConfig = {
         ctx.globalAlpha = 1;
       }
 
-      // draw balls
       const rad = ballRadius();
       for(const b of balls){
         const alpha = b.clicked ? Math.max(0, 1 - b.fade) : 1;
         if(alpha <= 0) continue;
 
-        // shadow
         ctx.globalAlpha = 0.22 * alpha;
         ctx.fillStyle = "rgba(0,0,0,.8)";
         ctx.beginPath();
@@ -752,18 +733,15 @@ const firebaseConfig = {
         ctx.fill();
         ctx.globalAlpha = 1 * alpha;
 
-        // ball
         ctx.fillStyle = b.color;
         ctx.beginPath();
         ctx.arc(b.x, b.y, rad, 0, Math.PI*2);
         ctx.fill();
 
-        // outline
         ctx.lineWidth = 5;
         ctx.strokeStyle = "rgba(0,0,0,.35)";
         ctx.stroke();
 
-        // highlight
         ctx.globalAlpha = 0.25 * alpha;
         ctx.fillStyle = "#ffffff";
         ctx.beginPath();
@@ -771,7 +749,6 @@ const firebaseConfig = {
         ctx.fill();
         ctx.globalAlpha = 1 * alpha;
 
-        // "not clickable yet" dim on next ball (before midline)
         if(b.id === nextIdToClick && !b.canClick){
           ctx.globalAlpha = 0.22;
           ctx.fillStyle = "rgba(0,0,0,.35)";
@@ -782,7 +759,6 @@ const firebaseConfig = {
         }
       }
 
-      // idle overlay
       if(!running && !gameOver){
         ctx.globalAlpha = 0.92;
         ctx.fillStyle = "rgba(0,0,0,.25)";
@@ -807,23 +783,14 @@ const firebaseConfig = {
     function ballPos(b, t){
       const { handY, peakY } = hands();
       const x = lerp(b.fromX, b.toX, t);
-
-      // parabola peak in the middle
       const y = handY - 4*(handY - peakY)*t*(1-t);
-
-      // gentle sway
       const sway = Math.sin(t*Math.PI) * 10 * (b.id % 2 === 0 ? 1 : -1);
-
       return { x: x + sway, y };
     }
 
-    /***********************
-     * LOOP
-     ***********************/
     function loop(now){
       if(!running) return;
 
-      // spawn new throws on beat
       if(now - lastBeat >= beatMs){
         while(now - lastBeat >= beatMs){
           lastBeat += beatMs;
@@ -833,7 +800,6 @@ const firebaseConfig = {
 
       const { midY } = hands();
 
-      // update balls positions & check drops
       for(const b of balls){
         const t = (now - b.spawn) / b.flight;
         const tt = clamp(t, 0, 1);
@@ -842,16 +808,12 @@ const firebaseConfig = {
         b.y = p.y;
         b.t = tt;
 
-        // ✅ canClick only after it passes the midline (on the way down)
-        // require y > midY + buffer
         b.canClick = (b.y > (midY + 10));
 
-        // clicked ball disappears quickly
         if(b.clicked){
           b.fade = Math.min(1, b.fade + 0.12);
         }
 
-        // if ball lands and it's still the next one to click => drop
         if(t >= 1 && b.id === nextIdToClick && !b.clicked){
           endGame("Dropped the next ball!");
           draw();
@@ -859,16 +821,12 @@ const firebaseConfig = {
         }
       }
 
-      // cleanup:
       balls = balls.filter(b => !(b.clicked && b.fade >= 1) && (now - b.spawn) < (b.flight + 900));
 
       draw();
       requestAnimationFrame(loop);
     }
 
-    /***********************
-     * INPUT: CLICK / TAP
-     ***********************/
     function canvasPoint(evt){
       const rect = cv.getBoundingClientRect();
       const clientX = evt.touches ? evt.touches[0].clientX : evt.clientX;
@@ -878,11 +836,8 @@ const firebaseConfig = {
 
     function hitNextBall(pt){
       const rad = ballRadius();
-
       const target = balls.find(b => b.id === nextIdToClick && !b.clicked);
       if(!target) return null;
-
-      // ✅ not clickable until after midline
       if(!target.canClick) return { target, blocked:true };
 
       const dx = pt.x - target.x;
@@ -905,22 +860,16 @@ const firebaseConfig = {
         return;
       }
 
-      // ✅ correct click
-      res.target.clicked = true;   // it will fade out and disappear
+      res.target.clicked = true;
       score++;
       scoreEl.textContent = String(score);
       nextIdToClick++;
-
-      // ✅ update speed every 10
       applySpeedFromScore();
     }
 
     cv.addEventListener("mousedown", onPress);
     cv.addEventListener("touchstart", onPress, { passive:false });
 
-    /***********************
-     * LEADERBOARD (manual submit, Top 10, top 3 styled)
-     ***********************/
     function rankEmoji(i){
       if(i===1) return "🥇";
       if(i===2) return "🥈";
@@ -995,9 +944,6 @@ const firebaseConfig = {
       });
     }
 
-    /***********************
-     * MODALS
-     ***********************/
     btnSkip.addEventListener("click", async ()=>{
       modalBack.style.display = "none";
       toast("Skipped submission.");
@@ -1034,9 +980,6 @@ const firebaseConfig = {
       if(e.target === lbBack) lbBack.style.display = "none";
     });
 
-    /***********************
-     * BUTTONS
-     ***********************/
     btnStart.addEventListener("click", ()=>{
       if(gameOver){
         resetGame();
@@ -1044,15 +987,7 @@ const firebaseConfig = {
       start();
     });
 
-    btnRestart.addEventListener("click", ()=>{
-      modalBack.style.display = "none";
-      lbBack.style.display = "none";
-      resetGame();
-      toast("Restarted!");
-    });
-
     btnMenu.addEventListener("click", ()=>{
-      // ✅ Change if needed
       window.location.href = "../index.html";
     });
 
@@ -1061,34 +996,7 @@ const firebaseConfig = {
       resetGame();
     });
 
-    /***********************
-     * INIT
-     ***********************/
     resetGame();
-
-    /***********************
-     * FIRESTORE RULES (paste in Firebase Console > Firestore Rules)
-     *
-     * rules_version = '2';
-     * service cloud.firestore {
-     *   match /databases/{database}/documents {
-     *     match /juggle_scores/{docId} {
-     *       allow read: if true;
-     *       allow create: if
-     *         request.resource.data.keys().hasOnly(["name","difficulty","score","winId","createdAt"]) &&
-     *         request.resource.data.name is string &&
-     *         request.resource.data.name.size() >= 1 &&
-     *         request.resource.data.name.size() <= 20 &&
-     *         request.resource.data.difficulty in ["easy","medium","hard"] &&
-     *         request.resource.data.score is int &&
-     *         request.resource.data.score >= 0 &&
-     *         request.resource.data.score <= 200000 &&
-     *         request.resource.data.winId is string &&
-     *         request.resource.data.winId.size() >= 6;
-     *     }
-     *   }
-     * }
-     ***********************/
   </script>
 </body>
 </html>

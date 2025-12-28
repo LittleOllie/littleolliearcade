@@ -6,10 +6,6 @@
   <title>Little Ollie Arcade</title>
 
   <!-- PWA can stay -->
-  <link rel="manifest" href="manifest.webmanifest" />
-  <meta name="theme-color" content="#4c6fff" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <link rel="icon" href="icons/icon-192.png" />
   <link rel="apple-touch-icon" href="icons/icon-192.png" />
 
@@ -519,18 +515,6 @@
     </div>
   </div>
 
-  <script type="module">
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker
-        .register("./sw.js")
-        .then((reg) => {
-          reg.update();
-          navigator.serviceWorker.addEventListener("controllerchange", () => {
-            window.location.reload();
-          });
-        })
-        .catch(() => {});
-    }
-  </script>
+
 </body>
 </html>

@@ -165,6 +165,7 @@
       display:flex;
       gap:10px;
       align-items:center;
+      text-align:center;
     }
 
     .lights{
@@ -251,6 +252,14 @@
     }
     .playBtn:active{ transform: translateY(1px) scale(.99); }
     .playBtn:hover{ filter: brightness(1.02); }
+
+    /* ✅ NEW: disabled/locked PLAY button style */
+    .playBtn.disabled{
+      opacity:.65;
+      pointer-events:none;
+      filter: none !important;
+      transform:none !important;
+    }
 
     .controlsBar{
       display:flex;
@@ -364,6 +373,34 @@
       border: 1px solid rgba(255,255,255,.10);
       padding: 10px 12px;
       border-radius: 16px;
+    }
+
+    /* ✅ NEW: Under construction tape */
+    .tape{
+      position:absolute;
+      left:-18%;
+      top: 44%;
+      width: 136%;
+      padding: 10px 0;
+      text-align:center;
+      font-weight: 950;
+      letter-spacing: .9px;
+      text-transform: uppercase;
+color: #ffffff;
+text-shadow: 0 2px 4px rgba(0,0,0,.8);
+      background: repeating-linear-gradient(
+        45deg,
+        rgba(255,221,85,.92) 0px,
+        rgba(255,221,85,.92) 14px,
+        rgba(0,0,0,.85) 14px,
+        rgba(0,0,0,.85) 28px
+      );
+      transform: rotate(-12deg);
+      box-shadow: 0 18px 40px rgba(0,0,0,.45);
+      border-top: 1px solid rgba(255,255,255,.18);
+      border-bottom: 1px solid rgba(255,255,255,.18);
+      z-index: 5;
+      pointer-events:none;
     }
   </style>
 </head>
@@ -494,6 +531,112 @@
               <p class="desc">Slide tiles to rebuild the picture.</p>
             </div>
             <a class="playBtn" href="./slider-puzzle/index.html">▶️ PLAY</a>
+          </div>
+
+          <div class="controlsBar">
+            <div class="joystick" aria-hidden="true"></div>
+            <div class="buttons" aria-hidden="true">
+              <div class="btnDot a"></div>
+              <div class="btnDot b"></div>
+              <div class="btnDot c"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ✅ NEW ROW (3 more cabinets) -->
+
+        <!-- Noughts & Crosses (X's + O's) -->
+        <div class="cabinet">
+          <div class="marquee">
+            <h3>
+              <span class="lights">
+                <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+              </span>
+              X&#39;s + O&#39;s
+              <span class="lights">
+                <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+              </span>
+            </h3>
+          </div>
+
+          <div class="screen">
+            <div class="scanline"></div>
+            <div class="screenTop">
+              <div class="emoji">✖️⭕</div>
+              <p class="desc">Play 2-player or vs Computer. Get 3 in a row to win.</p>
+            </div>
+            <!-- NOTE: adjust the folder name if yours is different -->
+            <a class="playBtn" href="./noughts-crosses/index.html">▶️ PLAY</a>
+          </div>
+
+          <div class="controlsBar">
+            <div class="joystick" aria-hidden="true"></div>
+            <div class="buttons" aria-hidden="true">
+              <div class="btnDot a"></div>
+              <div class="btnDot b"></div>
+              <div class="btnDot c"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Coming Soon #1 -->
+        <div class="cabinet">
+          <div class="tape">UNDER CONSTRUCTION</div>
+
+          <div class="marquee">
+            <h3>
+              <span class="lights">
+                <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+              </span>
+              Coming Soon
+              <span class="lights">
+                <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+              </span>
+            </h3>
+          </div>
+
+          <div class="screen">
+            <div class="scanline"></div>
+            <div class="screenTop">
+              <div class="emoji">🚧</div>
+              <p class="desc">New game cabinet powering up…</p>
+            </div>
+            <a class="playBtn disabled" href="#" aria-disabled="true">🔒 COMING SOON</a>
+          </div>
+
+          <div class="controlsBar">
+            <div class="joystick" aria-hidden="true"></div>
+            <div class="buttons" aria-hidden="true">
+              <div class="btnDot a"></div>
+              <div class="btnDot b"></div>
+              <div class="btnDot c"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Coming Soon #2 -->
+        <div class="cabinet">
+          <div class="tape">UNDER CONSTRUCTION</div>
+
+          <div class="marquee">
+            <h3>
+              <span class="lights">
+                <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+              </span>
+              Coming Soon
+              <span class="lights">
+                <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+              </span>
+            </h3>
+          </div>
+
+          <div class="screen">
+            <div class="scanline"></div>
+            <div class="screenTop">
+              <div class="emoji">🛠️</div>
+              <p class="desc">We’re building something cool for this slot.</p>
+            </div>
+            <a class="playBtn disabled" href="#" aria-disabled="true">🔒 COMING SOON</a>
           </div>
 
           <div class="controlsBar">
@@ -644,7 +787,7 @@
 
     // ✅ Gate PLAY buttons: hub is the only place that asks.
     function wirePlayGate(){
-      const playLinks = Array.from(document.querySelectorAll("a.playBtn[href]"));
+      const playLinks = Array.from(document.querySelectorAll("a.playBtn[href]:not(.disabled)"));
       playLinks.forEach(a => {
         a.addEventListener("click", (e) => {
           const href = a.getAttribute("href");

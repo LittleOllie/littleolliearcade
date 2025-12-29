@@ -1,0 +1,1219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Chainstone: The Forge</title>
+
+  <style>
+    *{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
+    :root{
+      --bg1:#6de0ff; --bg2:#4c6fff;
+      --panel: rgba(0,0,0,.18);
+      --panel2: rgba(0,0,0,.22);
+      --shadow: 0 14px 34px rgba(0,0,0,.35);
+      --btnYellow:#ffdd55; --btnYellow2:#ffd22e; --btnText:#222;
+      --btnShadow: 0 10px 20px rgba(0,0,0,.22);
+      --text:#fff; --radius:18px; --gap:10px;
+    }
+
+    body{
+      margin:0;
+      min-height:100vh;
+      display:flex;
+      justify-content:center;
+      align-items:flex-start;
+      background: radial-gradient(1200px 800px at 20% 10%, rgba(255,255,255,.25), transparent 55%),
+                  linear-gradient(135deg, var(--bg1), var(--bg2));
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color: var(--text);
+      padding: 14px;
+    }
+
+    .app{
+      width:min(980px, 100%);
+      display:flex;
+      flex-direction:column;
+      gap: 10px;
+    }
+
+    /* HEADER IMAGE - no trimming */
+    .headerWrap{
+      width:100%;
+      background: rgba(0,0,0,.18);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      padding: 10px;
+    }
+    .headerImg{
+      width:100%;
+      height:auto;
+      display:block;
+      border-radius: 14px;
+      background: rgba(0,0,0,.10);
+    }
+
+    .bar{
+      width:100%;
+      background: var(--panel);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 10px;
+      display:flex;
+      flex-wrap:wrap;
+      gap: 10px;
+      align-items:center;
+      justify-content:space-between;
+    }
+
+    .leftBtns, .rightInfo{
+      display:flex;
+      flex-wrap:wrap;
+      gap: 10px;
+      align-items:center;
+    }
+
+    .btn{
+      border:0;
+      padding: 10px 14px;
+      border-radius: 14px;
+      background: linear-gradient(var(--btnYellow), var(--btnYellow2));
+      color: var(--btnText);
+      font-weight: 900;
+      letter-spacing:.2px;
+      cursor:pointer;
+      box-shadow: var(--btnShadow);
+      display:flex;
+      gap:8px;
+      align-items:center;
+      user-select:none;
+      touch-action: manipulation;
+    }
+    .btn:active{ transform: translateY(1px); }
+    .btn[disabled]{ opacity:.55; cursor:not-allowed; filter:saturate(.75); }
+
+    .pill{
+      background: rgba(0,0,0,.22);
+      border-radius: 999px;
+      padding: 8px 12px;
+      display:flex;
+      gap: 10px;
+      align-items:center;
+      box-shadow: 0 10px 22px rgba(0,0,0,.22);
+      font-weight: 800;
+      white-space:nowrap;
+    }
+    .small{ font-weight:800; opacity:.95; font-size: 14px; }
+    .muted{ opacity:.85; font-weight:800; }
+
+    .gameWrap{
+      width:100%;
+      background: var(--panel);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 10px;
+      position: relative;
+    }
+
+    canvas{
+      width:100%;
+      height:auto;
+      display:block;
+      border-radius: 16px;
+      background:
+        radial-gradient(900px 560px at 60% 25%, rgba(255,170,0,.16), transparent 55%),
+        radial-gradient(900px 560px at 20% 60%, rgba(0,0,0,.22), transparent 60%),
+        linear-gradient(180deg, rgba(0,0,0,.22), rgba(0,0,0,.35));
+      touch-action:none;
+    }
+
+    .overlay{
+      position:absolute;
+      inset: 10px;
+      border-radius: 16px;
+      pointer-events:none;
+    }
+
+    /* Ink meter */
+    .inkBox{
+      position:absolute;
+      left: 16px;
+      bottom: 16px;
+      width: min(280px, 55%);
+      background: rgba(0,0,0,.28);
+      border-radius: 16px;
+      padding: 10px 12px;
+      box-shadow: 0 12px 26px rgba(0,0,0,.35);
+      pointer-events:none;
+    }
+    .inkTop{
+      display:flex;
+      justify-content:space-between;
+      font-weight: 900;
+      font-size: 14px;
+      letter-spacing:.2px;
+      margin-bottom: 8px;
+      opacity:.95;
+    }
+    .meter{
+      height: 12px;
+      border-radius: 999px;
+      overflow:hidden;
+      background: rgba(255,255,255,.12);
+      border: 1px solid rgba(255,255,255,.16);
+    }
+    .fill{
+      height:100%;
+      width: 100%;
+      background: linear-gradient(90deg, rgba(255,255,255,.9), rgba(255,255,255,.45));
+      border-radius: 999px;
+    }
+
+    .toast{
+      position:absolute;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,.35);
+      padding: 10px 14px;
+      border-radius: 999px;
+      font-weight: 900;
+      box-shadow: 0 12px 26px rgba(0,0,0,.35);
+      pointer-events:none;
+      opacity:0;
+      transition: opacity .2s ease;
+      text-align:center;
+      max-width: calc(100% - 24px);
+    }
+    .toast.show{ opacity:1; }
+
+    .modal{
+      position: fixed;
+      inset: 0;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      background: rgba(0,0,0,.45);
+      padding: 18px;
+      z-index: 50;
+    }
+    .modalCard{
+      width: min(560px, 100%);
+      background: rgba(0,0,0,.45);
+      border: 1px solid rgba(255,255,255,.14);
+      border-radius: 22px;
+      box-shadow: 0 22px 60px rgba(0,0,0,.55);
+      padding: 16px;
+      backdrop-filter: blur(10px);
+    }
+    .modalTitle{
+      font-size: 18px;
+      font-weight: 950;
+      margin-bottom: 8px;
+      letter-spacing:.2px;
+    }
+    .modalBody{
+      opacity:.95;
+      font-weight: 800;
+      line-height: 1.35;
+      margin-bottom: 12px;
+    }
+    .stars{
+      font-size: 22px;
+      margin: 6px 0 10px;
+    }
+    .row{
+      display:flex;
+      gap: 10px;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+    }
+
+    @media (max-width: 560px){
+      body{ padding: 10px; }
+      .btn{ padding: 10px 12px; border-radius: 13px; }
+      .pill{ padding: 8px 10px; }
+      .inkBox{ width: min(240px, 70%); }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app">
+
+    <!-- HEADER PNG -->
+    <div class="headerWrap">
+      <img class="headerImg" src="header.png" alt="Chainstone: The Forge" />
+    </div>
+
+    <!-- BUTTON BAR (yellow buttons, left-to-right under header) -->
+    <div class="bar">
+      <div class="leftBtns">
+        <button class="btn" id="btnDifficulty">🔥 Difficulty: <span id="difficultyLabel">Ember</span></button>
+        <button class="btn" id="btnClear">🧽 Clear</button>
+        <button class="btn" id="btnStart">▶️ Start</button>
+        <button class="btn" id="btnRetry" disabled>🔁 Retry</button>
+      </div>
+
+      <div class="rightInfo">
+        <div class="pill">🗺️ <span class="small">Level</span> <span id="levelLabel">1</span>/<span id="levelTotal">10</span></div>
+        <div class="pill">⏱️ <span class="small">Run Time</span> <span id="runTime">0.0</span>s</div>
+        <div class="pill">🏁 <span class="small">Total</span> <span id="totalTime">0.0</span>s</div>
+        <div class="pill">✨ <span class="small">Embers</span> <span id="embers">0</span></div>
+      </div>
+    </div>
+
+    <!-- GAME -->
+    <div class="gameWrap">
+      <canvas id="cv" width="960" height="540"></canvas>
+
+      <div class="overlay">
+        <div class="toast" id="toast">Draw a chalk track, then press Start ▶️</div>
+
+        <div class="inkBox">
+          <div class="inkTop">
+            <div>🖍️ Chalk Ink</div>
+            <div><span id="inkLeft">100</span>%</div>
+          </div>
+          <div class="meter"><div class="fill" id="inkFill"></div></div>
+          <div class="muted" style="margin-top:8px; font-size:13px;">
+            Draw anywhere • Start locks drawing until Clear
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- WIN MODAL -->
+  <div class="modal" id="modal">
+    <div class="modalCard">
+      <div class="modalTitle" id="modalTitle">Level Complete!</div>
+      <div class="stars" id="modalStars">⭐⭐⭐</div>
+      <div class="modalBody" id="modalBody"></div>
+      <div class="row">
+        <button class="btn" id="btnNext">➡️ Next</button>
+        <button class="btn" id="btnClose">✅ Close</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  // ============================================================
+  //  CHAINSTONE: THE FORGE (single-screen, mobile friendly)
+  //  - Chalk draw track
+  //  - Start locks drawing
+  //  - Timer counts only while rolling
+  //  - Embers reduce time
+  //  - Stars per level
+  //  - Fixed levels per difficulty (Option B: Ember/Heated/Molten)
+  // ============================================================
+
+  const cv = document.getElementById("cv");
+  const ctx = cv.getContext("2d");
+
+  // UI
+  const difficultyLabel = document.getElementById("difficultyLabel");
+  const btnDifficulty = document.getElementById("btnDifficulty");
+  const btnClear = document.getElementById("btnClear");
+  const btnStart = document.getElementById("btnStart");
+  const btnRetry = document.getElementById("btnRetry");
+
+  const levelLabel = document.getElementById("levelLabel");
+  const levelTotal = document.getElementById("levelTotal");
+  const runTimeEl = document.getElementById("runTime");
+  const totalTimeEl = document.getElementById("totalTime");
+  const embersEl = document.getElementById("embers");
+
+  const inkLeftEl = document.getElementById("inkLeft");
+  const inkFill = document.getElementById("inkFill");
+  const toast = document.getElementById("toast");
+
+  const modal = document.getElementById("modal");
+  const modalTitle = document.getElementById("modalTitle");
+  const modalStars = document.getElementById("modalStars");
+  const modalBody = document.getElementById("modalBody");
+  const btnNext = document.getElementById("btnNext");
+  const btnClose = document.getElementById("btnClose");
+
+  // Canvas scaling to fit container while keeping internal physics resolution
+  function resizeCanvasToFit() {
+    // Keep internal resolution constant for stable physics; just let CSS scale it.
+    // But adjust internal size for better mobile sharpness:
+    const wrap = cv.getBoundingClientRect();
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const targetW = Math.max(320, Math.floor(wrap.width * dpr));
+    const targetH = Math.floor(targetW * (9/16)); // 16:9-ish
+    cv.width = targetW;
+    cv.height = targetH;
+  }
+  window.addEventListener("resize", () => {
+    resizeCanvasToFit();
+    // Rebuild current level to match new dimensions
+    loadLevel(currentDifficulty, currentLevelIndex);
+  });
+
+  // Helpers
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const dist2 = (ax, ay, bx, by) => {
+    const dx = ax - bx, dy = ay - by;
+    return dx*dx + dy*dy;
+  };
+
+  function showToast(msg, ms=1400){
+    toast.textContent = msg;
+    toast.classList.add("show");
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(() => toast.classList.remove("show"), ms);
+  }
+
+  // ============================================================
+  // LEVEL DATA (fixed, guaranteed solvable "feel" with basic obstacles)
+  // Coordinates are normalized (0..1) so they adapt to canvas size.
+  // ============================================================
+
+  const DIFFICULTIES = ["Ember","Heated","Molten"];
+  let currentDifficulty = "Ember";
+  let currentLevelIndex = 0;
+
+  // Each level: start, goal, solids (walls/ramps), hazards optional, embers
+  // Solids are line segments in normalized coords.
+  function L(start, goal, solids, embers, starTimes){
+    return { start, goal, solids, embers, starTimes }; // starTimes: [3*,2*,1*] thresholds
+  }
+
+  const levelsByDiff = {
+    Ember: [
+      L([0.12,0.28],[0.86,0.72],
+        [
+          // outer bounds (keep ball in)
+          [[0.05,0.10],[0.95,0.10]], [[0.95,0.10],[0.95,0.90]],
+          [[0.95,0.90],[0.05,0.90]], [[0.05,0.90],[0.05,0.10]],
+          // starter ramp (prevents wedge + gives motion)
+          [[0.10,0.30],[0.22,0.36]],
+          // a mid rock ridge
+          [[0.42,0.48],[0.58,0.44]],
+          [[0.58,0.44],[0.70,0.50]],
+        ],
+        [[0.36,0.40],[0.60,0.60],[0.74,0.55]],
+        [6.5, 9.5, 13.0]
+      ),
+      L([0.12,0.24],[0.86,0.78],
+        [
+          [[0.05,0.10],[0.95,0.10]], [[0.95,0.10],[0.95,0.90]],
+          [[0.95,0.90],[0.05,0.90]], [[0.05,0.90],[0.05,0.10]],
+          [[0.10,0.26],[0.26,0.34]],
+          [[0.35,0.62],[0.55,0.56]],
+          [[0.55,0.56],[0.74,0.64]],
+          [[0.36,0.30],[0.48,0.36]],
+        ],
+        [[0.32,0.44],[0.52,0.70],[0.70,0.66]],
+        [7.0, 10.5, 14.0]
+      ),
+      L([0.12,0.30],[0.86,0.70],
+        [
+          [[0.05,0.10],[0.95,0.10]], [[0.95,0.10],[0.95,0.90]],
+          [[0.95,0.90],[0.05,0.90]], [[0.05,0.90],[0.05,0.10]],
+          [[0.10,0.32],[0.24,0.38]],
+          [[0.30,0.52],[0.44,0.46]],
+          [[0.44,0.46],[0.58,0.54]],
+          [[0.60,0.40],[0.72,0.46]],
+          [[0.34,0.76],[0.58,0.70]],
+        ],
+        [[0.28,0.44],[0.50,0.52],[0.66,0.48]],
+        [7.0, 10.5, 14.5]
+      ),
+      L([0.14,0.26],[0.84,0.74],
+        [
+          [[0.05,0.10],[0.95,0.10]], [[0.95,0.10],[0.95,0.90]],
+          [[0.95,0.90],[0.05,0.90]], [[0.05,0.90],[0.05,0.10]],
+          [[0.12,0.28],[0.26,0.34]],
+          [[0.30,0.40],[0.44,0.46]],
+          [[0.44,0.46],[0.58,0.42]],
+          [[0.62,0.62],[0.78,0.56]],
+          [[0.26,0.66],[0.36,0.62]],
+        ],
+        [[0.34,0.54],[0.56,0.58],[0.74,0.62]],
+        [7.2, 10.8, 15.0]
+      ),
+      L([0.14,0.30],[0.84,0.70],
+        [
+          [[0.05,0.10],[0.95,0.10]], [[0.95,0.10],[0.95,0.90]],
+          [[0.95,0.90],[0.05,0.90]], [[0.05,0.90],[0.05,0.10]],
+          [[0.12,0.32],[0.26,0.38]],
+          [[0.30,0.56],[0.50,0.50]],
+          [[0.50,0.50],[0.70,0.58]],
+          [[0.28,0.74],[0.52,0.68]],
+        ],
+        [[0.36,0.48],[0.54,0.62],[0.72,0.56]],
+        [7.4, 11.0, 15.5]
+      ),
+      // 10 levels total (simple variations)
+      L([0.14,0.26],[0.84,0.78],
+        [
+          [[0.05,0.10],[0.95,0.10]], [[0.95,0.10],[0.95,0.90]],
+          [[0.95,0.90],[0.05,0.90]], [[0.05,0.90],[0.05,0.10]],
+          [[0.12,0.28],[0.26,0.34]],
+          [[0.34,0.62],[0.56,0.54]],
+          [[0.56,0.54],[0.78,0.62]],
+          [[0.36,0.42],[0.50,0.46]],
+        ],
+        [[0.30,0.46],[0.52,0.70],[0.74,0.66]],
+        [7.6, 11.4, 16.0]
+      ),
+      L([0.14,0.30],[0.84,0.74],
+        [
+          [[0.05,0.10],[0.95,0.10]], [[0.95,0.10],[0.95,0.90]],
+          [[0.95,0.90],[0.05,0.90]], [[0.05,0.90],[0.05,0.10]],
+          [[0.12,0.32],[0.26,0.38]],
+          [[0.34,0.50],[0.50,0.44]],
+          [[0.52,0.70],[0.72,0.62]],
+          [[0.28,0.78],[0.54,0.70]],
+        ],
+        [[0.36,0.44],[0.54,0.58],[0.70,0.64]],
+        [7.8, 11.8, 16.5]
+      ),
+      L([0.12,0.26],[0.86,0.72],
+        [
+          [[0.05,0.10],[0.95,0.10]], [[0.95,0.10],[0.95,0.90]],
+          [[0.95,0.90],[0.05,0.90]], [[0.05,0.90],[0.05,0.10]],
+          [[0.10,0.28],[0.26,0.36]],
+          [[0.36,0.60],[0.62,0.50]],
+          [[0.62,0.50],[0.78,0.58]],
+          [[0.30,0.44],[0.44,0.48]],
+        ],
+        [[0.32,0.50],[0.58,0.62],[0.76,0.60]],
+        [8.2, 12.2, 17.0]
+      ),
+      L([0.12,0.30],[0.86,0.70],
+        [
+          [[0.05,0.10],[0.95,0.10]], [[0.95,0.10],[0.95,0.90]],
+          [[0.95,0.90],[0.05,0.90]], [[0.05,0.90],[0.05,0.10]],
+          [[0.10,0.32],[0.26,0.40]],
+          [[0.34,0.46],[0.54,0.40]],
+          [[0.56,0.68],[0.80,0.62]],
+          [[0.28,0.78],[0.46,0.72]],
+        ],
+        [[0.34,0.56],[0.54,0.62],[0.76,0.66]],
+        [8.6, 12.8, 17.5]
+      ),
+      L([0.14,0.24],[0.84,0.78],
+        [
+          [[0.05,0.10],[0.95,0.10]], [[0.95,0.10],[0.95,0.90]],
+          [[0.95,0.90],[0.05,0.90]], [[0.05,0.90],[0.05,0.10]],
+          [[0.12,0.26],[0.28,0.34]],
+          [[0.34,0.64],[0.56,0.56]],
+          [[0.56,0.56],[0.78,0.66]],
+          [[0.34,0.42],[0.50,0.46]],
+          [[0.62,0.44],[0.76,0.40]],
+        ],
+        [[0.34,0.52],[0.56,0.72],[0.74,0.70]],
+        [9.0, 13.2, 18.2]
+      ),
+    ],
+
+    Heated: [], // filled below (generated variations)
+    Molten: []  // filled below (generated variations)
+  };
+
+  // Generate Heated/Molten by taking Ember layouts and adding slightly tougher ridge segments + tighter star times
+  function cloneLevels(base, extraSolids, tighten){
+    return base.map((lv, i) => {
+      const solids = lv.solids.slice();
+      extraSolids.forEach(seg => solids.push(seg));
+      const starTimes = lv.starTimes.map(t => Math.max(4.5, t - tighten));
+      // Move embers slightly for variety
+      const embers = lv.embers.map((e, k) => [clamp(e[0] + (k%2?0.02:-0.02), 0.12, 0.88), clamp(e[1] + (k%3?0.015:-0.01), 0.14, 0.86)]);
+      return {...lv, solids, embers, starTimes};
+    });
+  }
+
+  levelsByDiff.Heated = cloneLevels(levelsByDiff.Ember, [
+    [[0.46,0.34],[0.62,0.32]],
+    [[0.62,0.32],[0.76,0.36]],
+  ], 0.8);
+
+  levelsByDiff.Molten = cloneLevels(levelsByDiff.Ember, [
+    [[0.40,0.30],[0.56,0.28]],
+    [[0.56,0.28],[0.72,0.32]],
+    [[0.30,0.58],[0.44,0.52]],
+  ], 1.4);
+
+  // ============================================================
+  // PHYSICS
+  // ============================================================
+
+  const world = {
+    // dimensions in pixels
+    w: () => cv.width,
+    h: () => cv.height,
+    // ball
+    ball: {
+      x: 0, y: 0,
+      vx: 0, vy: 0,
+      r: 14,
+      released: false,
+      alive: true,
+    },
+    // drawn chalk segments (pixel coords)
+    chalk: [],
+    // fixed level solids
+    solids: [],
+    // goal circle
+    goal: { x:0, y:0, r: 34 },
+    // start circle (Chainstone altar)
+    start: { x:0, y:0, r: 34 },
+    // embers
+    embers: [],
+    // state
+    inkMax: 1200, // increased ink
+    ink: 1200,
+    drawingLocked: false,
+    rolling: false,
+    runTime: 0, // current level rolling time only
+    totalTime: 0, // cumulative across levels (rolling only)
+    emberCount: 0,
+    completed: false,
+  };
+
+  function px([nx, ny]){ return [nx*world.w(), ny*world.h()]; }
+
+  function loadLevel(diff, idx){
+    const lv = levelsByDiff[diff][idx];
+    levelLabel.textContent = (idx+1);
+    levelTotal.textContent = levelsByDiff[diff].length;
+
+    world.chalk = [];
+    world.ink = world.inkMax;
+    world.drawingLocked = false;
+    world.ball.released = false;
+    world.ball.alive = true;
+    world.ball.vx = 0; world.ball.vy = 0;
+    world.runTime = 0;
+    world.rolling = false;
+    world.completed = false;
+
+    // Resize ball & goal slightly based on canvas
+    const scale = Math.min(world.w(), world.h());
+    world.ball.r = Math.max(11, Math.round(scale * 0.016));
+    world.goal.r = Math.max(24, Math.round(scale * 0.038));
+    world.start.r = world.goal.r;
+
+    // Build solids
+    world.solids = lv.solids.map(s => {
+      const a = px(s[0]), b = px(s[1]);
+      return { ax:a[0], ay:a[1], bx:b[0], by:b[1], thick: Math.max(10, Math.round(scale*0.010)) };
+    });
+
+    // Start/Goal
+    const s = px(lv.start), g = px(lv.goal);
+    world.start.x = s[0]; world.start.y = s[1];
+    world.goal.x = g[0]; world.goal.y = g[1];
+
+    // Place ball just above the starter ramp so it doesn't wedge
+    world.ball.x = world.start.x;
+    world.ball.y = world.start.y - world.ball.r*0.2;
+
+    // Embers
+    world.embers = lv.embers.map(e => {
+      const p = px(e);
+      return { x:p[0], y:p[1], r: Math.max(10, Math.round(scale*0.012)), taken:false, timeBonus: 2.0 }; // -2s each
+    });
+
+    updateInkUI();
+    updateTimeUI();
+    updateEmbersUI();
+
+    btnRetry.disabled = true;
+    btnStart.disabled = false;
+
+    showToast("Draw a chalk track, then press Start ▶️", 1400);
+  }
+
+  // ============================================================
+  // DRAWING (chalk)
+  // ============================================================
+
+  let drawing = false;
+  let lastPt = null;
+
+  function getPointer(e){
+    const rect = cv.getBoundingClientRect();
+    const t = (e.touches && e.touches[0]) ? e.touches[0] : e;
+    const x = (t.clientX - rect.left) * (cv.width / rect.width);
+    const y = (t.clientY - rect.top) * (cv.height / rect.height);
+    return {x,y};
+  }
+
+  function canSpendInk(cost){
+    return world.ink - cost >= 0;
+  }
+
+  function spendInk(cost){
+    world.ink = Math.max(0, world.ink - cost);
+    updateInkUI();
+  }
+
+  function addChalkSegment(a, b){
+    // Keep inside play bounds with padding
+    const pad = 16;
+    const ax = clamp(a.x, pad, world.w()-pad);
+    const ay = clamp(a.y, pad, world.h()-pad);
+    const bx = clamp(b.x, pad, world.w()-pad);
+    const by = clamp(b.y, pad, world.h()-pad);
+
+    const d = Math.sqrt(dist2(ax,ay,bx,by));
+    if(d < 0.5) return;
+
+    // Ink cost proportional to length
+    const cost = d * 0.9;
+    if(!canSpendInk(cost)) return;
+
+    spendInk(cost);
+
+    const thick = Math.max(12, Math.round(Math.min(world.w(), world.h()) * 0.012)); // chalk thickness
+    world.chalk.push({ ax, ay, bx, by, thick });
+
+    // Cap chalk segments for safety
+    if(world.chalk.length > 900) world.chalk.shift();
+  }
+
+  function pointerDown(e){
+    if(world.drawingLocked) return;
+    drawing = true;
+    lastPt = getPointer(e);
+    e.preventDefault?.();
+  }
+  function pointerMove(e){
+    if(!drawing || world.drawingLocked) return;
+    const p = getPointer(e);
+    if(lastPt){
+      // add segment in small steps for smoothness
+      const steps = Math.ceil(Math.sqrt(dist2(lastPt.x,lastPt.y,p.x,p.y)) / 8);
+      let prev = lastPt;
+      for(let i=1;i<=steps;i++){
+        const t = i/steps;
+        const cur = { x: prev.x + (p.x-prev.x)*t, y: prev.y + (p.y-prev.y)*t };
+        addChalkSegment(prev, cur);
+        prev = cur;
+      }
+    }
+    lastPt = p;
+    e.preventDefault?.();
+  }
+  function pointerUp(){
+    drawing = false;
+    lastPt = null;
+  }
+
+  cv.addEventListener("pointerdown", pointerDown);
+  cv.addEventListener("pointermove", pointerMove);
+  window.addEventListener("pointerup", pointerUp);
+
+  // Touch fallback (older iOS)
+  cv.addEventListener("touchstart", (e)=>{ pointerDown(e); }, {passive:false});
+  cv.addEventListener("touchmove",  (e)=>{ pointerMove(e); }, {passive:false});
+  cv.addEventListener("touchend",   (e)=>{ pointerUp(e); }, {passive:true});
+
+  // ============================================================
+  // COLLISION (ball vs segment with thickness)
+  // ============================================================
+
+  function collideBallWithSegment(ball, seg, bounce=0.25, friction=0.985){
+    const ax = seg.ax, ay = seg.ay, bx = seg.bx, by = seg.by;
+    const vx = bx-ax, vy = by-ay;
+    const len2 = vx*vx + vy*vy;
+    if(len2 < 0.0001) return;
+
+    // closest point on segment
+    const t = clamp(((ball.x-ax)*vx + (ball.y-ay)*vy) / len2, 0, 1);
+    const cx = ax + t*vx, cy = ay + t*vy;
+    const dx = ball.x - cx, dy = ball.y - cy;
+    const r = ball.r + seg.thick*0.5;
+
+    const d2 = dx*dx + dy*dy;
+    if(d2 > r*r) return;
+
+    const d = Math.sqrt(d2) || 0.0001;
+    const nx = dx / d, ny = dy / d;
+
+    // push out
+    const pen = (r - d);
+    ball.x += nx * pen;
+    ball.y += ny * pen;
+
+    // reflect velocity
+    const vn = ball.vx*nx + ball.vy*ny;
+    if(vn < 0){
+      ball.vx -= (1 + bounce) * vn * nx;
+      ball.vy -= (1 + bounce) * vn * ny;
+      ball.vx *= friction;
+      ball.vy *= friction;
+    }
+  }
+
+  // ============================================================
+  // GAME LOOP
+  // ============================================================
+
+  let lastTs = performance.now();
+
+  function update(dt){
+    const b = world.ball;
+
+    // Only count run time when rolling (released and alive and not completed)
+    if(world.rolling && b.alive && !world.completed){
+      world.runTime += dt;
+    }
+
+    // Physics
+    if(b.released && b.alive && !world.completed){
+      const g = 1400; // gravity
+      b.vy += g * dt;
+
+      // integrate
+      b.x += b.vx * dt;
+      b.y += b.vy * dt;
+
+      // air resistance
+      b.vx *= 0.999;
+      b.vy *= 0.999;
+
+      // collide with solids + chalk
+      for(const s of world.solids) collideBallWithSegment(b, s, 0.15, 0.992);
+      for(const s of world.chalk)  collideBallWithSegment(b, s, 0.22, 0.988);
+
+      // keep inside bounds softly
+      const pad = 10;
+      if(b.x < pad){ b.x = pad; b.vx *= -0.25; }
+      if(b.x > world.w()-pad){ b.x = world.w()-pad; b.vx *= -0.25; }
+      if(b.y < pad){ b.y = pad; b.vy *= -0.25; }
+      if(b.y > world.h()-pad){
+        b.y = world.h()-pad;
+        b.vy *= -0.18;
+        b.vx *= 0.98;
+        // if it’s just jittering at bottom, keep it alive but slow
+        if(Math.abs(b.vy) < 40) b.vy = 0;
+      }
+
+      // Take embers
+      for(const em of world.embers){
+        if(em.taken) continue;
+        if(dist2(b.x,b.y, em.x, em.y) <= (b.r+em.r)*(b.r+em.r)){
+          em.taken = true;
+          world.emberCount += 1;
+          // reduce run time (clamp at 0)
+          world.runTime = Math.max(0, world.runTime - em.timeBonus);
+          updateEmbersUI();
+          showToast(`✨ Ember collected! -${em.timeBonus.toFixed(0)}s`, 900);
+        }
+      }
+
+      // Goal check
+      if(dist2(b.x,b.y, world.goal.x, world.goal.y) <= (b.r + world.goal.r*0.70) ** 2){
+        completeLevel();
+      }
+    }
+
+    updateTimeUI();
+  }
+
+  function render(){
+    ctx.clearRect(0,0,cv.width,cv.height);
+
+    // Backplate
+    const grd = ctx.createLinearGradient(0,0,0,cv.height);
+    grd.addColorStop(0, "rgba(255,180,0,0.10)");
+    grd.addColorStop(1, "rgba(0,0,0,0.20)");
+    ctx.fillStyle = grd;
+    ctx.fillRect(0,0,cv.width,cv.height);
+
+    // subtle cave texture dots
+    ctx.globalAlpha = 0.15;
+    for(let i=0;i<90;i++){
+      const x = (i*73 % cv.width);
+      const y = (i*41 % cv.height);
+      ctx.beginPath();
+      ctx.arc(x,y, (i%7)+1, 0, Math.PI*2);
+      ctx.fillStyle = "rgba(255,255,255,0.28)";
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    // Draw solids (rocks)
+    drawSegments(world.solids, "rgba(255,255,255,0.18)");
+
+    // Draw chalk
+    drawChalk(world.chalk);
+
+    // Start (Chainstone altar)
+    drawStart();
+
+    // Goal (Forge)
+    drawForge();
+
+    // Embers
+    drawEmbers();
+
+    // Ball
+    drawBall();
+  }
+
+  function drawSegments(segments, stroke){
+    ctx.lineCap = "round";
+    for(const s of segments){
+      ctx.lineWidth = s.thick;
+      ctx.strokeStyle = stroke;
+      ctx.beginPath();
+      ctx.moveTo(s.ax, s.ay);
+      ctx.lineTo(s.bx, s.by);
+      ctx.stroke();
+
+      // inner line
+      ctx.lineWidth = Math.max(2, s.thick*0.25);
+      ctx.strokeStyle = "rgba(0,0,0,0.25)";
+      ctx.beginPath();
+      ctx.moveTo(s.ax, s.ay);
+      ctx.lineTo(s.bx, s.by);
+      ctx.stroke();
+    }
+  }
+
+  function drawChalk(segments){
+    ctx.lineCap = "round";
+    for(const s of segments){
+      // Chalk: slightly noisy layered strokes
+      ctx.lineWidth = s.thick;
+      ctx.strokeStyle = "rgba(255,255,255,0.88)";
+      ctx.beginPath();
+      ctx.moveTo(s.ax, s.ay);
+      ctx.lineTo(s.bx, s.by);
+      ctx.stroke();
+
+      ctx.lineWidth = Math.max(2, s.thick*0.35);
+      ctx.strokeStyle = "rgba(255,255,255,0.40)";
+      ctx.beginPath();
+      ctx.moveTo(s.ax + (Math.random()-0.5)*0.6, s.ay + (Math.random()-0.5)*0.6);
+      ctx.lineTo(s.bx + (Math.random()-0.5)*0.6, s.by + (Math.random()-0.5)*0.6);
+      ctx.stroke();
+
+      ctx.lineWidth = Math.max(2, s.thick*0.18);
+      ctx.strokeStyle = "rgba(0,0,0,0.12)";
+      ctx.beginPath();
+      ctx.moveTo(s.ax, s.ay);
+      ctx.lineTo(s.bx, s.by);
+      ctx.stroke();
+    }
+  }
+
+  function drawStart(){
+    const x = world.start.x, y = world.start.y, r = world.start.r;
+
+    // glow
+    ctx.save();
+    ctx.globalAlpha = 0.75;
+    const glow = ctx.createRadialGradient(x,y, r*0.2, x,y, r*2.2);
+    glow.addColorStop(0, "rgba(255,210,0,0.55)");
+    glow.addColorStop(1, "rgba(255,210,0,0)");
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(x,y, r*2.2, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+
+    // altar ring
+    ctx.fillStyle = "rgba(255,255,255,0.10)";
+    ctx.beginPath();
+    ctx.arc(x,y, r*1.05, 0, Math.PI*2);
+    ctx.fill();
+
+    // chainstone (crystal orb)
+    ctx.fillStyle = "rgba(255,205,30,0.95)";
+    ctx.beginPath();
+    ctx.arc(x,y, r*0.62, 0, Math.PI*2);
+    ctx.fill();
+
+    // highlight
+    ctx.fillStyle = "rgba(255,255,255,0.55)";
+    ctx.beginPath();
+    ctx.arc(x - r*0.18, y - r*0.18, r*0.22, 0, Math.PI*2);
+    ctx.fill();
+
+    // label
+    ctx.font = `900 ${Math.max(14, Math.round(cv.width*0.018))}px system-ui`;
+    ctx.fillStyle = "rgba(255,255,255,0.92)";
+    ctx.textAlign = "center";
+    ctx.fillText("CHAINSTONE", x, y - r*1.35);
+  }
+
+  function drawForge(){
+    const x = world.goal.x, y = world.goal.y, r = world.goal.r;
+
+    // forge glow
+    ctx.save();
+    const glow = ctx.createRadialGradient(x,y, r*0.2, x,y, r*2.6);
+    glow.addColorStop(0, "rgba(255,120,0,0.70)");
+    glow.addColorStop(1, "rgba(255,120,0,0)");
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(x,y, r*2.6, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+
+    // forge mouth
+    ctx.fillStyle = "rgba(0,0,0,0.45)";
+    ctx.beginPath();
+    ctx.arc(x,y, r*1.05, Math.PI*0.05, Math.PI*0.95);
+    ctx.lineTo(x+r*0.9, y+r*0.6);
+    ctx.lineTo(x-r*0.9, y+r*0.6);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = "rgba(255,150,0,0.85)";
+    ctx.beginPath();
+    ctx.arc(x,y+ r*0.12, r*0.72, Math.PI*0.1, Math.PI*0.9);
+    ctx.fill();
+
+    // label
+    ctx.font = `950 ${Math.max(14, Math.round(cv.width*0.018))}px system-ui`;
+    ctx.fillStyle = "rgba(255,210,120,0.96)";
+    ctx.textAlign = "center";
+    ctx.fillText("THE FORGE", x, y + r*1.55);
+  }
+
+  function drawEmbers(){
+    for(const em of world.embers){
+      if(em.taken) continue;
+
+      const x = em.x, y = em.y, r = em.r;
+
+      // glow
+      ctx.save();
+      const g = ctx.createRadialGradient(x,y, r*0.3, x,y, r*2.2);
+      g.addColorStop(0, "rgba(255,150,0,0.65)");
+      g.addColorStop(1, "rgba(255,150,0,0)");
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(x,y, r*2.2, 0, Math.PI*2);
+      ctx.fill();
+      ctx.restore();
+
+      // core
+      ctx.fillStyle = "rgba(255,180,40,0.95)";
+      ctx.beginPath();
+      ctx.arc(x,y, r*0.65, 0, Math.PI*2);
+      ctx.fill();
+
+      ctx.fillStyle = "rgba(255,255,255,0.55)";
+      ctx.beginPath();
+      ctx.arc(x - r*0.18, y - r*0.18, r*0.18, 0, Math.PI*2);
+      ctx.fill();
+    }
+  }
+
+  function drawBall(){
+    const b = world.ball;
+
+    // shadow
+    ctx.fillStyle = "rgba(0,0,0,0.28)";
+    ctx.beginPath();
+    ctx.ellipse(b.x, b.y + b.r*0.65, b.r*0.9, b.r*0.45, 0, 0, Math.PI*2);
+    ctx.fill();
+
+    // ball body (chainstone orb)
+    const g = ctx.createRadialGradient(b.x - b.r*0.35, b.y - b.r*0.35, b.r*0.2, b.x, b.y, b.r*1.2);
+    g.addColorStop(0, "rgba(255,220,90,0.98)");
+    g.addColorStop(1, "rgba(255,140,0,0.95)");
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, b.r, 0, Math.PI*2);
+    ctx.fill();
+
+    // highlight
+    ctx.fillStyle = "rgba(255,255,255,0.55)";
+    ctx.beginPath();
+    ctx.arc(b.x - b.r*0.25, b.y - b.r*0.25, b.r*0.28, 0, Math.PI*2);
+    ctx.fill();
+
+    // tiny outline
+    ctx.strokeStyle = "rgba(0,0,0,0.18)";
+    ctx.lineWidth = Math.max(2, b.r*0.12);
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, b.r, 0, Math.PI*2);
+    ctx.stroke();
+  }
+
+  function updateInkUI(){
+    const pct = (world.ink / world.inkMax) * 100;
+    inkLeftEl.textContent = Math.round(pct);
+    inkFill.style.width = `${pct}%`;
+    // Fade meter a bit when empty
+    inkFill.style.opacity = pct < 10 ? "0.35" : "1";
+  }
+
+  function updateTimeUI(){
+    runTimeEl.textContent = world.runTime.toFixed(1);
+    totalTimeEl.textContent = world.totalTime.toFixed(1);
+  }
+
+  function updateEmbersUI(){
+    embersEl.textContent = world.emberCount;
+  }
+
+  // ============================================================
+  // LEVEL COMPLETE + STARS
+  // ============================================================
+
+  function computeStars(lv, time){
+    const [t3, t2, t1] = lv.starTimes;
+    if(time <= t3) return 3;
+    if(time <= t2) return 2;
+    if(time <= t1) return 1;
+    return 0;
+  }
+
+  function openModal(stars, msg){
+    modalStars.textContent = "⭐".repeat(stars) + "☆".repeat(Math.max(0, 3-stars));
+    modalBody.textContent = msg;
+    modal.style.display = "flex";
+  }
+
+  function closeModal(){
+    modal.style.display = "none";
+  }
+
+  function completeLevel(){
+    if(world.completed) return;
+    world.completed = true;
+    world.rolling = false;
+
+    // add run time to total
+    world.totalTime += world.runTime;
+
+    const lv = levelsByDiff[currentDifficulty][currentLevelIndex];
+    const stars = computeStars(lv, world.runTime);
+
+    modalTitle.textContent = `Level ${currentLevelIndex+1} Complete!`;
+    const emberTaken = world.embers.filter(e=>e.taken).length;
+    const msg = `Run Time: ${world.runTime.toFixed(1)}s  •  Embers: ${emberTaken}/${world.embers.length}\nTotal Time: ${world.totalTime.toFixed(1)}s`;
+    openModal(stars, msg);
+
+    btnRetry.disabled = false;
+    btnStart.disabled = true;
+    showToast("🏁 Forged! Next level unlocked.", 1300);
+  }
+
+  // ============================================================
+  // BUTTONS
+  // ============================================================
+
+  btnClear.addEventListener("click", () => {
+    world.chalk = [];
+    world.ink = world.inkMax;
+    world.drawingLocked = false;
+
+    // Reset ball to start (but don’t change level)
+    const lv = levelsByDiff[currentDifficulty][currentLevelIndex];
+    const s = px(lv.start);
+    world.ball.x = s[0];
+    world.ball.y = s[1] - world.ball.r*0.2;
+    world.ball.vx = 0; world.ball.vy = 0;
+    world.ball.released = false;
+    world.ball.alive = true;
+
+    // Reset run time + embers for this level only (total stays)
+    world.runTime = 0;
+    world.rolling = false;
+    world.completed = false;
+    world.emberCount = 0;
+    world.embers.forEach(e=>e.taken=false);
+
+    btnStart.disabled = false;
+    btnRetry.disabled = true;
+
+    updateInkUI(); updateTimeUI(); updateEmbersUI();
+    showToast("Cleared. Draw again ✍️", 1000);
+  });
+
+  btnStart.addEventListener("click", () => {
+    if(world.completed) return;
+
+    // Lock drawing until clear
+    world.drawingLocked = true;
+
+    // Release ball
+    world.ball.released = true;
+    world.rolling = true;
+
+    // tiny nudge so it actually goes (fix “flat start”)
+    world.ball.vx += 40;
+    world.ball.vy += 0;
+
+    btnRetry.disabled = false;
+    btnStart.disabled = true;
+
+    showToast("GO! 🟠 Roll to the Forge!", 1100);
+  });
+
+  btnRetry.addEventListener("click", () => {
+    // Retry keeps total time (your choice). If you prefer retry resets total time, tell me.
+    loadLevel(currentDifficulty, currentLevelIndex);
+  });
+
+  btnDifficulty.addEventListener("click", () => {
+    // cycle difficulties
+    const i = DIFFICULTIES.indexOf(currentDifficulty);
+    currentDifficulty = DIFFICULTIES[(i+1)%DIFFICULTIES.length];
+    difficultyLabel.textContent = currentDifficulty;
+
+    // reset run + total when switching difficulty (better for leaderboard category)
+    world.totalTime = 0;
+    currentLevelIndex = 0;
+    loadLevel(currentDifficulty, currentLevelIndex);
+
+    showToast(`Difficulty set: ${currentDifficulty}`, 1200);
+  });
+
+  btnNext.addEventListener("click", () => {
+    closeModal();
+    const list = levelsByDiff[currentDifficulty];
+    if(currentLevelIndex < list.length - 1){
+      currentLevelIndex++;
+      loadLevel(currentDifficulty, currentLevelIndex);
+    } else {
+      // completed all
+      showToast("🎉 All levels complete!", 1400);
+      // restart at level 1
+      currentLevelIndex = 0;
+      loadLevel(currentDifficulty, currentLevelIndex);
+    }
+  });
+
+  btnClose.addEventListener("click", () => closeModal());
+  modal.addEventListener("click", (e) => {
+    if(e.target === modal) closeModal();
+  });
+
+  // ============================================================
+  // INIT + LOOP
+  // ============================================================
+
+  resizeCanvasToFit();
+  difficultyLabel.textContent = currentDifficulty;
+
+  loadLevel(currentDifficulty, currentLevelIndex);
+
+  function loop(ts){
+    const dt = Math.min(0.033, (ts - lastTs) / 1000);
+    lastTs = ts;
+    update(dt);
+    render();
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+
+})();
+</script>
+</body>
+</html>

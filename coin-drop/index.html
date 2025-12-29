@@ -1,0 +1,1091 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Little Ollie — Chainstone Drop</title>
+
+  <!-- Optional PWA bits (keep if you use them elsewhere) -->
+  <meta name="theme-color" content="#4c6fff" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+
+  <style>
+    *{ box-sizing:border-box; }
+    :root{
+      --bg1:#6de0ff;
+      --bg2:#4c6fff;
+
+      --panel: rgba(0,0,0,.18);
+      --panel2: rgba(0,0,0,.22);
+      --shadow: 0 14px 34px rgba(0,0,0,.35);
+
+      --btnYellow:#ffdd55;
+      --btnYellow2:#ffd22e;
+      --btnText:#222;
+      --btnShadow: 0 10px 20px rgba(0,0,0,.22);
+
+      --text:#fff;
+      --radius: 18px;
+      --gap: 10px;
+
+      --tile: rgba(255,255,255,.16);
+      --tile2: rgba(255,255,255,.10);
+      --stroke: rgba(255,255,255,.18);
+      --glow: rgba(80,180,255,.55);
+
+      --gold: rgba(255,215,0,.22);
+      --silver: rgba(192,192,192,.18);
+      --bronze: rgba(205,127,50,.18);
+    }
+
+    body{
+      margin:0;
+      min-height:100vh;
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      padding:18px;
+      color:var(--text);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: radial-gradient(1200px 700px at 20% 10%, var(--bg1), transparent 55%),
+                  radial-gradient(1200px 700px at 80% 90%, var(--bg2), transparent 55%),
+                  linear-gradient(180deg, #2a3cff, #1b2b77);
+      position:relative;
+      overflow-x:hidden;
+    }
+
+    /* logo.png background (subtle + transparent) */
+    body::before{
+      content:"";
+      position:fixed;
+      inset:0;
+      background:
+        url("logo.png") center/540px auto no-repeat;
+      opacity:.10;
+      pointer-events:none;
+      filter: saturate(1.05) contrast(1.05);
+    }
+
+    .wrap{
+      width:min(1040px, 100%);
+      display:flex;
+      flex-direction:column;
+      gap:var(--gap);
+    }
+
+    .card{
+      background: linear-gradient(180deg, var(--panel), var(--panel2));
+      border:1px solid rgba(255,255,255,.16);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+
+    /* Header image full width + rounded corners via parent card */
+    .headerImg{
+      display:block;
+      width:100%;
+      height:auto;
+    }
+
+    .topBar{
+      padding:12px 12px 10px;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
+
+    .controlsRow{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      align-items:center;
+      justify-content:flex-start; /* left aligned */
+    }
+
+    .btn{
+      appearance:none;
+      border:none;
+      cursor:pointer;
+      padding:10px 12px;
+      border-radius: 14px;
+      background: linear-gradient(180deg, var(--btnYellow), var(--btnYellow2));
+      color: var(--btnText);
+      box-shadow: var(--btnShadow);
+      font-weight: 900;
+      letter-spacing:.2px;
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      user-select:none;
+      transition: transform .08s ease, filter .12s ease;
+    }
+    .btn:active{ transform: translateY(1px) scale(.99); }
+    .btn:disabled{
+      opacity:.55;
+      cursor:not-allowed;
+      filter: grayscale(.15);
+    }
+
+    .select{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      background: rgba(255,255,255,.14);
+      border:1px solid rgba(255,255,255,.18);
+      padding:8px 10px;
+      border-radius: 14px;
+    }
+    .select label{ font-weight:800; opacity:.95; }
+    select{
+      background: rgba(0,0,0,.18);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,.18);
+      border-radius: 12px;
+      padding:8px 10px;
+      font-weight:800;
+      outline:none;
+    }
+
+    .statsRow{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      align-items:center;
+      justify-content:space-between;
+    }
+    .pill{
+      background: rgba(0,0,0,.18);
+      border:1px solid rgba(255,255,255,.14);
+      padding:8px 10px;
+      border-radius: 999px;
+      display:flex;
+      gap:10px;
+      align-items:center;
+      font-weight:800;
+      min-width: 180px;
+      justify-content:space-between;
+    }
+    .pill span{ opacity:.9; font-weight:900; }
+    .pill b{ font-size: 1.02rem; }
+
+    .gameArea{
+      padding: 12px;
+    }
+
+    /* Bigger playing panel */
+    .stage{
+      width:100%;
+      aspect-ratio: 16/10;
+      max-height: 640px;
+      background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(0,0,0,.12));
+      border:1px solid rgba(255,255,255,.16);
+      border-radius: 18px;
+      overflow:hidden;
+      position:relative;
+    }
+
+    canvas{
+      width:100%;
+      height:100%;
+      display:block;
+    }
+
+    .hint{
+      margin-top:10px;
+      opacity:.92;
+      font-weight:700;
+      line-height:1.35;
+    }
+
+    .leader{
+      padding: 12px;
+      display:grid;
+      gap:10px;
+    }
+
+    .leaderHeader{
+      display:flex;
+      flex-wrap:wrap;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+
+    .leaderHeader h3{
+      margin:0;
+      font-size:1.05rem;
+      letter-spacing:.2px;
+    }
+
+    .board{
+      background: rgba(0,0,0,.18);
+      border:1px solid rgba(255,255,255,.14);
+      border-radius: 16px;
+      padding:10px;
+      overflow:auto;
+    }
+
+    table{
+      width:100%;
+      border-collapse:collapse;
+      font-weight:800;
+      min-width: 520px;
+    }
+    th, td{
+      padding:10px 8px;
+      border-bottom:1px solid rgba(255,255,255,.10);
+      text-align:left;
+      white-space:nowrap;
+    }
+    th{ opacity:.85; font-size:.9rem; }
+    tr:last-child td{ border-bottom:none; }
+
+    .rank1{ background: var(--gold); }
+    .rank2{ background: var(--silver); }
+    .rank3{ background: var(--bronze); }
+
+    .modalWrap{
+      position:fixed;
+      inset:0;
+      display:none;
+      justify-content:center;
+      align-items:center;
+      padding:18px;
+      background: rgba(0,0,0,.55);
+      z-index: 50;
+    }
+    .modal{
+      width:min(520px, 100%);
+      background: linear-gradient(180deg, rgba(30,60,180,.92), rgba(10,20,70,.92));
+      border:1px solid rgba(255,255,255,.18);
+      border-radius: 18px;
+      box-shadow: 0 18px 55px rgba(0,0,0,.45);
+      padding:14px;
+      color:#fff;
+    }
+    .modal h3{ margin:6px 6px 10px; }
+    .modal p{ margin:6px 6px 12px; opacity:.92; font-weight:700; }
+    .modalRow{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      padding: 6px;
+      align-items:center;
+      justify-content:flex-start;
+    }
+    input[type="text"]{
+      flex: 1 1 220px;
+      padding:10px 12px;
+      border-radius: 14px;
+      border:1px solid rgba(255,255,255,.18);
+      background: rgba(0,0,0,.22);
+      color:#fff;
+      font-weight:900;
+      outline:none;
+    }
+    .foot{
+      text-align:center;
+      opacity:.85;
+      font-weight:900;
+      padding:10px 0 0;
+      letter-spacing:.2px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <div class="card">
+      <!-- header.png full width, rounded corners inherited from card -->
+      <img class="headerImg" src="header.png" alt="Little Ollie Arcade Header" />
+
+      <div class="topBar">
+        <!-- Buttons row: all yellow, left -> right -->
+        <div class="controlsRow">
+          <button id="btnArcade" class="btn">🏠 Arcade</button>
+          <button id="btnStart" class="btn">▶️ Start</button>
+          <button id="btnDrop" class="btn" disabled>🟡 Drop Chainstone</button>
+          <button id="btnReset" class="btn">🔄 Restart</button>
+
+          <div class="select" title="Difficulty changes peg spacing and physics feel">
+            <label for="difficulty">🎚️ Difficulty</label>
+            <select id="difficulty">
+              <option value="easy">Easy</option>
+              <option value="medium" selected>Medium</option>
+              <option value="hard">Hard</option>
+              <option value="extra-hard">Extra Hard</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="statsRow">
+          <div class="pill"><span>Score</span><b id="score">0</b></div>
+          <div class="pill"><span>Balls Dropped</span><b id="balls">0</b></div>
+          <div class="pill"><span>Status</span><b id="status">Press ▶️ Start</b></div>
+        </div>
+      </div>
+
+      <div class="gameArea">
+        <div class="stage">
+          <canvas id="cv" width="1200" height="750"></canvas>
+        </div>
+        <div class="hint">
+          🧠 Tip: You can drop multiple Chainstones (tap “Drop Chainstone” again). Pegs glow on contact.
+          Bigger multipliers are on the outside — aim for the edges if you’re brave. 😈
+        </div>
+        <div class="foot">Little Ollie Arcade 🎮 • Chainstone Drop</div>
+      </div>
+    </div>
+
+    <!-- Leaderboard BELOW game (not on the side) -->
+    <div class="card leader">
+      <div class="leaderHeader">
+        <h3>🏆 Leaderboard (Top 10)</h3>
+        <div class="controlsRow" style="gap:10px;">
+          <button id="btnSubmit" class="btn" disabled>✅ Submit Score</button>
+          <button id="btnRefresh" class="btn">🔃 Refresh</button>
+        </div>
+      </div>
+
+      <div class="board">
+        <table>
+          <thead>
+            <tr>
+              <th>Rank</th>
+              <th>Name</th>
+              <th>Difficulty</th>
+              <th>Score</th>
+              <th>When</th>
+            </tr>
+          </thead>
+          <tbody id="boardBody">
+            <tr><td colspan="5" style="opacity:.85;">Leaderboard will appear here.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Submit modal -->
+  <div id="modalWrap" class="modalWrap">
+    <div class="modal">
+      <h3>✅ Submit your score</h3>
+      <p>No name needed unless you submit to the leaderboard.</p>
+      <div class="modalRow">
+        <input id="nameInput" type="text" maxlength="20" placeholder="Enter name (1–20 chars)" />
+        <button id="btnSend" class="btn">🚀 Submit</button>
+        <button id="btnCancel" class="btn">✖️ Cancel</button>
+      </div>
+      <p style="margin-top:8px; opacity:.85;">
+        Your score: <b id="finalScore">0</b> • Difficulty: <b id="finalDiff">medium</b>
+      </p>
+    </div>
+  </div>
+
+  <script type="module">
+    /*****************************************************************
+      FIREBASE (Optional but matches your other games)
+      - Paste your firebaseConfig from Firebase Web setup.
+      - If you leave it blank, leaderboard will still "work" locally
+        (but won't save).
+    *****************************************************************/
+    let FIREBASE_OK = false;
+
+    // ---- PASTE YOUR CONFIG HERE ----
+    const firebaseConfig = {
+      // apiKey: "...",
+      // authDomain: "...",
+      // projectId: "...",
+      // storageBucket: "...",
+      // messagingSenderId: "...",
+      // appId: "..."
+    };
+
+    // Lazy import only if config is filled
+    const hasConfig = firebaseConfig && Object.keys(firebaseConfig).length && firebaseConfig.projectId;
+
+    let db = null;
+    let addDoc, collection, serverTimestamp, query, orderBy, limit, getDocs;
+
+    if (hasConfig) {
+      try {
+        const { initializeApp } = await import("https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js");
+        const {
+          getFirestore, addDoc: _addDoc, collection: _collection, serverTimestamp: _serverTimestamp,
+          query: _query, orderBy: _orderBy, limit: _limit, getDocs: _getDocs
+        } = await import("https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js");
+
+        const app = initializeApp(firebaseConfig);
+        db = getFirestore(app);
+
+        addDoc = _addDoc; collection = _collection; serverTimestamp = _serverTimestamp;
+        query = _query; orderBy = _orderBy; limit = _limit; getDocs = _getDocs;
+
+        FIREBASE_OK = true;
+      } catch (e) {
+        FIREBASE_OK = false;
+      }
+    }
+
+    /*****************************************************************
+      GAME: Chainstone Drop (Plinko)
+      - Lightweight physics (no libs)
+      - Triangular peg layout
+      - Peg glow on hit
+      - Multi-ball support
+      - Better damping so it doesn't "go crazy"
+    *****************************************************************/
+    const cv = document.getElementById("cv");
+    const ctx = cv.getContext("2d");
+
+    const elScore = document.getElementById("score");
+    const elBalls = document.getElementById("balls");
+    const elStatus = document.getElementById("status");
+
+    const btnStart = document.getElementById("btnStart");
+    const btnDrop = document.getElementById("btnDrop");
+    const btnReset = document.getElementById("btnReset");
+    const btnArcade = document.getElementById("btnArcade");
+
+    const selDiff = document.getElementById("difficulty");
+
+    const btnSubmit = document.getElementById("btnSubmit");
+    const btnRefresh = document.getElementById("btnRefresh");
+    const boardBody = document.getElementById("boardBody");
+
+    const modalWrap = document.getElementById("modalWrap");
+    const nameInput = document.getElementById("nameInput");
+    const btnSend = document.getElementById("btnSend");
+    const btnCancel = document.getElementById("btnCancel");
+    const finalScore = document.getElementById("finalScore");
+    const finalDiff = document.getElementById("finalDiff");
+
+    // If you have an arcade hub, set this path:
+    const ARCADE_URL = "./index.html"; // change if needed
+
+    function nowMs(){ return performance.now(); }
+    function clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
+
+    // Visual helpers
+    function roundRect(x,y,w,h,r){
+      const rr = Math.min(r, w/2, h/2);
+      ctx.beginPath();
+      ctx.moveTo(x+rr, y);
+      ctx.arcTo(x+w, y, x+w, y+h, rr);
+      ctx.arcTo(x+w, y+h, x, y+h, rr);
+      ctx.arcTo(x, y+h, x, y, rr);
+      ctx.arcTo(x, y, x+w, y, rr);
+      ctx.closePath();
+    }
+
+    // Difficulty presets (tuned to feel more like real plinko)
+    const DIFFS = {
+      "easy":       { rows: 8,  pegR: 10, ballR: 14, gravity: 820,  restitution: 0.50, friction: 0.992, wallRest: 0.62, maxBalls: 8,  bins: 9  },
+      "medium":     { rows: 10, pegR: 9,  ballR: 13, gravity: 900,  restitution: 0.48, friction: 0.991, wallRest: 0.60, maxBalls: 10, bins: 11 },
+      "hard":       { rows: 12, pegR: 8,  ballR: 12, gravity: 980,  restitution: 0.46, friction: 0.990, wallRest: 0.58, maxBalls: 12, bins: 13 },
+      "extra-hard": { rows: 14, pegR: 7,  ballR: 11, gravity: 1060, restitution: 0.44, friction: 0.989, wallRest: 0.56, maxBalls: 14, bins: 15 }
+    };
+
+    let W = cv.width, H = cv.height;
+
+    // Game state
+    let running = false;
+    let score = 0;
+    let ballsDropped = 0;
+    let canSubmit = false;
+    let submittedThisRun = false;
+
+    let pegs = [];
+    let bins = [];
+    let balls = [];
+    let lastT = 0;
+
+    // Optional playfield background inside canvas (you said you’ll make one later)
+    const playBg = new Image();
+    // playBg.src = "playfield.png"; // if you add later
+
+    function setStatus(t){ elStatus.textContent = t; }
+
+    function resetAll(keepDifficulty=false){
+      running = false;
+      score = 0;
+      ballsDropped = 0;
+      balls = [];
+      canSubmit = false;
+      submittedThisRun = false;
+
+      elScore.textContent = "0";
+      elBalls.textContent = "0";
+      btnDrop.disabled = true;
+      btnSubmit.disabled = true;
+
+      if (!keepDifficulty) selDiff.value = "medium";
+      buildBoard();
+      draw(0);
+      setStatus("Press ▶️ Start");
+    }
+
+    function buildBoard(){
+      const d = DIFFS[selDiff.value] || DIFFS.medium;
+
+      pegs = [];
+      bins = [];
+      balls = [];
+
+      // Playfield margins
+      const marginX = 80;
+      const topY = 90;
+      const bottomY = H - 120;
+
+      const rows = d.rows;
+      const spacingX = (W - marginX*2) / (rows + 1);
+      const spacingY = (bottomY - topY) / (rows + 1);
+
+      // Triangular peg layout
+      for (let r=0; r<rows; r++){
+        const count = r + 3; // start with 3 pegs then grow
+        const rowWidth = (count - 1) * spacingX;
+        const startX = (W - rowWidth) / 2;
+        const y = topY + r * spacingY;
+
+        for (let i=0; i<count; i++){
+          const x = startX + i * spacingX;
+          pegs.push({
+            x, y,
+            r: d.pegR,
+            glow: 0 // 0..1
+          });
+        }
+      }
+
+      // Bottom bins + multipliers
+      const binCount = d.bins;
+      const binY = H - 70;
+      const binH = 70;
+      const binW = (W - marginX*2) / binCount;
+
+      // Multipliers: bigger outside, smaller middle (classic)
+      // Example curve: edges 10x/8x, middle 1x/2x
+      const mids = Math.floor(binCount/2);
+      const mults = [];
+      for (let i=0; i<binCount; i++){
+        const dist = Math.abs(i - mids);
+        const t = dist / mids; // 0 center -> 1 edge
+        const m = Math.round( (1 + t*t * 9) ); // 1..10-ish
+        mults.push(clamp(m, 1, 10));
+      }
+      // Make center a little less generous
+      for (let i=mids-1; i<=mids+1; i++){
+        if (i>=0 && i<binCount) mults[i] = Math.max(1, mults[i]-2);
+      }
+
+      // Bin dividers (as thin walls)
+      for (let i=0; i<=binCount; i++){
+        const x = marginX + i*binW;
+        bins.push({
+          x,
+          y: binY,
+          w: 2,
+          h: binH,
+          isWall: true
+        });
+      }
+
+      // Multiplier zones (rects)
+      const zones = [];
+      for (let i=0; i<binCount; i++){
+        zones.push({
+          x: marginX + i*binW,
+          y: binY,
+          w: binW,
+          h: binH,
+          mult: mults[i]
+        });
+      }
+      bins.zones = zones;
+
+      // Save for spawn constraints
+      buildBoard.marginX = marginX;
+      buildBoard.topY = topY;
+      buildBoard.bottomY = bottomY;
+      buildBoard.binY = binY;
+      buildBoard.binW = binW;
+      buildBoard.binCount = binCount;
+    }
+
+    function spawnBall(){
+      const d = DIFFS[selDiff.value] || DIFFS.medium;
+
+      // Enforce max balls on screen
+      const alive = balls.filter(b => !b.done).length;
+      if (alive >= d.maxBalls){
+        setStatus(`Max balls (${d.maxBalls}) reached 😅`);
+        return;
+      }
+
+      const marginX = buildBoard.marginX;
+      const x = W/2 + (Math.random()*2 - 1) * 18; // small randomness
+      const y = 55;
+
+      balls.push({
+        x, y,
+        vx: (Math.random()*2 - 1) * 35,
+        vy: 0,
+        r: d.ballR,
+        done: false,
+        scored: false,
+        spin: (Math.random()*2 - 1) * 0.6
+      });
+
+      ballsDropped++;
+      elBalls.textContent = String(ballsDropped);
+      setStatus("Dropping… aim for the Forge!");
+    }
+
+    function startGame(){
+      if (running) return;
+      running = true;
+      btnDrop.disabled = false;
+      setStatus("Game running — Drop the Chainstone!");
+      lastT = nowMs();
+      loop();
+    }
+
+    function loop(){
+      if (!running) return;
+      const t = nowMs();
+      const dt = clamp((t - lastT) / 1000, 0, 0.033); // stable
+      lastT = t;
+
+      step(dt);
+      draw(dt);
+
+      requestAnimationFrame(loop);
+    }
+
+    function step(dt){
+      const d = DIFFS[selDiff.value] || DIFFS.medium;
+
+      // Fade peg glow
+      for (const p of pegs){
+        p.glow = Math.max(0, p.glow - dt*2.6);
+      }
+
+      // Physics for each ball
+      for (const b of balls){
+        if (b.done) continue;
+
+        // Gravity
+        b.vy += d.gravity * dt;
+
+        // Air friction / damping (prevents crazy bounces)
+        b.vx *= Math.pow(d.friction, dt*60);
+        b.vy *= Math.pow(d.friction, dt*60);
+
+        // Integrate
+        b.x += b.vx * dt;
+        b.y += b.vy * dt;
+
+        // Side walls
+        const left = 60;
+        const right = W - 60;
+        if (b.x - b.r < left){
+          b.x = left + b.r;
+          b.vx = Math.abs(b.vx) * d.wallRest;
+        } else if (b.x + b.r > right){
+          b.x = right - b.r;
+          b.vx = -Math.abs(b.vx) * d.wallRest;
+        }
+
+        // Peg collisions
+        for (const p of pegs){
+          const dx = b.x - p.x;
+          const dy = b.y - p.y;
+          const dist = Math.hypot(dx, dy);
+          const minD = b.r + p.r;
+
+          if (dist > 0 && dist < minD){
+            // Push out
+            const nx = dx / dist;
+            const ny = dy / dist;
+            const overlap = (minD - dist) + 0.001;
+            b.x += nx * overlap;
+            b.y += ny * overlap;
+
+            // Reflect velocity
+            const vn = b.vx*nx + b.vy*ny;
+            if (vn < 0){
+              b.vx -= (1 + d.restitution) * vn * nx;
+              b.vy -= (1 + d.restitution) * vn * ny;
+            }
+
+            // Add small random tangential nudge (makes it feel more plinko)
+            const tx = -ny, ty = nx;
+            const jitter = (Math.random()*2 - 1) * 28;
+            b.vx += tx * jitter * dt;
+            b.vy += ty * jitter * dt * 0.25;
+
+            // Peg glow
+            p.glow = 1;
+          }
+        }
+
+        // Bin scoring (when it enters bin zone)
+        const binY = buildBoard.binY;
+        if (b.y + b.r >= binY && !b.scored){
+          const marginX = buildBoard.marginX;
+          const i = clamp(Math.floor((b.x - marginX) / buildBoard.binW), 0, buildBoard.binCount-1);
+          const zone = bins.zones[i];
+
+          // Score is multiplier * base
+          const base = 10;
+          const add = zone.mult * base;
+          score += add;
+
+          elScore.textContent = String(score);
+
+          b.scored = true;
+
+          // Let it settle then mark done
+          setStatus(`✅ Chainstone returned! +${add} (${zone.mult}x)`);
+          canSubmit = true;
+          btnSubmit.disabled = submittedThisRun ? true : false;
+        }
+
+        // Remove if below screen
+        if (b.y - b.r > H + 40){
+          b.done = true;
+        }
+      }
+
+      // If there are no active balls, show idle status (but still running)
+      const active = balls.some(b => !b.done);
+      if (!active && running){
+        setStatus("Ready — drop another Chainstone!");
+      }
+    }
+
+    function draw(dt){
+      // Clear
+      ctx.clearRect(0,0,W,H);
+
+      // Optional playfield bg
+      // if (playBg.complete && playBg.naturalWidth) {
+      //   ctx.globalAlpha = 0.20;
+      //   ctx.drawImage(playBg, 0, 0, W, H);
+      //   ctx.globalAlpha = 1;
+      // }
+
+      // Soft vignette
+      ctx.save();
+      const g = ctx.createRadialGradient(W/2, H*0.45, 120, W/2, H*0.45, Math.max(W,H)*0.75);
+      g.addColorStop(0, "rgba(120,220,255,0.16)");
+      g.addColorStop(1, "rgba(0,0,0,0.25)");
+      ctx.fillStyle = g;
+      ctx.fillRect(0,0,W,H);
+      ctx.restore();
+
+      // Top label area (Forge story hint)
+      ctx.save();
+      ctx.globalAlpha = 0.90;
+      ctx.fillStyle = "rgba(255,255,255,0.10)";
+      roundRect(32, 22, W-64, 44, 14);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.font = "900 18px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+      ctx.fillStyle = "rgba(255,255,255,0.92)";
+      ctx.fillText("🔹 Chainstone Drop — Return it to the Forge 🔥", 52, 50);
+      ctx.restore();
+
+      // Draw pegs (with glow)
+      for (const p of pegs){
+        const glow = p.glow;
+
+        // Outer glow
+        if (glow > 0){
+          ctx.save();
+          ctx.globalAlpha = 0.20 + glow*0.45;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.r + 10 + glow*6, 0, Math.PI*2);
+          ctx.fillStyle = "rgba(100,200,255,0.55)";
+          ctx.fill();
+          ctx.restore();
+        }
+
+        // Peg body
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+        ctx.fillStyle = "rgba(255,255,255,0.78)";
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+        ctx.strokeStyle = "rgba(0,0,0,0.18)";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+
+      // Draw bins background
+      const marginX = buildBoard.marginX;
+      const binY = buildBoard.binY;
+      const binW = buildBoard.binW;
+      const binCount = buildBoard.binCount;
+
+      ctx.save();
+      ctx.globalAlpha = 0.70;
+      ctx.fillStyle = "rgba(0,0,0,0.20)";
+      roundRect(marginX, binY, W - marginX*2, 82, 16);
+      ctx.fill();
+      ctx.restore();
+
+      // Bin dividers
+      ctx.save();
+      ctx.strokeStyle = "rgba(255,255,255,0.14)";
+      ctx.lineWidth = 2;
+      for (let i=0; i<=binCount; i++){
+        const x = marginX + i*binW;
+        ctx.beginPath();
+        ctx.moveTo(x, binY);
+        ctx.lineTo(x, H);
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      // Multipliers text
+      ctx.save();
+      ctx.font = "900 18px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      for (let i=0; i<binCount; i++){
+        const zone = bins.zones[i];
+        const cx = zone.x + zone.w/2;
+        const cy = binY + 40;
+
+        // Make edges visually “hotter”
+        const heat = Math.abs(i - Math.floor(binCount/2)) / Math.floor(binCount/2);
+        const alpha = 0.70 + heat*0.25;
+
+        ctx.fillStyle = `rgba(255,221,85,${alpha})`;
+        ctx.fillText(`${zone.mult}x`, cx, cy);
+      }
+      ctx.restore();
+
+      // Draw balls (Chainstones)
+      for (const b of balls){
+        if (b.done) continue;
+
+        // Soft glow
+        ctx.save();
+        ctx.globalAlpha = 0.45;
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, b.r + 10, 0, Math.PI*2);
+        ctx.fillStyle = "rgba(90,180,255,0.55)";
+        ctx.fill();
+        ctx.restore();
+
+        // Ball body
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, b.r, 0, Math.PI*2);
+        ctx.fillStyle = "rgba(180,230,255,0.95)";
+        ctx.fill();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = "rgba(0,0,0,0.22)";
+        ctx.stroke();
+
+        // Inner highlight
+        ctx.globalAlpha = 0.75;
+        ctx.beginPath();
+        ctx.arc(b.x - b.r*0.25, b.y - b.r*0.25, b.r*0.35, 0, Math.PI*2);
+        ctx.fillStyle = "rgba(255,255,255,0.75)";
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    /*****************************************************************
+      LEADERBOARD (Top 10)
+      - Only asks for name on submit
+      - One submission per run
+    *****************************************************************/
+    function fmtWhen(ts){
+      if (!ts) return "-";
+      const d = ts instanceof Date ? ts : new Date(ts);
+      const yy = d.getFullYear();
+      const mm = String(d.getMonth()+1).padStart(2,"0");
+      const dd = String(d.getDate()).padStart(2,"0");
+      return `${yy}-${mm}-${dd}`;
+    }
+
+    function decorateRank(rank){
+      if (rank === 1) return "🥇";
+      if (rank === 2) return "🥈";
+      if (rank === 3) return "🥉";
+      return "🎮";
+    }
+
+    function renderBoard(rows){
+      boardBody.innerHTML = "";
+      if (!rows.length){
+        boardBody.innerHTML = `<tr><td colspan="5" style="opacity:.85;">No scores yet.</td></tr>`;
+        return;
+      }
+
+      rows.forEach((r, idx) => {
+        const rank = idx+1;
+        const tr = document.createElement("tr");
+        if (rank === 1) tr.className = "rank1";
+        if (rank === 2) tr.className = "rank2";
+        if (rank === 3) tr.className = "rank3";
+
+        const when = r.createdAt?.toDate ? r.createdAt.toDate() : (r.createdAt || null);
+
+        tr.innerHTML = `
+          <td>${decorateRank(rank)} ${rank}</td>
+          <td>${escapeHtml(r.name || "Anon")}</td>
+          <td>${escapeHtml(r.difficulty || "-")}</td>
+          <td>${Number(r.score || 0)}</td>
+          <td>${fmtWhen(when)}</td>
+        `;
+        boardBody.appendChild(tr);
+      });
+    }
+
+    function escapeHtml(s){
+      return String(s).replace(/[&<>"']/g, (m)=>({
+        "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
+      }[m]));
+    }
+
+    async function refreshBoard(){
+      if (!FIREBASE_OK){
+        renderBoard([]);
+        boardBody.innerHTML = `<tr><td colspan="5" style="opacity:.85;">
+          Leaderboard disabled (add firebaseConfig to enable).
+        </td></tr>`;
+        return;
+      }
+
+      try{
+        const q = query(
+          collection(db, "scores_chainstone_drop"),
+          orderBy("score", "desc"),
+          limit(10)
+        );
+        const snap = await getDocs(q);
+        const rows = snap.docs.map(d => d.data());
+        renderBoard(rows);
+      }catch(e){
+        boardBody.innerHTML = `<tr><td colspan="5" style="opacity:.85;">
+          Couldn’t load leaderboard (check Firestore rules / config).
+        </td></tr>`;
+      }
+    }
+
+    function openSubmit(){
+      if (!canSubmit || submittedThisRun) return;
+      finalScore.textContent = String(score);
+      finalDiff.textContent = selDiff.value;
+      nameInput.value = "";
+      modalWrap.style.display = "flex";
+      setTimeout(()=>nameInput.focus(), 0);
+    }
+
+    function closeSubmit(){
+      modalWrap.style.display = "none";
+    }
+
+    async function submitScore(){
+      const name = (nameInput.value || "").trim();
+      if (name.length < 1 || name.length > 20){
+        nameInput.focus();
+        nameInput.select();
+        return;
+      }
+      if (submittedThisRun) return;
+
+      // Lock it
+      submittedThisRun = true;
+      btnSubmit.disabled = true;
+
+      if (!FIREBASE_OK){
+        closeSubmit();
+        setStatus("Score saved locally (Firebase not configured).");
+        return;
+      }
+
+      try{
+        await addDoc(collection(db, "scores_chainstone_drop"), {
+          name,
+          difficulty: selDiff.value,
+          score: Number(score || 0),
+          createdAt: serverTimestamp()
+        });
+        closeSubmit();
+        setStatus("✅ Score submitted!");
+        await refreshBoard();
+      }catch(e){
+        submittedThisRun = false;
+        btnSubmit.disabled = false;
+        setStatus("❌ Submit failed (check rules).");
+      }
+    }
+
+    /*****************************************************************
+      UI EVENTS
+    *****************************************************************/
+    btnArcade.addEventListener("click", () => {
+      window.location.href = ARCADE_URL;
+    });
+
+    btnStart.addEventListener("click", () => {
+      startGame();
+    });
+
+    btnDrop.addEventListener("click", () => {
+      if (!running) return;
+      spawnBall();
+      // submit becomes available once any ball scores
+    });
+
+    btnReset.addEventListener("click", () => {
+      resetAll(true);
+    });
+
+    selDiff.addEventListener("change", () => {
+      // Changing difficulty rebuilds board, resets run
+      resetAll(true);
+      buildBoard();
+      draw(0);
+      setStatus("Difficulty changed — Press ▶️ Start");
+    });
+
+    btnSubmit.addEventListener("click", openSubmit);
+    btnRefresh.addEventListener("click", refreshBoard);
+
+    btnCancel.addEventListener("click", closeSubmit);
+    modalWrap.addEventListener("click", (e) => {
+      if (e.target === modalWrap) closeSubmit();
+    });
+
+    btnSend.addEventListener("click", submitScore);
+    nameInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") submitScore();
+      if (e.key === "Escape") closeSubmit();
+    });
+
+    // Enable submit button when a score exists (but only once per run)
+    const submitWatcher = setInterval(() => {
+      btnSubmit.disabled = !(canSubmit && !submittedThisRun);
+    }, 150);
+
+    // Initial build
+    buildBoard();
+    draw(0);
+    refreshBoard();
+    resetAll(true);
+
+  </script>
+</body>
+</html>

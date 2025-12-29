@@ -48,6 +48,7 @@ body {
   width: 100%;
   margin-bottom: 10px;
   display: block;
+border-radius: 16px;
 }
 
 .stats {
@@ -459,17 +460,17 @@ hr {
     <button class="btn" id="startBtn">▶️ Start</button>
 
     <select id="diffSelect" title="Difficulty">
-      <option value="easy">🎚️ Difficulty: 😊 Easy (12)</option>
-      <option value="medium">🎚️ Difficulty: 😎 Medium (20)</option>
-      <option value="hard">🎚️ Difficulty: 🔥 Hard (30)</option>
-      <option value="extra-hard">🎚️ Difficulty: ☠️ Extra Hard (42)</option>
+      <option value="easy">😊 Easy (12)</option>
+      <option value="medium">😎 Medium (20)</option>
+      <option value="hard">🔥 Hard (30)</option>
+      <option value="extra-hard">☠️ Extra Hard (42)</option>
     </select>
 
     <button class="btn" id="restartBtn">🔁 Restart</button>
     <button class="btn" id="leaderboardsBtn">🏆 Leaderboards</button>
 
     <!-- keep your extras exactly as you had them -->
-    <button class="btn" id="soundBtn">🔊 My stupid voice: ON</button>
+    <button class="btn" id="soundBtn">🔊 Sound: ON</button>
     <button class="btn" id="hintBtn">💡 Hint (1)</button>
     <button class="btn" id="shareBtn" style="display:none;">📣 Share</button>
   </div>
@@ -1001,7 +1002,7 @@ restartBtn.onclick = () => location.reload();
 
 soundBtn.onclick = () => {
   soundEnabled = !soundEnabled;
-  soundBtn.textContent = `🔊 My stupid voice: ${soundEnabled ? "ON" : "OFF"}`;
+  soundBtn.textContent = `🔊 Sound: ${soundEnabled ? "ON" : "OFF"}`;
 };
 
 hintBtn.onclick = () => doOneTileHint();

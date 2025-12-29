@@ -63,6 +63,9 @@
       filter: drop-shadow(0 12px 22px rgba(0,0,0,.25));
       user-select:none;
       -webkit-user-drag:none;
+
+      /* ✅ round the header image itself */
+      border-radius: 16px;
     }
 
     .topbar{
@@ -84,31 +87,40 @@
       align-items:center;
     }
 
+    /* ✅ make the top 3 yellow controls match other pages sizing */
     .btn{
       border:0;
       border-radius: 14px;
-      padding: 10px 14px;
-      font-weight: 900;
+      padding:10px 12px;            /* was 10px 14px */
+      font-weight: 950;             /* punchier like other games */
       cursor:pointer;
       background: linear-gradient(#fff2a3, var(--btnYellow2));
       color: var(--btnText);
       box-shadow: var(--btnShadow);
-      transition: transform .08s ease;
+      transition: transform .08s ease, filter .15s ease;
       user-select:none;
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      min-height: 42px;             /* keeps them same height */
     }
+    .btn:hover{ filter: brightness(1.02); }
     .btn:active{ transform: translateY(1px) scale(.99); }
-    .btn[disabled]{ opacity:.55; cursor:not-allowed; }
+    .btn[disabled]{ opacity:.55; cursor:not-allowed; transform:none; }
 
     .select{
       border:0;
       border-radius: 14px;
-      padding: 10px 12px;
-      font-weight: 900;
+      padding:10px 12px;
+      font-weight: 950;
       background: linear-gradient(#fff2a3, var(--btnYellow2));
       color: var(--btnText);
       box-shadow: var(--btnShadow);
       cursor:pointer;
       outline:none;
+      min-height: 42px;             /* same height as buttons */
+      -webkit-appearance: none;
+      appearance: none;
     }
 
     .grid{
@@ -183,7 +195,11 @@
       border-radius: 14px;
       background: rgba(0,0,0,.08);
       transform-origin: 50% 60%;
-      transition: transform .08s ease;
+
+      /* ✅ remove jitter when a card is placed */
+      transition: none;
+      will-change: auto;
+
       user-select:none;
       -webkit-user-drag:none;
     }
@@ -215,6 +231,7 @@
       border-radius: 16px;
       font-size: 18px;
       font-weight: 1000;
+      min-height: 52px;
     }
 
     .snapGlow{
@@ -361,12 +378,11 @@
     const TOTAL_CARDS = 54;  // 27 pairs
     const PAIRS = 27;
 
-const diffCfg = {
-  easy:   { cpuSnapMin: 1200, cpuSnapMax: 2200 },
-  medium: { cpuSnapMin: 900,  cpuSnapMax: 1600 },
-  hard:   { cpuSnapMin: 600,  cpuSnapMax: 1200 },
-};
-
+    const diffCfg = {
+      easy:   { cpuSnapMin: 1200, cpuSnapMax: 2200 },
+      medium: { cpuSnapMin: 900,  cpuSnapMax: 1600 },
+      hard:   { cpuSnapMin: 600,  cpuSnapMax: 1200 },
+    };
 
     // ---------- UI Elements ----------
     const statusEl = $("status");

@@ -64,6 +64,19 @@
       font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
       color:var(--text);
     }
+.headerWrap{
+  background: rgba(0,0,0,.12);          /* slight blue-ish panel tint like other pages */
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 18px;
+  padding: 10px;
+  margin: 0 auto 10px;
+  box-shadow: var(--shadow);
+}
+.header{
+  margin: 0;                             /* headerWrap controls spacing now */
+  border-radius: 14px;
+  box-shadow: none;                      /* avoid double shadow (wrap already has one) */
+}
 
     .wrap{
       width: 980px;
@@ -116,45 +129,52 @@
       align-items:center;
     }
 
-    .btn{
-      appearance:none;
-      border:0;
-      cursor:pointer;
-      background: var(--yellow);
-      color:#222;
-      font-weight: 800;
-      padding: 10px 12px;
-      border-radius: 12px;
-      box-shadow: 0 8px 18px rgba(0,0,0,.18);
-      transition: transform .08s ease, filter .15s ease;
-      font-size: 13px;
-      line-height:1;
-      user-select:none;
-      white-space:nowrap;
-    }
-    .btn:active{ transform: translateY(1px) scale(.99); }
-    .btn.secondary{
-      background: rgba(255,255,255,.16);
-      color: #fff;
-      border: 1px solid rgba(255,255,255,.22);
-      box-shadow:none;
-      font-weight: 800;
-    }
-    .btn.small{ padding: 9px 10px; font-size: 12.5px; border-radius: 11px; }
+.btn{
+  appearance:none;
+  border:0;
+  cursor:pointer;
+  background: var(--yellow);
+  color:#222;
+  font-weight: 900;
+  padding: 12px 14px;        /* bigger */
+  border-radius: 14px;       /* slightly rounder */
+  box-shadow: 0 10px 20px rgba(0,0,0,.18);
+  transition: transform .08s ease, filter .15s ease;
+  font-size: 14px;           /* bigger */
+  line-height:1;
+  user-select:none;
+  white-space:nowrap;
+}
+.btn:active{ transform: translateY(1px) scale(.99); }
+
+.btn.secondary{
+  background: rgba(255,255,255,.16);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,.22);
+  box-shadow:none;
+  font-weight: 800;
+}
+
+/* keep .small, but make it match your other pages better */
+.btn.small{
+  padding: 11px 13px;
+  font-size: 13.5px;
+  border-radius: 13px;
+}
 
     /* Push restart to the right, without affecting the other two */
-    #restartBtn{ margin-left:auto; }
+    #restartBtn{ margin-left:0; }
 
     .select{
       background: var(--yellow);
       color:#222;
       border:0;
-      border-radius: 12px;
-      padding: 10px 12px;
+      border-radius: 13px;
+      padding: 11px 13px;
       font-weight: 900;
       box-shadow: 0 8px 18px rgba(0,0,0,.18);
       cursor:pointer;
-      font-size: 13px;
+      font-size: 13.5px;
       line-height:1;
       outline:none;
       -webkit-appearance: none;
@@ -387,7 +407,9 @@
 
 <body>
   <div class="wrap">
-    <img class="header" src="header.png" alt="Little Ollie Arcade Header" />
+<div class="headerWrap">
+  <img class="header" src="header.png" alt="Little Ollie Arcade Header" />
+</div>
 
     <div class="shell">
       <!-- LEFT -->

@@ -92,6 +92,29 @@
     .btn:active{ transform: translateY(1px); }
     .btn[disabled]{ opacity:.55; cursor:not-allowed; filter:saturate(.75); }
 
+    /* ✅ make select look like the yellow buttons */
+    .selectBtn{
+      appearance:none;
+      -webkit-appearance:none;
+      -moz-appearance:none;
+      padding-right: 36px;
+      position: relative;
+    }
+    .selectWrap{
+      position: relative;
+      display:inline-block;
+    }
+    .selectWrap:after{
+      content:"▾";
+      position:absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-52%);
+      color: rgba(0,0,0,.55);
+      font-weight: 950;
+      pointer-events:none;
+    }
+
     .pill{
       background: rgba(0,0,0,.22);
       border-radius: 999px;
@@ -106,7 +129,7 @@
     .small{ font-weight:800; opacity:.95; font-size: 14px; }
     .muted{ opacity:.85; font-weight:800; }
 
-    /* ✅ NEW: compact ink pill for the top bar */
+    /* compact ink pill */
     .inkPill{
       display:flex;
       gap: 10px;
@@ -142,6 +165,7 @@
       height:auto;
       display:block;
       border-radius: 16px;
+      /* keep your current “panel” background; images get drawn inside canvas */
       background:
         radial-gradient(900px 560px at 60% 25%, rgba(255,170,0,.16), transparent 55%),
         radial-gradient(900px 560px at 20% 60%, rgba(0,0,0,.22), transparent 60%),
@@ -217,7 +241,7 @@
       justify-content:flex-end;
     }
 
-    /* ✅ Powered by */
+    /* Powered by */
     .poweredBy{
       text-align:center;
       margin: 10px 0 0;
@@ -255,20 +279,34 @@
     <!-- BUTTON BAR -->
     <div class="bar">
       <div class="leftBtns">
-        <button class="btn" id="btnDifficulty">🔥 Difficulty: <span id="difficultyLabel">Ember</span></button>
-        <button class="btn" id="btnClear">🧽 Clear</button>
+        <!-- ✅ EXACT ORDER YOU ASKED (actions): Arcade, Start, Clear, Retry -->
+        <button class="btn" id="btnArcade">🕹️ Arcade</button>
         <button class="btn" id="btnStart">▶️ Start</button>
+        <button class="btn" id="btnClear">🧽 Clear</button>
         <button class="btn" id="btnRetry" disabled>🔁 Retry</button>
+
+        <!-- ✅ Difficulty dropdown (styled like buttons) -->
+        <div class="selectWrap">
+          <select class="btn selectBtn" id="difficultySelect" aria-label="Difficulty">
+            <option value="Ember">🔥 Ember</option>
+            <option value="Heated">🔥 Heated</option>
+            <option value="Molten">🔥 Molten</option>
+          </select>
+        </div>
+
+        <!-- ✅ Leaderboard button -->
+        <button class="btn" id="btnLeaderboard">🏆 Leaderboard</button>
       </div>
 
       <div class="rightInfo">
         <div class="pill">🗺️ <span class="small">Level</span> <span id="levelLabel">1</span>/<span id="levelTotal">10</span></div>
 
-        <!-- ✅ MOVED INK HERE (between Level and Run Time) -->
         <div class="pill inkPill" title="Chalk Ink remaining">
           🖍️ <span class="small">Ink</span> <span id="inkLeft">100</span>%
           <div class="inkMeter" aria-hidden="true"><div class="inkFill" id="inkFill"></div></div>
         </div>
+
+        <div class="pill">❤️ <span class="small">Lives</span> <span id="livesLeft">5</span></div>
 
         <div class="pill">⏱️ <span class="small">Run Time</span> <span id="runTime">0.0</span>s</div>
         <div class="pill">🏁 <span class="small">Total</span> <span id="totalTime">0.0</span>s</div>
@@ -285,7 +323,6 @@
       </div>
     </div>
 
-    <!-- ✅ Powered By goes HERE (inside app, below the game) -->
     <div class="poweredBy">
       ⚡Powered by <a href="#" onclick="return false;">Little Ollie Studio</a>
     </div>
@@ -305,6 +342,17 @@
     </div>
   </div>
 
+  <!-- Leaderboard modal (placeholder UI) -->
+  <div class="modal" id="lbModal">
+    <div class="modalCard">
+      <div class="modalTitle">🏆 Leaderboard</div>
+      <div class="modalBody" id="lbBody">Top times will show here.</div>
+      <div class="row">
+        <button class="btn" id="lbClose">✅ Close</button>
+      </div>
+    </div>
+  </div>
+
 <script>
 (() => {
   // ============================================================
@@ -315,11 +363,15 @@
   const ctx = cv.getContext("2d");
 
   // UI
-  const difficultyLabel = document.getElementById("difficultyLabel");
-  const btnDifficulty = document.getElementById("btnDifficulty");
   const btnClear = document.getElementById("btnClear");
   const btnStart = document.getElementById("btnStart");
   const btnRetry = document.getElementById("btnRetry");
+
+  // NEW UI
+  const btnArcade = document.getElementById("btnArcade");
+  const btnLeaderboard = document.getElementById("btnLeaderboard");
+  const difficultySelect = document.getElementById("difficultySelect");
+  const livesLeftEl = document.getElementById("livesLeft");
 
   const levelLabel = document.getElementById("levelLabel");
   const levelTotal = document.getElementById("levelTotal");
@@ -338,7 +390,12 @@
   const btnNext = document.getElementById("btnNext");
   const btnClose = document.getElementById("btnClose");
 
-  // Canvas scaling to fit container while keeping internal physics resolution
+  // Leaderboard modal
+  const lbModal = document.getElementById("lbModal");
+  const lbBody = document.getElementById("lbBody");
+  const lbClose = document.getElementById("lbClose");
+
+  // Canvas scaling
   function resizeCanvasToFit() {
     const wrap = cv.getBoundingClientRect();
     const dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -367,12 +424,79 @@
   }
 
   // ============================================================
-  // LEVEL DATA
+  // BACKGROUNDS (bg1.png - bg3.png in /backgrounds folder)
   // ============================================================
 
-  const DIFFICULTIES = ["Ember","Heated","Molten"];
+  const BG_PATHS = [
+    "backgrounds/bg1.png",
+    "backgrounds/bg2.png",
+    "backgrounds/bg3.png"
+  ];
+
+  const bgImages = BG_PATHS.map((src) => {
+    const img = new Image();
+    img.src = src;
+    return img;
+  });
+
+  // A little transparent so your game still feels “in the panel”
+  const BG_ALPHA = 0.28;
+
+  // Shelf/“platform” colors per background
+  const SHELF_COLORS = [
+    "rgba(120, 78, 38, 0.78)",  // bg1 -> brown
+    "rgba(70, 140, 235, 0.70)", // bg2 -> blue
+    "rgba(255, 95, 15, 0.72)"   // bg3 -> molten lava
+  ];
+
+  function drawCoverImage(img, alpha){
+    if(!img || !img.complete || !img.naturalWidth) return;
+
+    const cw = cv.width, ch = cv.height;
+    const iw = img.naturalWidth, ih = img.naturalHeight;
+    const scale = Math.max(cw/iw, ch/ih);
+    const dw = iw * scale, dh = ih * scale;
+    const dx = (cw - dw) * 0.5;
+    const dy = (ch - dh) * 0.5;
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.drawImage(img, dx, dy, dw, dh);
+    ctx.restore();
+  }
+
+  // ============================================================
+  // DIFFICULTY TUNING (Lives + Ink)
+  // ============================================================
+
   let currentDifficulty = "Ember";
   let currentLevelIndex = 0;
+
+  // Lives per difficulty (as requested)
+  const livesByDiff = { Ember: 5, Heated: 4, Molten: 3 };
+
+  // Ink per difficulty (slightly less, not too harsh)
+  const inkMaxByDiff = { Ember: 1200, Heated: 1100, Molten: 1020 };
+
+  function setDifficulty(diff){
+    currentDifficulty = diff;
+    difficultySelect.value = diff;
+
+    world.inkMax = inkMaxByDiff[diff] ?? 1200;
+    world.livesMax = livesByDiff[diff] ?? 5;
+    world.lives = world.livesMax;
+    updateLivesUI();
+
+    world.totalTime = 0;
+    currentLevelIndex = 0;
+    loadLevel(currentDifficulty, currentLevelIndex);
+
+    showToast(`Difficulty set: ${currentDifficulty}`, 1200);
+  }
+
+  // ============================================================
+  // LEVEL DATA
+  // ============================================================
 
   function L(start, goal, solids, embers, starTimes){
     return { start, goal, solids, embers, starTimes };
@@ -552,14 +676,35 @@
     totalTime: 0,
     emberCount: 0,
     completed: false,
+
+    // lives
+    livesMax: 5,
+    lives: 5,
+
+    // background cycling
+    bgIndex: 0,  // 0..2
   };
 
   function px([nx, ny]){ return [nx*world.w(), ny*world.h()]; }
+
+  function updateLivesUI(){
+    livesLeftEl.textContent = world.lives;
+  }
+
+  function openLeaderboard(reasonText){
+    lbBody.textContent =
+      (reasonText ? (reasonText + "\n\n") : "") +
+      "Top times will show here.\n\n(Next: hook this up to your Firestore scores collection.)";
+    lbModal.style.display = "flex";
+  }
 
   function loadLevel(diff, idx){
     const lv = levelsByDiff[diff][idx];
     levelLabel.textContent = (idx+1);
     levelTotal.textContent = levelsByDiff[diff].length;
+
+    // ✅ cycle background each level: bg1 -> bg2 -> bg3 -> repeat
+    world.bgIndex = (world.bgIndex + 1) % 3;
 
     world.chalk = [];
     world.ink = world.inkMax;
@@ -570,6 +715,10 @@
     world.runTime = 0;
     world.rolling = false;
     world.completed = false;
+
+    // reset stop detection
+    stopTimer = 0;
+    groundTimer = 0;
 
     const scale = Math.min(world.w(), world.h());
     world.ball.r = Math.max(11, Math.round(scale * 0.016));
@@ -596,6 +745,7 @@
     updateInkUI();
     updateTimeUI();
     updateEmbersUI();
+    updateLivesUI();
 
     btnRetry.disabled = true;
     btnStart.disabled = false;
@@ -721,6 +871,48 @@
 
   let lastTs = performance.now();
 
+  // ✅ stop + ground detection timers
+  let stopTimer = 0;
+  let groundTimer = 0;
+
+  function loseLife(reason){
+    if(world.completed) return;
+    if(world.lives <= 0) return;
+
+    world.lives = Math.max(0, world.lives - 1);
+    updateLivesUI();
+
+    world.rolling = false;
+    world.drawingLocked = false;
+
+    const lv = levelsByDiff[currentDifficulty][currentLevelIndex];
+    const s = px(lv.start);
+    world.ball.x = s[0];
+    world.ball.y = s[1] - world.ball.r*0.2;
+    world.ball.vx = 0; world.ball.vy = 0;
+    world.ball.released = false;
+    world.ball.alive = true;
+
+    // reset stop detection
+    stopTimer = 0;
+    groundTimer = 0;
+
+    btnStart.disabled = false;
+    btnRetry.disabled = false;
+
+    if(world.lives <= 0){
+      showToast("💥 Out of lives! Leaderboard time 🏆", 1400);
+      btnStart.disabled = true;
+      world.drawingLocked = true;
+
+      // ✅ go straight to leaderboard when out of lives
+      openLeaderboard("Out of lives. Submit your best runs here (when wired).");
+      return;
+    }
+
+    showToast(reason ? `💥 ${reason} (${world.lives} left)` : `💥 Life lost! (${world.lives} left)`, 1300);
+  }
+
   function update(dt){
     const b = world.ball;
 
@@ -745,11 +937,38 @@
       if(b.x < pad){ b.x = pad; b.vx *= -0.25; }
       if(b.x > world.w()-pad){ b.x = world.w()-pad; b.vx *= -0.25; }
       if(b.y < pad){ b.y = pad; b.vy *= -0.25; }
-      if(b.y > world.h()-pad){
-        b.y = world.h()-pad;
-        b.vy *= -0.18;
-        b.vx *= 0.98;
-        if(Math.abs(b.vy) < 40) b.vy = 0;
+
+      // ✅ Fell off the map (already)
+      if(b.y > world.h() + b.r*2){
+        b.alive = false;
+        loseLife("Fell off the map!");
+      }
+
+      // ✅ NEW: If ball stops completely for a moment -> lose a life
+      // (Keeps it fair: needs to be REALLY slow for a short time.)
+      const speed = Math.hypot(b.vx, b.vy);
+      if(world.rolling){
+        if(speed < 14){
+          stopTimer += dt;
+          if(stopTimer > 1.15){
+            b.alive = false;
+            loseLife("Ball stopped!");
+          }
+        } else {
+          stopTimer = 0;
+        }
+
+        // ✅ NEW: “falls to the ground” (hits bottom area and settles)
+        const groundY = world.h() - 6;
+        if(b.y > groundY - b.r && speed < 22){
+          groundTimer += dt;
+          if(groundTimer > 0.45){
+            b.alive = false;
+            loseLife("Hit the ground!");
+          }
+        } else {
+          groundTimer = 0;
+        }
       }
 
       for(const em of world.embers){
@@ -774,13 +993,17 @@
   function render(){
     ctx.clearRect(0,0,cv.width,cv.height);
 
+    // ✅ Background image (covers edges of canvas, slightly transparent)
+    drawCoverImage(bgImages[world.bgIndex], BG_ALPHA);
+
+    // Keep your subtle “panel” feel on top
     const grd = ctx.createLinearGradient(0,0,0,cv.height);
     grd.addColorStop(0, "rgba(255,180,0,0.10)");
     grd.addColorStop(1, "rgba(0,0,0,0.20)");
     ctx.fillStyle = grd;
     ctx.fillRect(0,0,cv.width,cv.height);
 
-    ctx.globalAlpha = 0.15;
+    ctx.globalAlpha = 0.12;
     for(let i=0;i<90;i++){
       const x = (i*73 % cv.width);
       const y = (i*41 % cv.height);
@@ -791,7 +1014,10 @@
     }
     ctx.globalAlpha = 1;
 
-    drawSegments(world.solids, "rgba(255,255,255,0.18)");
+    // ✅ Shelves/platforms color depends on current background
+    const shelfStroke = SHELF_COLORS[world.bgIndex] || "rgba(255,255,255,0.18)";
+    drawSegments(world.solids, shelfStroke);
+
     drawChalk(world.chalk);
     drawStart();
     drawForge();
@@ -809,8 +1035,9 @@
       ctx.lineTo(s.bx, s.by);
       ctx.stroke();
 
+      // darker edge
       ctx.lineWidth = Math.max(2, s.thick*0.25);
-      ctx.strokeStyle = "rgba(0,0,0,0.25)";
+      ctx.strokeStyle = "rgba(0,0,0,0.28)";
       ctx.beginPath();
       ctx.moveTo(s.ax, s.ay);
       ctx.lineTo(s.bx, s.by);
@@ -1026,6 +1253,17 @@ Total Time: ${world.totalTime.toFixed(1)}s`;
   // BUTTONS
   // ============================================================
 
+  btnArcade.addEventListener("click", () => {
+    window.location.href = "arcade.html";
+  });
+
+  btnLeaderboard.addEventListener("click", () => {
+    openLeaderboard("");
+  });
+
+  lbClose.addEventListener("click", () => { lbModal.style.display = "none"; });
+  lbModal.addEventListener("click", (e) => { if(e.target === lbModal) lbModal.style.display = "none"; });
+
   btnClear.addEventListener("click", () => {
     world.chalk = [];
     world.ink = world.inkMax;
@@ -1045,19 +1283,27 @@ Total Time: ${world.totalTime.toFixed(1)}s`;
     world.emberCount = 0;
     world.embers.forEach(e=>e.taken=false);
 
+    stopTimer = 0;
+    groundTimer = 0;
+
     btnStart.disabled = false;
     btnRetry.disabled = true;
 
-    updateInkUI(); updateTimeUI(); updateEmbersUI();
+    updateInkUI(); updateTimeUI(); updateEmbersUI(); updateLivesUI();
     showToast("Cleared. Draw again ✍️", 1000);
   });
 
   btnStart.addEventListener("click", () => {
     if(world.completed) return;
+    if(world.lives <= 0) return;
 
     world.drawingLocked = true;
     world.ball.released = true;
     world.rolling = true;
+
+    // reset timers at start
+    stopTimer = 0;
+    groundTimer = 0;
 
     world.ball.vx += 40;
 
@@ -1068,19 +1314,14 @@ Total Time: ${world.totalTime.toFixed(1)}s`;
   });
 
   btnRetry.addEventListener("click", () => {
+    world.lives = world.livesMax;
+    world.inkMax = inkMaxByDiff[currentDifficulty] ?? world.inkMax;
+    updateLivesUI();
     loadLevel(currentDifficulty, currentLevelIndex);
   });
 
-  btnDifficulty.addEventListener("click", () => {
-    const i = DIFFICULTIES.indexOf(currentDifficulty);
-    currentDifficulty = DIFFICULTIES[(i+1)%DIFFICULTIES.length];
-    difficultyLabel.textContent = currentDifficulty;
-
-    world.totalTime = 0;
-    currentLevelIndex = 0;
-    loadLevel(currentDifficulty, currentLevelIndex);
-
-    showToast(`Difficulty set: ${currentDifficulty}`, 1200);
+  difficultySelect.addEventListener("change", (e) => {
+    setDifficulty(e.target.value);
   });
 
   btnNext.addEventListener("click", () => {
@@ -1104,7 +1345,17 @@ Total Time: ${world.totalTime.toFixed(1)}s`;
   // ============================================================
 
   resizeCanvasToFit();
-  difficultyLabel.textContent = currentDifficulty;
+
+  // Start on Ember (dropdown default)
+  difficultySelect.value = currentDifficulty;
+  world.inkMax = inkMaxByDiff[currentDifficulty];
+  world.livesMax = livesByDiff[currentDifficulty];
+  world.lives = world.livesMax;
+  updateLivesUI();
+
+  // start bg at -1 so first loadLevel() sets it to 0 (bg1)
+  world.bgIndex = -1;
+
   loadLevel(currentDifficulty, currentLevelIndex);
 
   function loop(ts){

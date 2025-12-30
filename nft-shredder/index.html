@@ -3,1040 +3,765 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Little Ollie Juggle</title>
-
+  <title>Rugged NFT Shredder</title>
   <style>
     *{ box-sizing:border-box; }
     :root{
       --bg1:#6de0ff;
       --bg2:#4c6fff;
-
       --panel: rgba(0,0,0,.18);
       --panel2: rgba(0,0,0,.22);
-      --shadow: 0 12px 28px rgba(0,0,0,.35);
-
-      --btnYellow:#ffdd55;
-      --btnYellow2:#ffd22e;
-      --btnText:#222;
-      --btnShadow: 0 10px 20px rgba(0,0,0,.22);
-
+      --shadow: 0 16px 40px rgba(0,0,0,.35);
       --text:#fff;
-      --radius: 18px;
-      --gap: 10px;
-
-      --gold: rgba(255,215,0,.22);
-      --silver: rgba(192,192,192,.18);
-      --bronze: rgba(205,127,50,.18);
+      --yellow:#ffdd55;
+      --yellow2:#ffd22e;
+      --red:#ff4b4b;
+      --green:#48e07a;
+      --radius:18px;
     }
 
     body{
       margin:0;
       min-height:100vh;
       display:flex;
+      align-items:center;
       justify-content:center;
-      align-items:flex-start;
-      padding:18px 10px 30px;
-      background: radial-gradient(circle at top, var(--bg1), var(--bg2));
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-      color: var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      color:var(--text);
+      background: radial-gradient(1200px 800px at 30% 20%, rgba(255,255,255,.22), transparent 55%),
+                  linear-gradient(135deg, var(--bg1), var(--bg2));
+      overflow:hidden;
     }
 
     .wrap{
-      width: 980px;
-      max-width: 96vw;
+      width:min(980px, 96vw);
+      border-radius:24px;
+      background: linear-gradient(180deg, rgba(255,255,255,.14), rgba(255,255,255,.06));
+      box-shadow: var(--shadow);
+      border: 1px solid rgba(255,255,255,.18);
+      overflow:hidden;
+    }
+
+    .topbar{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      padding:14px 16px;
+      background: linear-gradient(180deg, rgba(0,0,0,.22), rgba(0,0,0,.12));
+      border-bottom: 1px solid rgba(255,255,255,.14);
+    }
+
+    .title{
       display:flex;
       flex-direction:column;
-      gap: 12px;
+      line-height:1.05;
+    }
+    .title b{
+      font-size:18px;
+      letter-spacing:.3px;
+    }
+    .title span{
+      font-size:12px;
+      opacity:.9;
+    }
+
+    .btnRow{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+    }
+
+    button, .fileBtn{
+      border:none;
+      cursor:pointer;
+      border-radius: 14px;
+      padding:10px 12px;
+      font-weight:800;
+      letter-spacing:.2px;
+      box-shadow: 0 10px 18px rgba(0,0,0,.22);
+      transition: transform .08s ease, filter .12s ease;
+      user-select:none;
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+    }
+    button:active, .fileBtn:active{ transform: translateY(1px) scale(.99); }
+
+    .primary{
+      background: linear-gradient(180deg, var(--yellow), var(--yellow2));
+      color:#1f1f1f;
+    }
+    .danger{
+      background: linear-gradient(180deg, #ff6b6b, #ff3d3d);
+      color:#fff;
+    }
+    .ghost{
+      background: rgba(0,0,0,.22);
+      color:#fff;
+      border: 1px solid rgba(255,255,255,.18);
+      box-shadow:none;
+    }
+
+    input[type="file"]{ display:none; }
+    .fileBtn{
+      background: rgba(0,0,0,.22);
+      color:#fff;
+      border: 1px solid rgba(255,255,255,.18);
+      box-shadow:none;
+    }
+
+    .main{
+      display:grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap:14px;
+      padding:14px;
+    }
+
+    @media (max-width: 860px){
+      .main{ grid-template-columns: 1fr; }
     }
 
     .card{
-      background: var(--panel);
-      border-radius: 22px;
-      box-shadow: var(--shadow);
-      padding: 14px;
+      border-radius: var(--radius);
+      background: linear-gradient(180deg, rgba(0,0,0,.22), rgba(0,0,0,.14));
+      border: 1px solid rgba(255,255,255,.14);
       overflow:hidden;
     }
 
-    .header-img{
-      width:100%;
-      display:block;
-      border-radius: 18px;
-      margin-bottom: 10px;
-    }
-
-    /* === controls row (one line, all yellow) === */
-    .controls{
+    .screen{
+      padding:10px;
       display:flex;
-      gap: 8px;
-      flex-wrap: nowrap;
-      justify-content:flex-start;
-      width:100%;
-      align-items:center;
-      overflow-x:auto;
-      -webkit-overflow-scrolling: touch;
-      padding-bottom: 2px;
-    }
-
-    .btn{
-      appearance:none;
-      border:0;
-      cursor:pointer;
-      background: var(--btnYellow);
-      color: var(--btnText);
-      font-weight: 900;
-      padding: 10px 12px;
-      border-radius: 12px;
-      box-shadow: 0 8px 18px rgba(0,0,0,.18);
-      transition: transform .08s ease, filter .15s ease;
-      font-size: 13px;
-      line-height:1;
-      user-select:none;
-      white-space:nowrap;
-    }
-    .btn:active{ transform: translateY(1px) scale(.99); }
-    .btn.small{ padding: 9px 10px; font-size: 12.5px; border-radius: 11px; }
-
-    .select{
-      background: var(--btnYellow);
-      color:#222;
-      border:0;
-      border-radius: 12px;
-      padding: 10px 12px;
-      font-weight: 900;
-      box-shadow: 0 8px 18px rgba(0,0,0,.18);
-      cursor:pointer;
-      font-size: 13px;
-      line-height:1;
-      outline:none;
-      -webkit-appearance: none;
-      appearance: none;
-      white-space:nowrap;
-    }
-
-    /* Big Juggles/Speed panel */
-    .statsCard{
-      margin-top: 10px;
-      background: var(--panel2);
-      border: 1px solid rgba(255,255,255,.14);
-      border-radius: 18px;
-      padding: 12px;
-      display:flex;
-      flex-wrap: wrap;
-      gap: 12px;
-      align-items:stretch;
-      justify-content:space-between;
-    }
-
-    .statBox{
-      flex:1;
-      min-width: 220px;
-      background: rgba(0,0,0,.16);
-      border: 1px solid rgba(255,255,255,.14);
-      border-radius: 16px;
-      padding: 12px;
-      box-shadow: 0 10px 22px rgba(0,0,0,.18);
-      position: relative;
-      overflow:hidden;
-    }
-
-    .statLabel{
-      font-weight: 1000;
-      letter-spacing: .2px;
-      opacity:.95;
-      font-size: 14px;
-      display:flex;
-      gap: 8px;
-      align-items:center;
-      justify-content:space-between;
-      margin-bottom: 10px;
-      white-space:nowrap;
-    }
-
-    .statValue{
-      width:100%;
-      background: rgba(255,255,255,.10);
-      border: 1px solid rgba(255,255,255,.14);
-      border-radius: 14px;
-      padding: 12px 12px;
-      font-weight: 1000;
-      font-size: 34px;
-      letter-spacing: .5px;
-      text-align:center;
-      line-height:1;
-      text-shadow: 0 12px 26px rgba(0,0,0,.25);
-    }
-
-    /* Arena */
-    .arena{
-      position: relative;
-      border-radius: 20px;
-      overflow:hidden;
-      background: rgba(0,0,0,.14);
-      border: 1px solid rgba(255,255,255,.14);
-      box-shadow: inset 0 0 0 1px rgba(255,255,255,.06);
-      height: 560px;
-    }
-
-    .arena::before{
-      content:"";
-      position:absolute;
-      inset:0;
-      background-image: url("logo.png");
-      background-repeat: no-repeat;
-      background-position: center;
-      background-size: 55%;
-      opacity: .10;
-      pointer-events:none;
-      filter: saturate(1.1);
+      flex-direction:column;
+      gap:10px;
     }
 
     canvas{
       width:100%;
-      height:100%;
+      height:auto;
       display:block;
-    }
-
-    /* Powered row (replaces Status + Hint) */
-    .poweredRow{
-      margin-top: 10px;
-      background: rgba(0,0,0,.12);
-      border: 1px solid rgba(255,255,255,.12);
+      background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.03));
       border-radius: 14px;
-      padding: 10px 12px;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      text-align:center;
-    }
-    .poweredBy{
-      font-weight: 1000;
-      letter-spacing:.2px;
-      opacity:.92;
-      font-size: 13px;
-      white-space:nowrap;
-    }
-    .srStatus{ display:none; }
-
-    .toast{
-      position: fixed;
-      left: 50%;
-      bottom: 18px;
-      transform: translateX(-50%);
-      background: rgba(0,0,0,.70);
-      border: 1px solid rgba(255,255,255,.18);
-      padding: 10px 12px;
-      border-radius: 12px;
-      box-shadow: 0 18px 44px rgba(0,0,0,.35);
-      opacity: 0;
-      pointer-events:none;
-      transition: opacity .2s ease, transform .2s ease;
-      max-width: 92vw;
-      z-index: 50;
-    }
-    .toast.show{
-      opacity: 1;
-      transform: translateX(-50%) translateY(-2px);
-    }
-
-    /* modal */
-    .modal-back{
-      position:fixed; inset:0;
-      background: rgba(0,0,0,.55);
-      display:none;
-      align-items:center;
-      justify-content:center;
-      padding: 16px;
-      z-index: 100;
-    }
-    .modal{
-      width: 620px;
-      max-width: 96vw;
-      background: rgba(10,10,20,.92);
-      border: 1px solid rgba(255,255,255,.16);
-      border-radius: 20px;
-      box-shadow: 0 18px 44px rgba(0,0,0,.45);
-      padding: 14px;
-    }
-    .modal h3{
-      margin: 0 0 6px 0;
-      font-size: 18px;
-      font-weight: 1000;
-    }
-    .modal p{
-      margin: 0 0 10px 0;
-      opacity:.92;
-      line-height:1.35;
-      font-size: 14px;
-    }
-    .modal input{
-      width:100%;
-      padding: 12px 12px;
-      border-radius: 14px;
-      border: 1px solid rgba(255,255,255,.18);
-      background: rgba(255,255,255,.08);
-      color:#fff;
-      outline:none;
-      font-weight: 800;
-      margin-bottom: 10px;
-    }
-    .modal-actions{
-      display:flex;
-      gap: 10px;
-      justify-content:flex-end;
-      flex-wrap: wrap;
-      margin-top: 10px;
-    }
-
-    /* leaderboard table */
-    table{
-      width:100%;
-      border-collapse: collapse;
-      overflow:hidden;
-      border-radius: 14px;
-      background: rgba(0,0,0,.14);
-      border: 1px solid rgba(255,255,255,.12);
-    }
-    th, td{
-      padding: 10px 10px;
-      text-align:left;
-      border-bottom: 1px solid rgba(255,255,255,.10);
-      font-size: 14px;
-    }
-    th{
-      font-size: 12px;
-      opacity:.9;
-      letter-spacing:.4px;
-      text-transform: uppercase;
-    }
-    tr:last-child td{ border-bottom:none; }
-    .r1{ background: var(--gold); }
-    .r2{ background: var(--silver); }
-    .r3{ background: var(--bronze); }
-
-    .yourScoreBox{
-      margin: 10px 0 10px;
-      background: rgba(255,255,255,.08);
       border: 1px solid rgba(255,255,255,.14);
+    }
+
+    .dropZone{
+      padding:12px;
       border-radius: 14px;
-      padding: 10px 12px;
+      border: 2px dashed rgba(255,255,255,.24);
+      background: rgba(0,0,0,.12);
+      text-align:center;
+      font-weight:800;
+      line-height:1.25;
+    }
+    .dropZone small{
+      display:block;
+      margin-top:6px;
+      font-weight:600;
+      opacity:.9;
+    }
+
+    .side{
+      padding:12px;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
+
+    .stat{
       display:flex;
       align-items:center;
       justify-content:space-between;
-      gap: 10px;
-      font-weight: 950;
+      gap:10px;
+      padding:10px 12px;
+      border-radius:14px;
+      background: rgba(0,0,0,.16);
+      border:1px solid rgba(255,255,255,.12);
+      font-weight:800;
     }
-    .yourScoreBox b{ font-size: 16px; }
+    .stat span{ opacity:.95; font-weight:700; }
 
-    @media (max-width: 860px){
-      .arena{ height: 560px; }
-      .statValue{ font-size: 30px; }
+    .log{
+      flex:1;
+      padding:10px 12px;
+      border-radius:14px;
+      background: rgba(0,0,0,.16);
+      border:1px solid rgba(255,255,255,.12);
+      font-size:13px;
+      line-height:1.35;
+      overflow:auto;
+    }
+
+    .tag{
+      display:inline-flex;
+      gap:6px;
+      align-items:center;
+      padding:6px 10px;
+      border-radius:999px;
+      background: rgba(255,255,255,.12);
+      border:1px solid rgba(255,255,255,.18);
+      font-size:12px;
+      font-weight:900;
+      letter-spacing:.2px;
+    }
+
+    .foot{
+      padding:12px 14px;
+      text-align:center;
+      font-weight:900;
+      opacity:.92;
+      border-top:1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.12);
     }
   </style>
 </head>
-
 <body>
   <div class="wrap">
-    <!-- TOP PLAYER PANEL -->
-    <div class="card">
-      <img class="header-img" src="header.png" alt="Little Ollie Arcade" onerror="this.style.display='none'">
+    <div class="topbar">
+      <div class="title">
+        <b>Rugged NFT Shredder 🧻🪓</b>
+        <span>Drop an image → watch it get *cartoon shredded*</span>
+      </div>
 
-      <!-- ONE LINE, ALL YELLOW -->
-      <div class="controls">
-        <button class="btn small" id="btnMenu" type="button">🕹️ Arcade Menu</button>
-
-        <!-- Start moved BEFORE Difficulty -->
-        <button class="btn small" id="btnStart" type="button">▶️ Start</button>
-
-        <select class="select" id="difficulty" title="Difficulty">
-          <option value="easy">Difficulty - 🟢 Easy (3)</option>
-          <option value="medium">Difficulty - 🟡 Medium (4)</option>
-          <option value="hard">Difficulty - 🔴 Hard (5)</option>
-        </select>
-
-        <button class="btn small" id="btnLB" type="button">🏆 Leaderboard</button>
+      <div class="btnRow">
+        <label class="fileBtn" for="fileIn">📥 Upload Image</label>
+        <input id="fileIn" type="file" accept="image/*" />
+        <button id="shredBtn" class="danger">🧨 SHRED IT</button>
+        <button id="resetBtn" class="ghost">♻️ Reset</button>
       </div>
     </div>
 
-    <!-- GAME AREA -->
-    <div class="card">
-      <div class="arena">
-        <canvas id="cv"></canvas>
-      </div>
-
-      <!-- JUGGLES + SPEED -->
-      <div class="statsCard">
-        <div class="statBox">
-          <div class="statLabel">
-            <span>🤹 Juggles</span>
-            <span style="opacity:.85;font-weight:900;font-size:12px;" id="diffPill">Easy</span>
-          </div>
-          <div class="statValue" id="score">0</div>
+    <div class="main">
+      <div class="card screen">
+        <div id="dropZone" class="dropZone">
+          DROP YOUR RUGGED NFT IMAGE HERE 😭
+          <small>(or click “Upload Image”)</small>
         </div>
+        <canvas id="c" width="900" height="560"></canvas>
+      </div>
 
-        <div class="statBox">
-          <div class="statLabel">
-            <span>⚡ Speed</span>
-            <span style="opacity:.85;font-weight:900;font-size:12px;">every 10 = +0.1</span>
-          </div>
-          <div class="statValue" id="speed">1.0x</div>
+      <div class="card side">
+        <div class="stat">
+          <div>State</div>
+          <span id="stateTxt">Waiting for image…</span>
         </div>
-      </div>
-
-      <!-- POWERED BY (centered, replaces Status + Hint) -->
-      <div class="poweredRow">
-        <div class="poweredBy">⚡ Powered by Little Ollie Studio</div>
-        <span id="status" class="srStatus">Press ▶️ Start</span>
-      </div>
-
-      <div class="toast" id="toast"></div>
-
-      <!-- Game over submit modal (NOW INCLUDES TOP 10 LEADERBOARD + YOUR SCORE) -->
-      <div class="modal-back" id="modalBack">
-        <div class="modal" role="dialog" aria-modal="true">
-          <h3 id="modalTitle">Game Over</h3>
-          <p id="modalText">Enter a name to submit your score (optional).</p>
-
-          <div class="yourScoreBox">
-            <span>🎯 Your Score</span>
-            <b><span id="yourScore">0</span> juggles</b>
-          </div>
-
-          <p style="margin:0 0 10px 0; opacity:.92;" id="goLbSubtitle">Leaderboard (Top 10)</p>
-          <table>
-            <thead>
-              <tr>
-                <th style="width:22%;">Rank</th>
-                <th>Name</th>
-                <th style="width:26%;">Juggles</th>
-              </tr>
-            </thead>
-            <tbody id="goLbBody">
-              <tr><td colspan="3" style="opacity:.9;">Loading…</td></tr>
-            </tbody>
-          </table>
-
-          <div style="opacity:.88;font-size:12px;margin-top:10px;">
-            🥇🥈🥉 Top 3 are highlighted. If you like your score, submit it now.
-          </div>
-
-          <div style="height:10px;"></div>
-          <input id="nameInput" maxlength="20" placeholder="Name (optional) — leave blank for Anon" />
-
-          <div class="modal-actions">
-            <button class="btn small" id="btnSkip" type="button">🙅 Skip</button>
-            <button class="btn small" id="btnSubmit" type="button">📤 Submit</button>
-          </div>
+        <div class="stat">
+          <div>Shreds</div>
+          <span id="shredCount">0</span>
+        </div>
+        <div class="stat">
+          <div>Vibe</div>
+          <span class="tag">😈 funny cartoon</span>
+        </div>
+        <div class="log" id="log">
+          <b>How to play</b><br>
+          1) Drop an image in the box.<br>
+          2) Smash <b>SHRED IT</b>.<br>
+          3) Laugh. Heal. Move on. 🫶<br><br>
+          <span style="opacity:.9">Tip: Use screenshots of your “rugged” art for best results.</span>
         </div>
       </div>
+    </div>
 
-      <!-- Leaderboard modal (still available via button) -->
-      <div class="modal-back" id="lbBack">
-        <div class="modal" role="dialog" aria-modal="true">
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
-            <h3 style="margin:0;">🏆 Leaderboard (Top 10)</h3>
-            <button class="btn small" id="btnLbClose" type="button">❌ Close</button>
-          </div>
-          <p style="margin-top:8px;" id="lbSubtitle">Difficulty: Easy</p>
+    <div class="foot">Little Ollie Arcade • “Therapy, but shredded.”</div>
+  </div>
 
-          <table>
-            <thead>
-              <tr>
-                <th style="width:22%;">Rank</th>
-                <th>Name</th>
-                <th style="width:26%;">Juggles</th>
-              </tr>
-            </thead>
-            <tbody id="lbBody">
-              <tr><td colspan="3" style="opacity:.9;">Loading…</td></tr>
-            </tbody>
-          </table>
+<script>
+(() => {
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
 
-          <div style="opacity:.88;font-size:12px;margin-top:10px;">
-            🥇🥈🥉 Top 3 are highlighted. Submit your score after game over.
-          </div>
-        </div>
-      </div>
+  const fileIn = document.getElementById('fileIn');
+  const dropZone = document.getElementById('dropZone');
+  const shredBtn = document.getElementById('shredBtn');
+  const resetBtn = document.getElementById('resetBtn');
 
-  <script type="module">
-    /***********************
-     * FIREBASE (Firestore)
-     ***********************/
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
-    import {
-      getFirestore, collection, addDoc, query, where, orderBy, limit, getDocs, serverTimestamp
-    } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
+  const stateTxt = document.getElementById('stateTxt');
+  const shredCountEl = document.getElementById('shredCount');
+  const log = document.getElementById('log');
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyClQdJX2Y2eqt6Gtrm024lhFI6W5zYXpUw",
-      authDomain: "little-ollie-juggler.firebaseapp.com",
-      projectId: "little-ollie-juggler",
-      storageBucket: "little-ollie-juggler.firebasestorage.app",
-      messagingSenderId: "92860450512",
-      appId: "1:92860450512:web:07aa24fb5b3b40ac03c0d5",
-      measurementId: "G-07LZ4EJNRE"
-    };
+  // --- Game state
+  const S = {
+    mode: 'idle', // idle | ready | pulling | shredding | done
+    img: null,
+    imgW: 0,
+    imgH: 0,
+    paper: { x: 0, y: 60, w: 360, h: 360, yOffset: 0 },
+    shredder: { x: 0, y: 0, w: 520, h: 220, slotY: 0 },
+    strips: [],
+    confetti: [],
+    shreds: 0,
+    t: 0,
+  };
 
-    let db = null;
-    try{
-      const app = initializeApp(firebaseConfig);
-      db = getFirestore(app);
-    }catch(e){
-      console.warn("Firebase not configured yet:", e);
+  function setState(text){
+    stateTxt.textContent = text;
+  }
+  function addLog(html){
+    log.innerHTML = html + "<hr style='border:none;border-top:1px solid rgba(255,255,255,.12);margin:10px 0;'>" + log.innerHTML;
+  }
+  function resizeLayout(){
+    // Keep fixed canvas size but compute layout positions based on canvas
+    const W = canvas.width, H = canvas.height;
+
+    S.paper.w = Math.min(420, Math.floor(W * 0.45));
+    S.paper.h = S.paper.w;
+    S.paper.x = Math.floor(W * 0.12);
+    S.paper.y = Math.floor(H * 0.10);
+
+    S.shredder.w = Math.min(560, Math.floor(W * 0.62));
+    S.shredder.h = Math.floor(S.shredder.w * 0.42);
+    S.shredder.x = Math.floor((W - S.shredder.w) / 2);
+    S.shredder.y = Math.floor(H * 0.60);
+
+    S.shredder.slotY = S.shredder.y + Math.floor(S.shredder.h * 0.18);
+  }
+
+  // --- Drawing helpers (thick outline cartoon style)
+  function roundRect(x,y,w,h,r){
+    const rr = Math.min(r, w/2, h/2);
+    ctx.beginPath();
+    ctx.moveTo(x+rr, y);
+    ctx.arcTo(x+w, y, x+w, y+h, rr);
+    ctx.arcTo(x+w, y+h, x, y+h, rr);
+    ctx.arcTo(x, y+h, x, y, rr);
+    ctx.arcTo(x, y, x+w, y, rr);
+    ctx.closePath();
+  }
+
+  function outlineFill(fill, stroke='rgba(0,0,0,.9)', lw=6){
+    ctx.fillStyle = fill;
+    ctx.fill();
+    ctx.lineWidth = lw;
+    ctx.strokeStyle = stroke;
+    ctx.stroke();
+  }
+
+  function drawBackground(){
+    const W = canvas.width, H = canvas.height;
+
+    // subtle stars/specks
+    ctx.clearRect(0,0,W,H);
+    ctx.save();
+    ctx.globalAlpha = 0.20;
+    for(let i=0;i<28;i++){
+      const x = (i*97 + S.t*4) % W;
+      const y = (i*53 + 80) % H;
+      ctx.beginPath();
+      ctx.arc(x, y, 2.2, 0, Math.PI*2);
+      ctx.fillStyle = '#fff';
+      ctx.fill();
+    }
+    ctx.restore();
+
+    // floor
+    ctx.save();
+    ctx.globalAlpha = 0.18;
+    roundRect(40, H-120, W-80, 95, 22);
+    outlineFill('rgba(0,0,0,.20)', 'rgba(255,255,255,.22)', 2.5);
+    ctx.restore();
+  }
+
+  function drawPaper(){
+    const p = S.paper;
+    const x = p.x, y = p.y + p.yOffset;
+    const w = p.w, h = p.h;
+
+    // shadow
+    ctx.save();
+    ctx.globalAlpha = 0.25;
+    roundRect(x+10, y+14, w, h, 22);
+    ctx.fillStyle = 'rgba(0,0,0,.35)';
+    ctx.fill();
+    ctx.restore();
+
+    // paper
+    roundRect(x, y, w, h, 22);
+    outlineFill('rgba(255,255,255,.92)');
+
+    // "rug pulled" stamp when done
+    if(S.mode === 'done'){
+      ctx.save();
+      ctx.translate(x + w*0.12, y + h*0.56);
+      ctx.rotate(-0.22);
+      ctx.globalAlpha = 0.95;
+      roundRect(0,0, w*0.76, h*0.22, 14);
+      outlineFill('rgba(255,75,75,.92)');
+      ctx.fillStyle = '#fff';
+      ctx.font = `900 ${Math.floor(h*0.12)}px ui-sans-serif`;
+      ctx.fillText('RUG PULLED', Math.floor(w*0.08), Math.floor(h*0.155));
+      ctx.restore();
     }
 
-    const COLLECTION = "juggle_scores";
+    // draw image inside paper
+    if(S.img){
+      const pad = 18;
+      const ix = x + pad, iy = y + pad;
+      const iw = w - pad*2, ih = h - pad*2;
 
-    /***********************
-     * UI HOOKS
-     ***********************/
-    const cv = document.getElementById("cv");
-    const ctx = cv.getContext("2d");
+      // fit image
+      const ar = S.imgW / S.imgH;
+      let dw = iw, dh = dw / ar;
+      if(dh > ih){ dh = ih; dw = dh * ar; }
+      const dx = ix + (iw - dw)/2;
+      const dy = iy + (ih - dh)/2;
 
-    const scoreEl = document.getElementById("score");
-    const speedEl = document.getElementById("speed");
-    const statusEl = document.getElementById("status"); // hidden but used for state text
-    const toastEl = document.getElementById("toast");
+      // clip
+      ctx.save();
+      roundRect(x+10, y+10, w-20, h-20, 18);
+      ctx.clip();
 
-    const btnStart = document.getElementById("btnStart");
-    const btnMenu = document.getElementById("btnMenu");
-    const btnLB = document.getElementById("btnLB");
-    const difficultySel = document.getElementById("difficulty");
-    const diffPill = document.getElementById("diffPill");
+      // if shredding, draw only top portion (like it’s being eaten)
+      if(S.mode === 'pulling' || S.mode === 'shredding'){
+        // mask bottom being "taken"
+        const eaten = Math.max(0, (S.shredder.slotY - (y + h)) + 10);
+        // eaten isn't perfect; use yOffset to simulate pull
+        ctx.drawImage(S.img, dx, dy, dw, dh);
+        // add wiggly "tear" line
+        ctx.globalAlpha = 0.9;
+        ctx.lineWidth = 6;
+        ctx.strokeStyle = 'rgba(0,0,0,.85)';
+        ctx.beginPath();
+        const tearY = y + h - 18;
+        for(let i=0;i<=10;i++){
+          const tx = x + 18 + (w-36)*(i/10);
+          const ty = tearY + Math.sin((S.t*0.18)+(i*0.9))*3;
+          if(i===0) ctx.moveTo(tx, ty);
+          else ctx.lineTo(tx, ty);
+        }
+        ctx.stroke();
+      } else if(S.mode === 'done'){
+        // nothing (it got shredded)
+        ctx.globalAlpha = 0.0;
+      } else {
+        ctx.drawImage(S.img, dx, dy, dw, dh);
+      }
 
-    const modalBack = document.getElementById("modalBack");
-    const nameInput = document.getElementById("nameInput");
-    const btnSkip = document.getElementById("btnSkip");
-    const btnSubmit = document.getElementById("btnSubmit");
-    const modalTitle = document.getElementById("modalTitle");
-    const modalText = document.getElementById("modalText");
-    const yourScoreEl = document.getElementById("yourScore");
-    const goLbBody = document.getElementById("goLbBody");
-    const goLbSubtitle = document.getElementById("goLbSubtitle");
-
-    const lbBack = document.getElementById("lbBack");
-    const btnLbClose = document.getElementById("btnLbClose");
-    const lbBody = document.getElementById("lbBody");
-    const lbSubtitle = document.getElementById("lbSubtitle");
-
-    function toast(msg){
-      toastEl.textContent = msg;
-      toastEl.classList.add("show");
-      clearTimeout(toastEl._t);
-      toastEl._t = setTimeout(()=>toastEl.classList.remove("show"), 1600);
+      ctx.restore();
+    } else {
+      ctx.save();
+      ctx.fillStyle = 'rgba(0,0,0,.55)';
+      ctx.font = '900 22px ui-sans-serif';
+      ctx.fillText('DROP IMAGE HERE', x + 32, y + h/2 - 8);
+      ctx.font = '800 14px ui-sans-serif';
+      ctx.fillText('Your rugged NFT gets shredded 😭', x + 32, y + h/2 + 16);
+      ctx.restore();
     }
+  }
 
-    /***********************
-     * CANVAS SIZE
-     ***********************/
-    function resize(){
-      const r = cv.getBoundingClientRect();
-      const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
-      cv.width = Math.floor(r.width * dpr);
-      cv.height = Math.floor(r.height * dpr);
-      ctx.setTransform(dpr,0,0,dpr,0,0);
+  function drawShredder(){
+    const sh = S.shredder;
+    const x = sh.x, y = sh.y, w = sh.w, h = sh.h;
+
+    // body shadow
+    ctx.save();
+    ctx.globalAlpha = 0.22;
+    roundRect(x+12, y+16, w, h, 26);
+    ctx.fillStyle = 'rgba(0,0,0,.45)';
+    ctx.fill();
+    ctx.restore();
+
+    // body
+    roundRect(x, y, w, h, 26);
+    outlineFill('rgba(30,30,40,.86)');
+
+    // fun face panel
+    const faceX = x + w*0.06, faceY = y + h*0.42, faceW = w*0.30, faceH = h*0.45;
+    roundRect(faceX, faceY, faceW, faceH, 18);
+    outlineFill('rgba(255,255,255,.14)', 'rgba(0,0,0,.9)', 5);
+
+    // eyes
+    ctx.save();
+    ctx.fillStyle = 'rgba(255,255,255,.9)';
+    ctx.strokeStyle = 'rgba(0,0,0,.9)';
+    ctx.lineWidth = 5;
+    const ex1 = faceX + faceW*0.34, ex2 = faceX + faceW*0.70;
+    const ey = faceY + faceH*0.42;
+    ctx.beginPath(); ctx.arc(ex1, ey, faceW*0.09, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.arc(ex2, ey, faceW*0.09, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+
+    // pupils wiggle
+    ctx.fillStyle = 'rgba(0,0,0,.92)';
+    const wig = Math.sin(S.t*0.12)*2;
+    ctx.beginPath(); ctx.arc(ex1+wig, ey+1, faceW*0.04, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(ex2+wig, ey+1, faceW*0.04, 0, Math.PI*2); ctx.fill();
+
+    // mouth
+    ctx.strokeStyle = 'rgba(255,75,75,.95)';
+    ctx.lineWidth = 7;
+    ctx.beginPath();
+    ctx.arc(faceX + faceW*0.52, faceY + faceH*0.70, faceW*0.16, 0.1, Math.PI-0.1);
+    ctx.stroke();
+    ctx.restore();
+
+    // slot
+    const slotX = x + w*0.18, slotW = w*0.64, slotH = h*0.12;
+    const slotY = sh.slotY;
+
+    roundRect(slotX, slotY, slotW, slotH, 16);
+    outlineFill('rgba(0,0,0,.62)', 'rgba(0,0,0,.92)', 6);
+
+    // teeth
+    ctx.save();
+    ctx.globalAlpha = 0.95;
+    const teethCount = 16;
+    const tpad = 10;
+    const tw = (slotW - tpad*2) / teethCount;
+    for(let i=0;i<teethCount;i++){
+      const tx = slotX + tpad + i*tw;
+      const ty = slotY + slotH*0.25;
+      roundRect(tx, ty, tw*0.78, slotH*0.50, 8);
+      outlineFill('rgba(255,255,255,.78)', 'rgba(0,0,0,.85)', 4);
     }
-    window.addEventListener("resize", resize);
-    resize();
+    ctx.restore();
 
-    /***********************
-     * GAME SETTINGS
-     ***********************/
-    const DIFF = {
-      easy:   { balls: 3, beatStart: 1050, beatMin: 520 },
-      medium: { balls: 4, beatStart: 980,  beatMin: 480 },
-      hard:   { balls: 5, beatStart: 920,  beatMin: 440 },
-    };
+    // "WARNING: RUGS" label
+    ctx.save();
+    ctx.translate(x + w*0.62, y + h*0.58);
+    ctx.rotate(-0.06);
+    roundRect(-w*0.18, -h*0.12, w*0.36, h*0.22, 16);
+    outlineFill('rgba(255,221,85,.92)');
+    ctx.fillStyle = 'rgba(0,0,0,.86)';
+    ctx.font = `900 ${Math.floor(h*0.10)}px ui-sans-serif`;
+    ctx.fillText('NO RUGS', -w*0.11, Math.floor(h*0.04));
+    ctx.restore();
+  }
 
-    const COLORS = [
-      "#ffdd55",
-      "#ff6b6b",
-      "#6dffb2",
-      "#6de0ff",
-      "#b88cff",
-      "#ffa94d"
-    ];
+  function spawnStrips(){
+    // Create strips from the paper image area
+    const p = S.paper;
+    const paperBottom = p.y + p.yOffset + p.h;
+    const slotY = S.shredder.slotY + 8;
 
-    /***********************
-     * JUGGLE MODEL
-     ***********************/
-    let running = false;
-    let gameOver = false;
+    const xCenter = p.x + p.w/2;
+    const startY = Math.min(slotY, paperBottom - 12);
 
-    let difficulty = "easy";
-    let numBalls = 3;
-
-    let beatStart = 1050;
-    let beatMs = 1050;
-    let beatMin = 520;
-    let flightMs = 0;
-    let lastBeat = 0;
-    let startTime = 0;
-
-    let score = 0;
-    let nextIdToClick = 0;
-    let spawnedId = 0;
-
-    let balls = [];
-
-    function difficultyLabel(d){
-      if(d==="easy") return "Easy";
-      if(d==="medium") return "Medium";
-      return "Hard";
-    }
-
-    function hands(){
-      const w = cv.getBoundingClientRect().width;
-      const h = cv.getBoundingClientRect().height;
-      const midY = h * 0.44;
-      return {
-        w,h,
-        leftX:  w*0.30,
-        rightX: w*0.70,
-        handY:  h*0.90,
-        peakY:  h*0.16,
-        midY
-      };
-    }
-
-    function ballRadius(){
-      const h = cv.getBoundingClientRect().height;
-      return Math.max(24, Math.min(38, h*0.062));
-    }
-
-    function resetGame(){
-      running = false;
-      gameOver = false;
-      balls = [];
-      score = 0;
-      nextIdToClick = 0;
-      spawnedId = 0;
-
-      const s = DIFF[difficulty];
-      numBalls = s.balls;
-      beatStart = s.beatStart;
-      beatMin = s.beatMin;
-
-      beatMs = beatStart;
-      flightMs = Math.floor(numBalls * beatMs);
-
-      scoreEl.textContent = "0";
-      speedEl.textContent = "1.0x";
-      statusEl.textContent = "Press ▶️ Start";
-      diffPill.textContent = difficultyLabel(difficulty);
-      draw();
-    }
-
-    function currentSpeedMult(){
-      const steps = Math.floor(score / 10);
-      return 1 + steps * 0.1;
-    }
-
-    function applySpeedFromScore(){
-      const mult = currentSpeedMult();
-      beatMs = Math.max(beatMin, Math.floor(beatStart / mult));
-      speedEl.textContent = `${mult.toFixed(1)}x`;
-      flightMs = Math.floor(numBalls * beatMs);
-    }
-
-    function start(){
-      if(running) return;
-      modalBack.style.display = "none";
-      lbBack.style.display = "none";
-
-      running = true;
-      gameOver = false;
-      statusEl.textContent = "Juggle!";
-      startTime = performance.now();
-      lastBeat = startTime;
-
-      spawnThrow(lastBeat);
-      spawnThrow(lastBeat + beatMs*0.50);
-
-      requestAnimationFrame(loop);
-    }
-
-    function endGame(reason="You dropped it!"){
-      if(gameOver) return;
-      running = false;
-      gameOver = true;
-      statusEl.textContent = reason;
-
-      // Show submit + leaderboard immediately after the run
-      modalTitle.textContent = "Game Over";
-      modalText.textContent = `You got ${score} juggles on ${difficultyLabel(difficulty)}.`;
-      yourScoreEl.textContent = String(score);
-      goLbSubtitle.textContent = `🏆 Leaderboard (Top 10) — Difficulty: ${difficultyLabel(difficulty)}`;
-
-      nameInput.value = "";
-      modalBack.style.display = "flex";
-
-      // Load Top 10 inside the Game Over modal right away
-      loadLeaderboardInto(goLbBody);
-
-      setTimeout(()=>{ try{ nameInput.focus(); }catch{} }, 30);
-    }
-
-    function spawnThrow(now){
-      const { leftX, rightX, handY } = hands();
-      const fromLeft = (spawnedId % 2 === 0);
-      const fromX = fromLeft ? leftX : rightX;
-      const toX = fromLeft ? rightX : leftX;
-
-      const id = spawnedId;
-      const colorIndex = id % numBalls;
-      const color = COLORS[colorIndex % COLORS.length];
-
-      flightMs = Math.floor(numBalls * beatMs);
-
-      balls.push({
-        id,
-        color,
-        spawn: now,
-        flight: flightMs,
-        fromX, toX,
-        x: fromX,
-        y: handY,
-        t: 0,
-        clicked: false,
-        fade: 0,
-        canClick: false
+    const stripCount = 18;
+    for(let i=0;i<stripCount;i++){
+      const w = 10 + Math.random()*10;
+      const h = 46 + Math.random()*42;
+      S.strips.push({
+        x: xCenter + (Math.random()-0.5)*(p.w*0.68),
+        y: startY + Math.random()*6,
+        w, h,
+        vy: 3 + Math.random()*3,
+        vx: (Math.random()-0.5)*1.2,
+        rot: (Math.random()-0.5)*0.4,
+        vr: (Math.random()-0.5)*0.06,
+        life: 260 + Math.random()*120,
+        ink: Math.random(),
       });
-
-      spawnedId++;
     }
 
-    function draw(){
-      const r = cv.getBoundingClientRect();
-      const w = r.width, h = r.height;
+    S.shreds += 1;
+    shredCountEl.textContent = String(S.shreds);
+  }
 
-      ctx.clearRect(0,0,w,h);
+  function drawStrips(){
+    for(const s of S.strips){
+      ctx.save();
+      ctx.translate(s.x, s.y);
+      ctx.rotate(s.rot);
 
-      const g = ctx.createRadialGradient(w/2, h*0.22, 20, w/2, h/2, Math.max(w,h));
-      g.addColorStop(0, "rgba(255,255,255,0.10)");
-      g.addColorStop(1, "rgba(0,0,0,0.18)");
-      ctx.fillStyle = g;
-      ctx.fillRect(0,0,w,h);
+      // strip colors (cartoony)
+      const shade = 0.85 + (s.ink*0.1);
+      roundRect(-s.w/2, -s.h/2, s.w, s.h, 8);
+      outlineFill(`rgba(255,255,255,${shade})`, 'rgba(0,0,0,.9)', 5);
 
-      const { leftX, rightX, handY, midY } = hands();
-
-      ctx.globalAlpha = 0.18;
-      ctx.strokeStyle = "rgba(255,255,255,.50)";
+      // little "ink" squiggles
+      ctx.strokeStyle = 'rgba(0,0,0,.35)';
       ctx.lineWidth = 3;
       ctx.beginPath();
-      ctx.arc(leftX, handY, 18, 0, Math.PI*2);
-      ctx.arc(rightX, handY, 18, 0, Math.PI*2);
+      ctx.moveTo(-s.w*0.2, -s.h*0.15);
+      ctx.lineTo(s.w*0.2, 0);
+      ctx.lineTo(-s.w*0.1, s.h*0.15);
       ctx.stroke();
-      ctx.globalAlpha = 1;
 
-      ctx.globalAlpha = 0.10;
-      ctx.strokeStyle = "rgba(255,255,255,.8)";
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(w*0.06, midY);
-      ctx.lineTo(w*0.94, midY);
-      ctx.stroke();
-      ctx.globalAlpha = 1;
-
-      const nextBall = balls.find(b => b.id === nextIdToClick);
-      if(nextBall && nextBall.canClick){
-        const rad = ballRadius();
-        ctx.globalAlpha = 0.30;
-        ctx.strokeStyle = "#ffffff";
-        ctx.lineWidth = 4;
-        ctx.beginPath();
-        ctx.arc(nextBall.x, nextBall.y, rad+11, 0, Math.PI*2);
-        ctx.stroke();
-        ctx.globalAlpha = 1;
-      }
-
-      const rad = ballRadius();
-      for(const b of balls){
-        const alpha = b.clicked ? Math.max(0, 1 - b.fade) : 1;
-        if(alpha <= 0) continue;
-
-        ctx.globalAlpha = 0.22 * alpha;
-        ctx.fillStyle = "rgba(0,0,0,.8)";
-        ctx.beginPath();
-        ctx.ellipse(b.x, b.y + rad*0.55, rad*0.80, rad*0.30, 0, 0, Math.PI*2);
-        ctx.fill();
-        ctx.globalAlpha = 1 * alpha;
-
-        ctx.fillStyle = b.color;
-        ctx.beginPath();
-        ctx.arc(b.x, b.y, rad, 0, Math.PI*2);
-        ctx.fill();
-
-        ctx.lineWidth = 5;
-        ctx.strokeStyle = "rgba(0,0,0,.35)";
-        ctx.stroke();
-
-        ctx.globalAlpha = 0.25 * alpha;
-        ctx.fillStyle = "#ffffff";
-        ctx.beginPath();
-        ctx.arc(b.x - rad*0.28, b.y - rad*0.28, rad*0.36, 0, Math.PI*2);
-        ctx.fill();
-        ctx.globalAlpha = 1 * alpha;
-
-        if(b.id === nextIdToClick && !b.canClick){
-          ctx.globalAlpha = 0.22;
-          ctx.fillStyle = "rgba(0,0,0,.35)";
-          ctx.beginPath();
-          ctx.arc(b.x, b.y, rad+2, 0, Math.PI*2);
-          ctx.fill();
-          ctx.globalAlpha = 1;
-        }
-      }
-
-      if(!running && !gameOver){
-        ctx.globalAlpha = 0.92;
-        ctx.fillStyle = "rgba(0,0,0,.25)";
-        ctx.fillRect(0,0,w,h);
-
-        ctx.globalAlpha = 1;
-        ctx.fillStyle = "#fff";
-        ctx.font = "900 26px system-ui, -apple-system, BlinkMacSystemFont, sans-serif";
-        ctx.fillText("Click the balls in order (true juggle timing)!", 22, 44);
-
-        ctx.font = "700 15px system-ui, -apple-system, BlinkMacSystemFont, sans-serif";
-        ctx.globalAlpha = 0.95;
-        ctx.fillText("You can only click the NEXT ball after it passes the middle line.", 22, 68);
-        ctx.fillText("Speed goes up +0.1 every 10 juggles.", 22, 90);
-        ctx.globalAlpha = 1;
-      }
+      ctx.restore();
     }
+  }
 
-    function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
-    function lerp(a,b,t){ return a + (b-a)*t; }
-
-    function ballPos(b, t){
-      const { handY, peakY } = hands();
-      const x = lerp(b.fromX, b.toX, t);
-      const y = handY - 4*(handY - peakY)*t*(1-t);
-      const sway = Math.sin(t*Math.PI) * 10 * (b.id % 2 === 0 ? 1 : -1);
-      return { x: x + sway, y };
-    }
-
-    function loop(now){
-      if(!running) return;
-
-      if(now - lastBeat >= beatMs){
-        while(now - lastBeat >= beatMs){
-          lastBeat += beatMs;
-          spawnThrow(lastBeat);
-        }
-      }
-
-      const { midY } = hands();
-
-      for(const b of balls){
-        const t = (now - b.spawn) / b.flight;
-        const tt = clamp(t, 0, 1);
-        const p = ballPos(b, tt);
-        b.x = p.x;
-        b.y = p.y;
-        b.t = tt;
-
-        b.canClick = (b.y > (midY + 10));
-
-        if(b.clicked){
-          b.fade = Math.min(1, b.fade + 0.12);
-        }
-
-        if(t >= 1 && b.id === nextIdToClick && !b.clicked){
-          endGame("Dropped the next ball!");
-          draw();
-          return;
-        }
-      }
-
-      balls = balls.filter(b => !(b.clicked && b.fade >= 1) && (now - b.spawn) < (b.flight + 900));
-
-      draw();
-      requestAnimationFrame(loop);
-    }
-
-    function canvasPoint(evt){
-      const rect = cv.getBoundingClientRect();
-      const clientX = evt.touches ? evt.touches[0].clientX : evt.clientX;
-      const clientY = evt.touches ? evt.touches[0].clientY : evt.clientY;
-      return { x: (clientX - rect.left), y: (clientY - rect.top) };
-    }
-
-    function hitNextBall(pt){
-      const rad = ballRadius();
-      const target = balls.find(b => b.id === nextIdToClick && !b.clicked);
-      if(!target) return null;
-      if(!target.canClick) return { target, blocked:true };
-
-      const dx = pt.x - target.x;
-      const dy = pt.y - target.y;
-      const rr = (rad * 1.45);
-      if(dx*dx + dy*dy <= rr*rr) return { target, blocked:false };
-      return null;
-    }
-
-    function onPress(evt){
-      if(!running) return;
-      evt.preventDefault();
-
-      const pt = canvasPoint(evt);
-      const res = hitNextBall(pt);
-      if(!res) return;
-
-      if(res.blocked){
-        toast("⏳ Wait — click it after it drops past the middle!");
-        return;
-      }
-
-      res.target.clicked = true;
-      score++;
-      scoreEl.textContent = String(score);
-      nextIdToClick++;
-      applySpeedFromScore();
-    }
-
-    cv.addEventListener("mousedown", onPress);
-    cv.addEventListener("touchstart", onPress, { passive:false });
-
-    function rankEmoji(i){
-      if(i===1) return "🥇";
-      if(i===2) return "🥈";
-      if(i===3) return "🥉";
-      return `#${i}`;
-    }
-
-    function escapeHtml(str){
-      return str.replace(/[&<>"']/g, m => ({
-        "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"
-      }[m]));
-    }
-
-    async function loadLeaderboardInto(targetTbody){
-      const subtitleText = `Difficulty: ${difficultyLabel(difficulty)}`;
-      // If this is the standalone LB, keep its subtitle updated too
-      lbSubtitle.textContent = subtitleText;
-
-      targetTbody.innerHTML = `<tr><td colspan="3" style="opacity:.9;">Loading…</td></tr>`;
-
-      if(!db){
-        targetTbody.innerHTML = `<tr><td colspan="3" style="opacity:.9;">Firebase not set up yet (add config).</td></tr>`;
-        return;
-      }
-
-      try{
-        const qy = query(
-          collection(db, COLLECTION),
-          where("difficulty","==",difficulty),
-          orderBy("score","desc"),
-          limit(10)
-        );
-        const snap = await getDocs(qy);
-
-        if(snap.empty){
-          targetTbody.innerHTML = `<tr><td colspan="3" style="opacity:.9;">No scores yet — be the first!</td></tr>`;
-          return;
-        }
-
-        let i=0;
-        let html = "";
-        snap.forEach(doc=>{
-          i++;
-          const d = doc.data();
-          const name = (d.name || "Anon").toString().slice(0,20);
-          const sc = (d.score ?? 0);
-
-          const rowClass = (i===1) ? "r1" : (i===2) ? "r2" : (i===3) ? "r3" : "";
-          html += `
-            <tr class="${rowClass}">
-              <td><b>${rankEmoji(i)}</b></td>
-              <td>${escapeHtml(name)}</td>
-              <td><b>${sc}</b></td>
-            </tr>
-          `;
-        });
-
-        targetTbody.innerHTML = html;
-      }catch(e){
-        console.warn(e);
-        targetTbody.innerHTML = `<tr><td colspan="3" style="opacity:.9;">Couldn’t load leaderboard.</td></tr>`;
-      }
-    }
-
-    async function loadLeaderboard(){
-      lbSubtitle.textContent = `Difficulty: ${difficultyLabel(difficulty)}`;
-      lbBody.innerHTML = `<tr><td colspan="3" style="opacity:.9;">Loading…</td></tr>`;
-      await loadLeaderboardInto(lbBody);
-    }
-
-    async function submitScore(name){
-      if(!db) return;
-      const cleanName = (name || "").trim().slice(0,20) || "Anon";
-      const winId = `${Date.now()}_${Math.random().toString(16).slice(2)}`;
-
-      await addDoc(collection(db, COLLECTION), {
-        name: cleanName,
-        difficulty,
-        score,
-        winId,
-        createdAt: serverTimestamp()
+  function spawnConfetti(){
+    const W = canvas.width, H = canvas.height;
+    for(let i=0;i<90;i++){
+      S.confetti.push({
+        x: Math.random()*W,
+        y: -20 - Math.random()*H*0.2,
+        vy: 2 + Math.random()*5,
+        vx: (Math.random()-0.5)*2.0,
+        r: 2 + Math.random()*4,
+        rot: Math.random()*Math.PI,
+        vr: (Math.random()-0.5)*0.2,
+        life: 240 + Math.random()*120
       });
     }
+  }
+  function drawConfetti(){
+    ctx.save();
+    for(const c of S.confetti){
+      ctx.translate(c.x, c.y);
+      ctx.rotate(c.rot);
+      ctx.beginPath();
+      ctx.rect(-c.r, -c.r, c.r*2, c.r*2);
+      ctx.fillStyle = 'rgba(255,255,255,.92)';
+      ctx.fill();
+      ctx.setTransform(1,0,0,1,0,0);
+    }
+    ctx.restore();
+  }
 
-    btnSkip.addEventListener("click", async ()=>{
-      modalBack.style.display = "none";
-      toast("Skipped submission.");
-    });
+  function update(){
+    S.t++;
 
-    btnSubmit.addEventListener("click", async ()=>{
-      btnSubmit.disabled = true;
-      try{
-        await submitScore(nameInput.value);
-        toast("Score submitted!");
-        // refresh both leaderboards so they instantly reflect the new score
-        await loadLeaderboardInto(goLbBody);
-        if(lbBack.style.display === "flex") await loadLeaderboard();
-      }catch(e){
-        console.warn(e);
-        toast("Couldn’t submit score.");
-      }finally{
-        btnSubmit.disabled = false;
+    // pull paper down into shredder
+    if(S.mode === 'pulling'){
+      S.paper.yOffset += 4.6;
+      // once the bottom hits slot, begin shredding
+      const bottom = S.paper.y + S.paper.yOffset + S.paper.h;
+      if(bottom >= S.shredder.slotY + 8){
+        S.mode = 'shredding';
+        setState('Shredding… 😈');
+        addLog(`<b>CHOMP!</b> The shredder is hungry… 🧻`);
       }
-    });
+    }
 
-    modalBack.addEventListener("click", (e)=>{
-      if(e.target === modalBack) modalBack.style.display = "none";
-    });
+    // shredding: spawn strips repeatedly, paper continues down a bit then disappears
+    if(S.mode === 'shredding'){
+      // keep pulling
+      S.paper.yOffset += 3.2;
 
-    btnLB.addEventListener("click", async ()=>{
-      lbBack.style.display = "flex";
-      await loadLeaderboard();
-    });
+      // spawn strips every few frames
+      if(S.t % 10 === 0) spawnStrips();
 
-    btnLbClose.addEventListener("click", ()=>{
-      lbBack.style.display = "none";
-    });
-
-    lbBack.addEventListener("click", (e)=>{
-      if(e.target === lbBack) lbBack.style.display = "none";
-    });
-
-    btnStart.addEventListener("click", ()=>{
-      if(gameOver){
-        resetGame();
+      // finish after enough shreds
+      if(S.shreds >= 7){
+        S.mode = 'done';
+        setState('Done. Rug = shredded ✅');
+        spawnConfetti();
+        addLog(`<b>RUG PULLED.</b> But you? You survived. 🫶✨`);
       }
-      start();
-    });
+    }
 
-    btnMenu.addEventListener("click", ()=>{
-      window.location.href = "../index.html";
-    });
+    // update strips
+    for(const s of S.strips){
+      s.x += s.vx;
+      s.y += s.vy;
+      s.rot += s.vr;
+      s.life--;
+      // tiny wobble
+      s.vx += (Math.random()-0.5)*0.05;
+      s.vx *= 0.995;
+    }
+    S.strips = S.strips.filter(s => s.life > 0 && s.y < canvas.height + 120);
 
-    difficultySel.addEventListener("change", ()=>{
-      difficulty = difficultySel.value;
-      resetGame();
-    });
+    // update confetti
+    for(const c of S.confetti){
+      c.x += c.vx;
+      c.y += c.vy;
+      c.rot += c.vr;
+      c.life--;
+    }
+    S.confetti = S.confetti.filter(c => c.life > 0 && c.y < canvas.height + 80);
 
-    resetGame();
-  </script>
+    draw();
+    requestAnimationFrame(update);
+  }
+
+  function draw(){
+    resizeLayout();
+    drawBackground();
+    drawPaper();
+    drawShredder();
+    drawStrips();
+    drawConfetti();
+  }
+
+  function reset(){
+    S.mode = 'idle';
+    S.img = null;
+    S.imgW = S.imgH = 0;
+    S.paper.yOffset = 0;
+    S.strips = [];
+    S.confetti = [];
+    S.shreds = 0;
+    shredCountEl.textContent = '0';
+    setState('Waiting for image…');
+    addLog(`<b>Reset</b> — ready to shred again 🧻`);
+  }
+
+  function readyWithImage(img){
+    S.img = img;
+    S.imgW = img.naturalWidth || img.width;
+    S.imgH = img.naturalHeight || img.height;
+    S.paper.yOffset = 0;
+    S.strips = [];
+    S.confetti = [];
+    S.shreds = 0;
+    shredCountEl.textContent = '0';
+    S.mode = 'ready';
+    setState('Loaded. Ready to shred.');
+    addLog(`<b>Loaded!</b> That rug doesn’t stand a chance 😈`);
+  }
+
+  function loadFile(file){
+    if(!file) return;
+    if(!file.type || !file.type.startsWith('image/')){
+      addLog(`<b>Oops:</b> Please upload an image file (PNG/JPG/WebP).`);
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      readyWithImage(img);
+    };
+    img.src = url;
+  }
+
+  // --- UI events
+  fileIn.addEventListener('change', (e) => loadFile(e.target.files && e.target.files[0]));
+
+  shredBtn.addEventListener('click', () => {
+    if(S.mode !== 'ready'){
+      addLog(`<b>Need an image first</b> — drop one in 😭`);
+      return;
+    }
+    S.mode = 'pulling';
+    setState('Pulling into shredder… 🧻');
+    addLog(`<b>SHRED MODE:</b> Activated 🧨`);
+  });
+
+  resetBtn.addEventListener('click', reset);
+
+  // drag & drop
+  ;['dragenter','dragover'].forEach(ev => {
+    dropZone.addEventListener(ev, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dropZone.style.borderColor = 'rgba(255,221,85,.95)';
+      dropZone.style.background = 'rgba(0,0,0,.18)';
+    });
+  });
+  ;['dragleave','drop'].forEach(ev => {
+    dropZone.addEventListener(ev, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dropZone.style.borderColor = 'rgba(255,255,255,.24)';
+      dropZone.style.background = 'rgba(0,0,0,.12)';
+    });
+  });
+
+  dropZone.addEventListener('drop', (e) => {
+    const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    loadFile(file);
+  });
+
+  // start
+  reset();
+  update();
+})();
+</script>
 </body>
 </html>

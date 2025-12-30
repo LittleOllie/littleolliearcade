@@ -1,677 +1,715 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-
-<meta http-equiv="Content-Security-Policy" content="
-  default-src 'self';
-  base-uri 'self';
-  object-src 'none';
-  frame-ancestors 'none';
-  img-src 'self' data:;
-  style-src 'self' 'unsafe-inline';
-  script-src 'self' https://www.gstatic.com https://www.googleapis.com 'unsafe-inline';
-  connect-src 'self' https://firestore.googleapis.com https://www.googleapis.com;
-  upgrade-insecure-requests;
-">
-<meta http-equiv="Referrer-Policy" content="no-referrer">
-<meta http-equiv="X-Content-Type-Options" content="nosniff">
-<meta http-equiv="X-Frame-Options" content="DENY">
-
-
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Little Ollie Arcade</title>
 
-  <!-- PWA can stay -->
-  <link rel="icon" href="icons/icon-192.png" />
-  <link rel="apple-touch-icon" href="icons/icon-192.png" />
-
   <style>
     *{ box-sizing:border-box; }
+    html,body{ height:100%; }
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      overflow:hidden;
+      color:#fff;
+    }
+
+    /* ====== Background (match your arcade menu vibe) ====== */
     :root{
       --bg1:#6de0ff;
       --bg2:#4c6fff;
 
-      --shadow: 0 18px 44px rgba(0,0,0,.35);
-      --soft: 0 10px 22px rgba(0,0,0,.25);
-
-      --radius: 22px;
-      --radius2: 16px;
-
-      --accent: #ffdd55;
-      --accentText: #161616;
-      --trim: rgba(255,255,255,.14);
-
-      --screen: rgba(0,0,0,.28);
-      --screenBorder: rgba(255,255,255,.16);
-
       --panel: rgba(0,0,0,.18);
+      --panel2: rgba(0,0,0,.24);
+      --shadow: 0 18px 44px rgba(0,0,0,.35);
+
+      --btnYellow:#ffdd55;
+      --btnYellow2:#ffd22e;
+      --btnText:#222;
+
+      --radius: 18px;
     }
 
-    body{
-      margin:0;
-      min-height:100vh;
+    .bg{
+      position:fixed; inset:0;
+      background:
+        radial-gradient(1200px 800px at 25% 25%, rgba(255,255,255,.22), transparent 60%),
+        radial-gradient(900px 600px at 75% 35%, rgba(0,0,0,.16), transparent 60%),
+        linear-gradient(135deg, var(--bg1), var(--bg2));
+    }
+
+    /* subtle floating glow particles */
+    .spark{
+      position:absolute;
+      width:6px; height:6px; border-radius:50%;
+      background: rgba(255,255,255,.55);
+      filter: blur(.2px);
+      opacity:.55;
+      animation: float 6s ease-in-out infinite;
+    }
+    @keyframes float{
+      0%,100%{ transform: translateY(0) translateX(0); opacity:.35; }
+      50%{ transform: translateY(-18px) translateX(10px); opacity:.8; }
+    }
+
+    /* ====== Big “power up” flash overlay ====== */
+    .powerOverlay{
+      pointer-events:none;
+      position:fixed; inset:0;
+      background:
+        radial-gradient(800px 520px at 50% 45%, rgba(255,255,255,.0), rgba(255,255,255,0) 60%),
+        linear-gradient(90deg, rgba(0,255,255,0), rgba(255,255,255,0), rgba(255,0,255,0));
+      mix-blend-mode: screen;
+      opacity:0;
+      transition: opacity .2s ease;
+    }
+    .powerOverlay.on{ opacity:1; }
+
+    /* ====== Layout ====== */
+    .wrap{
+      position:relative;
+      height:100%;
       display:flex;
-      justify-content:center;
-      align-items:flex-start;
-      padding:18px 10px 28px;
-      background: radial-gradient(circle at top, var(--bg1), var(--bg2));
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-      color:#fff;
-    }
-
-    .wrap{ width: 980px; max-width: 96vw; }
-
-    .panel{
-      background: var(--panel);
-      border-radius: var(--radius);
-      padding: 14px;
-      box-shadow: var(--shadow);
-      overflow:hidden;
-      border: 1px solid rgba(255,255,255,.12);
-    }
-
-    .header{
-      width:100%;
-      display:block;
-      border-radius: 16px;
-      box-shadow: var(--soft);
-    }
-
-    .btn{
-      border:0;
-      cursor:pointer;
-      padding: 10px 12px;
-      border-radius: 16px;
-      background: var(--accent);
-      color: var(--accentText);
-      font-weight: 950;
-      letter-spacing: .2px;
-      box-shadow: 0 10px 18px rgba(0,0,0,.18);
-      transition: transform .08s ease, filter .12s ease;
-      user-select:none;
-      display:inline-flex;
       align-items:center;
-      gap:8px;
-      text-decoration:none;
-    }
-    .btn:hover{ filter: brightness(1.03); transform: translateY(-1px); }
-    .btn:active{ transform: translateY(0px) scale(.99); }
-    .btn:disabled{ cursor:not-allowed; opacity:.65; transform:none; }
-
-    .grid{
-      margin-top: 14px;
-      display:grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 14px;
-    }
-    @media (max-width: 920px){
-      .grid{ grid-template-columns: 1fr; }
+      justify-content:center;
+      padding:18px;
     }
 
     .cabinet{
-      background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.02));
-      border-radius: var(--radius);
+      width:min(920px, 96vw);
+      border-radius: 26px;
+      background: linear-gradient(180deg, rgba(0,0,0,.26), rgba(0,0,0,.18));
+      box-shadow: var(--shadow);
       border: 1px solid rgba(255,255,255,.14);
-      box-shadow: 0 16px 36px rgba(0,0,0,.28);
-      overflow:hidden;
-      position:relative;
-      padding: 0;
+      backdrop-filter: blur(8px);
+      padding:18px;
     }
 
-    .cabinet::before{
-      content:"";
-      position:absolute;
-      inset:0;
-      background: radial-gradient(circle at top, rgba(255,255,255,.10), transparent 55%);
-      pointer-events:none;
-    }
-
-    .marquee{
-      background: linear-gradient(180deg, rgba(0,0,0,.38), rgba(0,0,0,.18));
-      padding: 12px 12px;
+    .topRow{
       display:flex;
+      gap:14px;
       align-items:center;
-      justify-content:center;
-      border-bottom: 1px solid rgba(255,255,255,.12);
+      justify-content:space-between;
+      margin-bottom:14px;
     }
 
-    .marquee h3{
-      margin:0;
-      font-weight: 950;
-      letter-spacing: .3px;
-      font-size: 16px;
+    .brand{
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+      line-height:1.05;
+    }
+    .brand .title{
+      font-weight:900;
+      letter-spacing:.5px;
+      font-size: clamp(22px, 3.2vw, 34px);
       text-transform: uppercase;
-      display:flex;
-      gap:10px;
-      align-items:center;
-      text-align:center;
+      text-shadow: 0 6px 18px rgba(0,0,0,.35);
+    }
+    .brand .sub{
+      opacity:.9;
+      font-weight:600;
+      font-size: 13px;
     }
 
-    .lights{
-      display:inline-flex;
-      gap:6px;
-      transform: translateY(1px);
+    .badge{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      padding:10px 12px;
+      border-radius: 999px;
+      background: rgba(0,0,0,.20);
+      border: 1px solid rgba(255,255,255,.12);
+      font-weight:700;
+      font-size: 13px;
+      white-space:nowrap;
     }
-    .dot{
-      width:8px;height:8px;border-radius:999px;
-      background: rgba(255,255,255,.35);
-      box-shadow: 0 0 0 2px rgba(0,0,0,.18) inset;
-      opacity:.9;
+
+    .main{
+      display:grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap:14px;
+    }
+
+    @media (max-width: 860px){
+      .main{ grid-template-columns: 1fr; }
+    }
+
+    /* ====== Screen (KEEP the moving lines vibe) ====== */
+    .screenBox{
+      border-radius: 22px;
+      padding:14px;
+      background: linear-gradient(180deg, rgba(0,0,0,.22), rgba(0,0,0,.12));
+      border:1px solid rgba(255,255,255,.12);
+      box-shadow: 0 14px 30px rgba(0,0,0,.25);
+      position:relative;
+      overflow:hidden;
+      min-height: 360px;
     }
 
     .screen{
-      margin: 12px;
-      border-radius: var(--radius2);
-      background: var(--screen);
-      border: 1px solid var(--screenBorder);
-      box-shadow: inset 0 0 0 1px rgba(0,0,0,.22);
-      padding: 14px;
-      min-height: 210px;
+      position:relative;
+      height: 100%;
+      min-height: 330px;
+      border-radius: 18px;
+      background:
+        radial-gradient(900px 420px at 30% 20%, rgba(0,255,255,.20), transparent 60%),
+        radial-gradient(900px 520px at 70% 60%, rgba(255,0,255,.18), transparent 62%),
+        linear-gradient(180deg, rgba(8,18,35,.85), rgba(6,10,18,.92));
+      border: 1px solid rgba(255,255,255,.10);
+      overflow:hidden;
+      box-shadow: inset 0 0 0 2px rgba(255,255,255,.04);
+    }
+
+    /* moving diagonal lines */
+    .screen::before{
+      content:"";
+      position:absolute; inset:-60px;
+      background:
+        repeating-linear-gradient(
+          135deg,
+          rgba(255,255,255,.10) 0px,
+          rgba(255,255,255,.10) 2px,
+          rgba(255,255,255,0) 10px,
+          rgba(255,255,255,0) 18px
+        );
+      opacity:.16;
+      transform: translateX(-20px);
+      animation: sweep 3.8s linear infinite;
+      pointer-events:none;
+    }
+
+    /* scanlines */
+    .screen::after{
+      content:"";
+      position:absolute; inset:0;
+      background:
+        repeating-linear-gradient(
+          to bottom,
+          rgba(0,0,0,.0) 0px,
+          rgba(0,0,0,.0) 3px,
+          rgba(0,0,0,.22) 4px
+        );
+      opacity:.22;
+      mix-blend-mode: multiply;
+      pointer-events:none;
+    }
+
+    @keyframes sweep{
+      0%{ transform: translateX(-60px) translateY(0); }
+      100%{ transform: translateX(60px) translateY(0); }
+    }
+
+    .screenInner{
+      position:absolute; inset:0;
       display:flex;
       flex-direction:column;
-      gap: 10px;
-      justify-content:space-between;
+      align-items:center;
+      justify-content:center;
+      padding:18px;
+      text-align:center;
+      gap:10px;
+    }
+
+    .bigNeon{
+      font-weight: 900;
+      letter-spacing: 1px;
+      font-size: clamp(22px, 3.3vw, 36px);
+      text-transform: uppercase;
+      text-shadow:
+        0 0 10px rgba(0,255,255,.35),
+        0 0 18px rgba(255,0,255,.25),
+        0 10px 24px rgba(0,0,0,.55);
+    }
+
+    .hint{
+      max-width: 42ch;
+      opacity: .92;
+      font-weight: 650;
+      font-size: 14px;
+    }
+
+    .statusLine{
+      margin-top:10px;
+      padding:10px 12px;
+      border-radius: 999px;
+      background: rgba(0,0,0,.22);
+      border:1px solid rgba(255,255,255,.12);
+      font-weight:800;
+      font-size: 13px;
+      letter-spacing:.3px;
+      display:inline-flex;
+      gap:8px;
+      align-items:center;
+    }
+
+    /* ====== Control Panel ====== */
+    .panel{
+      border-radius: 22px;
+      padding:14px;
+      background: linear-gradient(180deg, rgba(0,0,0,.22), rgba(0,0,0,.12));
+      border:1px solid rgba(255,255,255,.12);
+      box-shadow: 0 14px 30px rgba(0,0,0,.25);
       position:relative;
       overflow:hidden;
     }
 
-    .scanline{
-      position:absolute;
-      inset:0;
-      background: repeating-linear-gradient(
-        to bottom,
-        rgba(255,255,255,.06) 0px,
-        rgba(255,255,255,.06) 1px,
-        transparent 2px,
-        transparent 6px
-      );
-      opacity:.12;
-      pointer-events:none;
-      mix-blend-mode: overlay;
-    }
-
-    .screenTop{
+    .panelTitle{
+      font-weight: 900;
+      letter-spacing:.6px;
+      text-transform:uppercase;
+      font-size: 13px;
+      opacity:.95;
+      margin-bottom:10px;
       display:flex;
-      gap: 12px;
-      align-items:flex-start;
+      justify-content:space-between;
+      gap:8px;
+      align-items:center;
     }
 
-    .emoji{
-      font-size: 40px;
-      line-height: 1;
-      filter: drop-shadow(0 10px 18px rgba(0,0,0,.35));
+    .controls{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap:12px;
+    }
+
+    .row{
+      display:flex;
+      gap:12px;
+      align-items:center;
+      justify-content:space-between;
+    }
+
+    .joystickBase{
+      width: 150px;
+      height: 150px;
+      border-radius: 22px;
+      background: rgba(255,255,255,.10);
+      border:1px solid rgba(255,255,255,.14);
+      box-shadow: inset 0 0 0 2px rgba(255,255,255,.04);
+      position:relative;
       flex: 0 0 auto;
     }
 
-    .desc{
-      margin:0;
-      font-weight: 850;
-      font-size: 13px;
-      line-height: 1.35;
-      opacity: .95;
+    .joyPad{
+      position:absolute; inset:10px;
+      border-radius: 16px;
+      background: rgba(0,0,0,.18);
+      border:1px solid rgba(255,255,255,.10);
+      overflow:hidden;
     }
 
-    .playBtn{
+    .stick{
+      position:absolute;
+      left:50%; top:50%;
+      width: 70px; height: 70px;
+      transform: translate(-50%,-50%);
+      border-radius: 999px;
+      background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.70), rgba(255,255,255,.08));
+      border:1px solid rgba(255,255,255,.18);
+      box-shadow: 0 14px 24px rgba(0,0,0,.35);
+      transition: transform .09s ease;
+      cursor:pointer;
+      user-select:none;
+      touch-action: manipulation;
+    }
+
+    .stick::after{
+      content:"";
+      position:absolute; inset: 10px;
+      border-radius: 999px;
+      background: rgba(0,0,0,.10);
+      border: 1px solid rgba(255,255,255,.10);
+    }
+
+    .btnGroup{
       display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      justify-content:flex-end;
       align-items:center;
+    }
+
+    .btnArc{
+      width: 54px; height: 54px;
+      border-radius: 999px;
+      border:1px solid rgba(255,255,255,.16);
+      background: rgba(255,255,255,.10);
+      box-shadow: 0 10px 18px rgba(0,0,0,.25);
+      cursor:pointer;
+      user-select:none;
+      touch-action: manipulation;
+      position:relative;
+      overflow:hidden;
+      display:grid;
+      place-items:center;
+      font-weight: 900;
+      color:#fff;
+      text-shadow: 0 8px 18px rgba(0,0,0,.4);
+      transition: transform .08s ease;
+    }
+    .btnArc:active{ transform: translateY(1px) scale(.98); }
+
+    .btnArc .glow{
+      position:absolute; inset:-30px;
+      background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.55), transparent 55%);
+      opacity:.0;
+      transition: opacity .12s ease;
+      pointer-events:none;
+    }
+    .btnArc.lit .glow{ opacity:.9; }
+
+    .bigBtn{
+      width: 100%;
+      border:0;
+      border-radius: 16px;
+      padding: 14px 14px;
+      background: linear-gradient(180deg, var(--btnYellow), var(--btnYellow2));
+      color: var(--btnText);
+      font-weight: 1000;
+      letter-spacing:.5px;
+      text-transform: uppercase;
+      box-shadow: 0 12px 24px rgba(0,0,0,.25);
+      cursor:pointer;
+      display:flex;
       justify-content:center;
       gap:10px;
-      text-decoration:none;
-      border-radius: 16px;
-      padding: 12px 14px;
-      font-weight: 950;
-      letter-spacing: .2px;
-      background: var(--accent);
-      color: var(--accentText);
-      box-shadow: 0 12px 26px rgba(0,0,0,.25);
-      border: 1px solid rgba(255,255,255,.12);
-      user-select:none;
-      transition: transform .08s ease, filter .12s ease;
-      font-size: 15px;
-    }
-    .playBtn:active{ transform: translateY(1px) scale(.99); }
-    .playBtn:hover{ filter: brightness(1.02); }
-
-    .playBtn.disabled{
-      opacity:.65;
-      pointer-events:none;
-      filter: none !important;
-      transform:none !important;
-    }
-
-    .controlsBar{
-      display:flex;
-      justify-content:space-between;
       align-items:center;
-      padding: 10px 12px 12px;
-      border-top: 1px solid rgba(255,255,255,.10);
-      background: rgba(0,0,0,.14);
+      font-size: 14px;
+      transition: transform .08s ease;
+      touch-action: manipulation;
+    }
+    .bigBtn:active{ transform: translateY(1px); }
+
+    .smallNote{
+      opacity:.9;
+      font-size: 12px;
+      line-height:1.35;
     }
 
-    .joystick{
-      width: 34px;
-      height: 34px;
-      border-radius: 999px;
-      background: radial-gradient(circle at 35% 35%, rgba(255,255,255,.28), rgba(255,255,255,.06));
-      border: 1px solid rgba(255,255,255,.14);
-      box-shadow: inset 0 0 0 2px rgba(0,0,0,.18);
+    /* ====== Coin animation lane ====== */
+    .coinLane{
+      margin-top:10px;
+      width: 100%;
+      height: 64px;
+      border-radius: 16px;
+      background: rgba(0,0,0,.18);
+      border:1px solid rgba(255,255,255,.12);
+      overflow:hidden;
+      position:relative;
+      display:flex;
+      align-items:center;
+      justify-content:flex-end;
+      padding: 0 14px;
+    }
+
+    .slot{
+      width: 70px;
+      height: 28px;
+      border-radius: 10px;
+      background: rgba(255,255,255,.10);
+      border: 1px solid rgba(255,255,255,.18);
+      box-shadow: inset 0 0 0 2px rgba(0,0,0,.16);
       position:relative;
     }
-    .joystick::after{
+    .slot::after{
       content:"";
       position:absolute;
-      width: 12px;height:12px;
-      border-radius:999px;
-      background: rgba(0,0,0,.25);
-      border: 1px solid rgba(255,255,255,.12);
-      left: 9px; top: 9px;
-      box-shadow: 0 8px 16px rgba(0,0,0,.25);
-    }
-
-    .buttons{ display:flex; gap:8px; align-items:center; }
-    .btnDot{
-      width: 14px;
-      height: 14px;
+      left:10px; right:10px;
+      top:50%;
+      height:6px;
+      transform: translateY(-50%);
       border-radius: 999px;
-      background: rgba(255,255,255,.20);
-      border: 1px solid rgba(255,255,255,.14);
-      box-shadow: 0 10px 18px rgba(0,0,0,.18);
+      background: rgba(0,0,0,.55);
     }
-    .btnDot.a{ background: rgba(255, 80, 140, .55); }
-    .btnDot.b{ background: rgba(124, 255, 199, .55); }
-    .btnDot.c{ background: rgba(255, 221, 85, .55); }
 
+    .coin{
+      position:absolute;
+      left:-80px;
+      width: 44px;
+      height: 44px;
+      border-radius: 999px;
+      background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.85), rgba(255,215,0,.75));
+      border: 2px solid rgba(255,255,255,.35);
+      box-shadow: 0 12px 22px rgba(0,0,0,.35);
+      display:grid;
+      place-items:center;
+      font-weight: 1000;
+      color: rgba(0,0,0,.55);
+      text-shadow: none;
+      opacity:0;
+      transform: rotate(0deg);
+    }
+
+    /* slower roll */
+    .coin.run{
+      opacity:1;
+      animation: roll 1.8s ease-in-out forwards;
+    }
+
+    @keyframes roll{
+      0%   { left:-80px; transform: rotate(0deg) scale(.95); }
+      65%  { left: calc(100% - 132px); transform: rotate(520deg) scale(1.0); }
+      100% { left: calc(100% - 92px);  transform: rotate(720deg) scale(.92); opacity:0; }
+    }
+
+    /* ====== Party lights on “power up” ====== */
+    .party{
+      position:absolute; inset:-40px;
+      pointer-events:none;
+      opacity:0;
+      background:
+        radial-gradient(240px 160px at 20% 30%, rgba(0,255,255,.75), transparent 60%),
+        radial-gradient(260px 180px at 70% 35%, rgba(255,0,255,.65), transparent 62%),
+        radial-gradient(220px 180px at 50% 80%, rgba(255,255,255,.45), transparent 62%),
+        repeating-linear-gradient(
+          90deg,
+          rgba(255,255,255,.0) 0px,
+          rgba(255,255,255,.0) 26px,
+          rgba(255,255,255,.25) 36px
+        );
+      mix-blend-mode: screen;
+      transition: opacity .12s ease;
+      filter: blur(.4px);
+    }
+    .party.on{ opacity:1; }
+
+    /* ====== Footer ====== */
     .foot{
-      margin-top: 12px;
-      opacity: .88;
-      font-weight: 750;
+      margin-top:14px;
+      opacity:.85;
       font-size: 12px;
       text-align:center;
+      font-weight:700;
     }
 
-    .tape{
-      position:absolute;
-      left:-18%;
-      top: 44%;
-      width: 136%;
-      padding: 10px 0;
-      text-align:center;
-      font-weight: 950;
-      letter-spacing: .9px;
-      text-transform: uppercase;
-      color: #ffffff;
-      text-shadow: 0 2px 4px rgba(0,0,0,.8);
-      background: repeating-linear-gradient(
-        45deg,
-        rgba(255,221,85,.92) 0px,
-        rgba(255,221,85,.92) 14px,
-        rgba(0,0,0,.85) 14px,
-        rgba(0,0,0,.85) 28px
-      );
-      transform: rotate(-12deg);
-      box-shadow: 0 18px 40px rgba(0,0,0,.45);
-      border-top: 1px solid rgba(255,255,255,.18);
-      border-bottom: 1px solid rgba(255,255,255,.18);
-      z-index: 5;
-      pointer-events:none;
+    /* reduce motion support */
+    @media (prefers-reduced-motion: reduce){
+      .screen::before, .spark, .coin.run{ animation:none !important; }
+      .stick{ transition:none; }
     }
   </style>
 </head>
-
 <body>
+  <div class="bg" id="bg">
+    <!-- some sparks -->
+    <div class="spark" style="left:10%; top:16%; animation-delay:.1s;"></div>
+    <div class="spark" style="left:18%; top:70%; animation-delay:1.1s;"></div>
+    <div class="spark" style="left:40%; top:22%; animation-delay:.6s;"></div>
+    <div class="spark" style="left:62%; top:18%; animation-delay:1.6s;"></div>
+    <div class="spark" style="left:82%; top:66%; animation-delay:.9s;"></div>
+    <div class="spark" style="left:90%; top:30%; animation-delay:1.9s;"></div>
+  </div>
+
+  <div class="powerOverlay" id="powerOverlay"></div>
+
   <div class="wrap">
-    <div class="panel">
-      <img class="header" src="header.png" alt="Little Ollie Arcade" />
-
-      <div class="grid">
-        <!-- Memory Game -->
-        <div class="cabinet">
-          <div class="marquee">
-            <h3>
-              <span class="lights">
-                <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-              </span>
-              Memory Game
-              <span class="lights">
-                <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-              </span>
-            </h3>
-          </div>
-
-          <div class="screen">
-            <div class="scanline"></div>
-            <div class="screenTop">
-              <div class="emoji">🧠</div>
-              <p class="desc">Flip cards and find matching pairs.</p>
-            </div>
-            <a class="playBtn" href="./memory-game/index.html">▶️ PLAY</a>
-          </div>
-
-          <div class="controlsBar">
-            <div class="joystick" aria-hidden="true"></div>
-            <div class="buttons" aria-hidden="true">
-              <div class="btnDot a"></div>
-              <div class="btnDot b"></div>
-              <div class="btnDot c"></div>
-            </div>
-          </div>
+    <div class="cabinet" id="cabinet">
+      <div class="topRow">
+        <div class="brand">
+          <div class="title">Little Ollie Arcade</div>
+          <div class="sub">Insert coin to begin… 🎮</div>
         </div>
-
-        <!-- Row Match -->
-        <div class="cabinet">
-          <div class="marquee">
-            <h3>
-              <span class="lights">
-                <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-              </span>
-              Row Match
-              <span class="lights">
-                <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-              </span>
-            </h3>
-          </div>
-
-          <div class="screen">
-            <div class="scanline"></div>
-            <div class="screenTop">
-              <div class="emoji">🧩</div>
-              <p class="desc">Slide tiles to make each row match.</p>
-            </div>
-            <a class="playBtn" href="./row-match/index.html">▶️ PLAY</a>
-          </div>
-
-          <div class="controlsBar">
-            <div class="joystick" aria-hidden="true"></div>
-            <div class="buttons" aria-hidden="true">
-              <div class="btnDot a"></div>
-              <div class="btnDot b"></div>
-              <div class="btnDot c"></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Slider Puzzle -->
-        <div class="cabinet">
-          <div class="marquee">
-            <h3>
-              <span class="lights">
-                <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-              </span>
-              Slider Puzzle
-              <span class="lights">
-                <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-              </span>
-            </h3>
-          </div>
-
-          <div class="screen">
-            <div class="scanline"></div>
-            <div class="screenTop">
-              <div class="emoji">🧊</div>
-              <p class="desc">Slide tiles to rebuild the picture.</p>
-            </div>
-            <a class="playBtn" href="./slider-puzzle/index.html">▶️ PLAY</a>
-          </div>
-
-          <div class="controlsBar">
-            <div class="joystick" aria-hidden="true"></div>
-            <div class="buttons" aria-hidden="true">
-              <div class="btnDot a"></div>
-              <div class="btnDot b"></div>
-              <div class="btnDot c"></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- X's + O's -->
-        <div class="cabinet">
-          <div class="marquee">
-            <h3>
-              <span class="lights">
-                <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-              </span>
-              X&#39;s + O&#39;s
-              <span class="lights">
-                <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-              </span>
-            </h3>
-          </div>
-
-          <div class="screen">
-            <div class="scanline"></div>
-            <div class="screenTop">
-              <div class="emoji">✖️⭕</div>
-              <p class="desc">Play 2-player or vs Computer. Get 3 in a row to win.</p>
-            </div>
-            <a class="playBtn" href="./noughts-and-crosses/index.html">▶️ PLAY</a>
-          </div>
-
-          <div class="controlsBar">
-            <div class="joystick" aria-hidden="true"></div>
-            <div class="buttons" aria-hidden="true">
-              <div class="btnDot a"></div>
-              <div class="btnDot b"></div>
-              <div class="btnDot c"></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Juggler -->
-        <div class="cabinet">
-          <div class="marquee">
-            <h3>
-              <span class="lights">
-                <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-              </span>
-              Juggler
-              <span class="lights">
-                <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-              </span>
-            </h3>
-          </div>
-
-          <div class="screen">
-            <div class="scanline"></div>
-            <div class="screenTop">
-              <div class="emoji">🤹</div>
-              <p class="desc">Keep it up! Tap to juggle and chase a high score.</p>
-            </div>
-            <a class="playBtn" href="./juggler/index.html">▶️ PLAY</a>
-          </div>
-
-          <div class="controlsBar">
-            <div class="joystick" aria-hidden="true"></div>
-            <div class="buttons" aria-hidden="true">
-              <div class="btnDot a"></div>
-              <div class="btnDot b"></div>
-              <div class="btnDot c"></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- SNAP -->
-        <div class="cabinet">
-          <div class="marquee">
-            <h3>
-              <span class="lights">
-                <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-              </span>
-              Snap
-              <span class="lights">
-                <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-              </span>
-            </h3>
-          </div>
-
-          <div class="screen">
-            <div class="scanline"></div>
-            <div class="screenTop">
-              <div class="emoji">🃏</div>
-              <p class="desc">Fast reflex card game. Be the quickest to SNAP!</p>
-            </div>
-            <a class="playBtn" href="./snap/index.html">▶️ PLAY</a>
-          </div>
-
-          <div class="controlsBar">
-            <div class="joystick" aria-hidden="true"></div>
-            <div class="buttons" aria-hidden="true">
-              <div class="btnDot a"></div>
-              <div class="btnDot b"></div>
-              <div class="btnDot c"></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Forge Locator (folder: marble-draw) -->
-        <div class="cabinet">
-          <div class="marquee">
-            <h3>
-              <span class="lights">
-                <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-              </span>
-              Forge Locator
-              <span class="lights">
-                <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-              </span>
-            </h3>
-          </div>
-
-          <div class="screen">
-            <div class="scanline"></div>
-            <div class="screenTop">
-              <div class="emoji">🗺️</div>
-              <p class="desc">Draw the path and guide the marble to the Forge.</p>
-            </div>
-            <a class="playBtn" href="./marble-draw/index.html">▶️ PLAY</a>
-          </div>
-
-          <div class="controlsBar">
-            <div class="joystick" aria-hidden="true"></div>
-            <div class="buttons" aria-hidden="true">
-              <div class="btnDot a"></div>
-              <div class="btnDot b"></div>
-              <div class="btnDot c"></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Under Construction – Locked Cabinet -->
-        <div class="cabinet">
-          <div class="tape">LOCKED</div>
-
-          <div class="marquee">
-            <h3>
-              <span class="lights">
-                <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-              </span>
-              Secret Game
-              <span class="lights">
-                <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-              </span>
-            </h3>
-          </div>
-
-          <div class="screen">
-            <div class="scanline"></div>
-            <div class="screenTop">
-              <div class="emoji">🔒</div>
-              <p class="desc">This cabinet is locked… for now.</p>
-            </div>
-            <a class="playBtn disabled" href="#" aria-disabled="true">🔐 LOCKED</a>
-          </div>
-
-          <div class="controlsBar">
-            <div class="joystick" aria-hidden="true"></div>
-            <div class="buttons" aria-hidden="true">
-              <div class="btnDot a"></div>
-              <div class="btnDot b"></div>
-              <div class="btnDot c"></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Locked / Under Construction (Alt Style) -->
-        <div class="cabinet">
-          <div class="tape">UNDER CONSTRUCTION</div>
-
-          <div class="marquee">
-            <h3>
-              <span class="lights">
-                <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-              </span>
-              Locked Cabinet
-              <span class="lights">
-                <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-              </span>
-            </h3>
-          </div>
-
-          <div class="screen">
-            <div class="scanline"></div>
-
-            <div class="screenTop">
-              <div class="emoji">🔒</div>
-              <p class="desc">
-                This cabinet is offline.<br>
-                Technicians are wiring something fun.
-              </p>
-            </div>
-
-            <a class="playBtn disabled" href="#" aria-disabled="true">
-              🚧 OFFLINE
-            </a>
-          </div>
-
-          <div class="controlsBar">
-            <div class="joystick" aria-hidden="true"></div>
-            <div class="buttons" aria-hidden="true">
-              <div class="btnDot a"></div>
-              <div class="btnDot b"></div>
-              <div class="btnDot c"></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Coming Soon #1 -->
-        <div class="cabinet">
-          <div class="tape">UNDER CONSTRUCTION</div>
-
-          <div class="marquee">
-            <h3>
-              <span class="lights">
-                <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-              </span>
-              Coming Soon
-              <span class="lights">
-                <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-              </span>
-            </h3>
-          </div>
-
-          <div class="screen">
-            <div class="scanline"></div>
-            <div class="screenTop">
-              <div class="emoji">🚧</div>
-              <p class="desc">New game cabinet powering up…</p>
-            </div>
-            <a class="playBtn disabled" href="#" aria-disabled="true">🔒 COMING SOON</a>
-          </div>
-
-          <div class="controlsBar">
-            <div class="joystick" aria-hidden="true"></div>
-            <div class="buttons" aria-hidden="true">
-              <div class="btnDot a"></div>
-              <div class="btnDot b"></div>
-              <div class="btnDot c"></div>
-            </div>
-          </div>
-        </div>
-
+        <div class="badge" id="badge">🕹️ Ready</div>
       </div>
 
-      <div class="foot">Little Ollie Arcade 🎮</div>
+      <div class="main">
+        <!-- Screen -->
+        <div class="screenBox">
+          <div class="screen" id="screen">
+            <div class="party" id="party"></div>
+            <div class="screenInner">
+              <div class="bigNeon">Press ENTER / PLAY</div>
+              <div class="hint">A tiny arcade hidden in the clouds… powered by late nights, big imaginations, and a little bit of magic.</div>
+              <div class="statusLine" id="statusLine">💿 STATUS: <span id="statusText">Waiting for input…</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="panel">
+          <div class="panelTitle">
+            <span>CONTROL PANEL</span>
+            <span id="inputReadout" style="opacity:.85;font-weight:900;">JOY: CENTER</span>
+          </div>
+
+          <div class="controls">
+            <div class="row">
+              <div class="joystickBase">
+                <div class="joyPad"></div>
+                <div class="stick" id="stick" aria-label="Joystick" title="Tap to move the joystick"></div>
+              </div>
+
+              <div class="btnGroup">
+                <div class="btnArc" data-btn="A" title="Button A"><div class="glow"></div>A</div>
+                <div class="btnArc" data-btn="B" title="Button B"><div class="glow"></div>B</div>
+                <div class="btnArc" data-btn="C" title="Button C"><div class="glow"></div>C</div>
+                <div class="btnArc" data-btn="D" title="Button D"><div class="glow"></div>D</div>
+              </div>
+            </div>
+
+            <button class="bigBtn" id="playBtn">▶️ ENTER / PLAY</button>
+
+            <div class="coinLane" aria-hidden="true">
+              <div class="coin" id="coin">¢</div>
+              <div class="slot"></div>
+            </div>
+
+            <div class="smallNote" id="note">
+              Tip: Tap the joystick + buttons for fun. Hit <b>ENTER / PLAY</b> to roll the coin, light the cabinet, then jump into the Arcade Menu.
+            </div>
+          </div>
+
+          <div class="foot">Little Ollie Arcade — Landing Page</div>
+        </div>
+      </div>
     </div>
   </div>
+
+  <script>
+    const stick = document.getElementById('stick');
+    const inputReadout = document.getElementById('inputReadout');
+    const badge = document.getElementById('badge');
+    const statusText = document.getElementById('statusText');
+    const playBtn = document.getElementById('playBtn');
+    const coin = document.getElementById('coin');
+    const party = document.getElementById('party');
+    const powerOverlay = document.getElementById('powerOverlay');
+    const screen = document.getElementById('screen');
+
+    // Button lighting colours (no CSS variables needed)
+    const btnColors = [
+      'rgba(0,255,255,.65)',   // cyan
+      'rgba(255,0,255,.60)',   // magenta
+      'rgba(255,215,0,.62)',   // gold
+      'rgba(124,255,80,.55)',  // green
+      'rgba(255,90,90,.55)'    // red
+    ];
+
+    // === Joystick click = move around ===
+    let joyState = { x:0, y:0 };
+    function setJoy(x,y){
+      joyState.x = x; joyState.y = y;
+      // limit
+      const max = 22;
+      const lx = Math.max(-max, Math.min(max, x));
+      const ly = Math.max(-max, Math.min(max, y));
+      stick.style.transform = `translate(calc(-50% + ${lx}px), calc(-50% + ${ly}px))`;
+      const label =
+        (lx===0 && ly===0) ? "JOY: CENTER" :
+        (ly < -10 ? "JOY: UP" : ly > 10 ? "JOY: DOWN" : "JOY: MID") + " • " +
+        (lx < -10 ? "LEFT" : lx > 10 ? "RIGHT" : "CENTER");
+      inputReadout.textContent = label;
+      badge.textContent = "🕹️ Input!";
+      statusText.textContent = "Joystick moved…";
+      setTimeout(()=>{ badge.textContent="🕹️ Ready"; }, 700);
+    }
+
+    // Tap joystick cycles directions (simple + super reliable on iPhone)
+    const joyPositions = [
+      {x:0,y:0, name:"CENTER"},
+      {x:-18,y:0, name:"LEFT"},
+      {x:18,y:0, name:"RIGHT"},
+      {x:0,y:-18, name:"UP"},
+      {x:0,y:18, name:"DOWN"},
+      {x:-14,y:-14, name:"UP-LEFT"},
+      {x:14,y:-14, name:"UP-RIGHT"},
+      {x:-14,y:14, name:"DOWN-LEFT"},
+      {x:14,y:14, name:"DOWN-RIGHT"},
+    ];
+    let joyIndex = 0;
+    stick.addEventListener('click', () => {
+      joyIndex = (joyIndex + 1) % joyPositions.length;
+      const p = joyPositions[joyIndex];
+      setJoy(p.x, p.y);
+      statusText.textContent = `Joystick: ${p.name}`;
+    });
+
+    // === Buttons light up when clicked ===
+    document.querySelectorAll('.btnArc').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const c = btnColors[Math.floor(Math.random()*btnColors.length)];
+        btn.classList.add('lit');
+        btn.style.background = `radial-gradient(circle at 30% 30%, rgba(255,255,255,.35), ${c})`;
+        badge.textContent = "✨ Button!";
+        statusText.textContent = `Button ${btn.dataset.btn} pressed…`;
+
+        // tiny screen pulse
+        screen.style.transform = "scale(1.003)";
+        setTimeout(()=> screen.style.transform = "", 110);
+
+        setTimeout(()=>{
+          btn.classList.remove('lit');
+          btn.style.background = "rgba(255,255,255,.10)";
+          badge.textContent = "🕹️ Ready";
+        }, 520);
+      });
+    });
+
+    // === Enter/Play flow ===
+    let busy = false;
+
+    function flashParty(times=5){
+      // quick strobe without being seizure-y
+      let i = 0;
+      const t = setInterval(()=>{
+        party.classList.toggle('on');
+        powerOverlay.classList.toggle('on');
+        i++;
+        if(i >= times){
+          clearInterval(t);
+          party.classList.remove('on');
+          powerOverlay.classList.remove('on');
+        }
+      }, 120);
+    }
+
+    function goToArcade(){
+      // redirect to your menu page
+      window.location.href = "./arcade.html";
+    }
+
+    function runInsertCoin(){
+      if(busy) return;
+      busy = true;
+
+      playBtn.disabled = true;
+      playBtn.style.opacity = ".85";
+      badge.textContent = "🪙 Inserting…";
+      statusText.textContent = "Rolling coin…";
+
+      // coin rolls slower (1.8s) and then we do the big light-up
+      coin.classList.remove('run'); // reset
+      void coin.offsetWidth;        // reflow reset
+      coin.classList.add('run');
+
+      // As coin nears slot, do a mini “warm up”
+      setTimeout(()=>{
+        party.classList.add('on');
+        statusText.textContent = "Powering up…";
+      }, 1050);
+
+      // After coin completes, BIG flash + go
+      setTimeout(()=>{
+        party.classList.remove('on');
+        flashParty(8);
+        badge.textContent = "⚡ POWER UP!";
+        statusText.textContent = "WELCOME…";
+      }, 1850);
+
+      // Redirect after the flash moment
+      setTimeout(()=>{
+        goToArcade();
+      }, 2700);
+    }
+
+    playBtn.addEventListener('click', runInsertCoin);
+
+    // Optional: keyboard enter
+    window.addEventListener('keydown', (e)=>{
+      if(e.key === "Enter") runInsertCoin();
+    });
+  </script>
 </body>
 </html>

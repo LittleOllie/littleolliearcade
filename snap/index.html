@@ -280,6 +280,27 @@
       gap:10px;
     }
     .muted{ opacity:.9; font-weight:800; }
+
+    /* ✅ FOOTER: Powered by Little Ollie Studio (same as Row Match) */
+    .lo-footer{
+      text-align:center;
+      margin-top: 8px;
+      padding: 10px 8px;
+      font-weight: 900;
+      font-size: 12px;
+      letter-spacing: .2px;
+      opacity: .92;
+    }
+    .lo-footer a{
+      color: rgba(255,255,255,.95);
+      text-decoration: none;
+      border-bottom: 1px dashed rgba(255,255,255,.45);
+      padding-bottom: 2px;
+    }
+    .lo-footer a:hover{
+      opacity: 1;
+      border-bottom-color: rgba(255,255,255,.85);
+    }
   </style>
 </head>
 
@@ -328,6 +349,11 @@
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- ✅ FOOTER (inside .wrap so it stays at the bottom, centered) -->
+    <div class="lo-footer">
+      ⚡ Powered by <a href="#" onclick="return false;">Little Ollie Studio</a>
     </div>
 
     <!-- Win modal -->

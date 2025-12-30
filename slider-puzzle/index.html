@@ -46,7 +46,7 @@
       display:flex;
       justify-content:center;
       align-items:flex-start;
-      padding:18px 10px 30px;
+      padding:18px 10px 46px;
       background: radial-gradient(circle at top, #6de0ff, #4c6fff);
       font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
       color:#fff;
@@ -280,6 +280,29 @@
       background: rgba(255,255,255,.10);
       border: 1px solid rgba(255,255,255,.12);
     }
+/* ✅ FOOTER: Powered by Little Ollie Studio */
+.lo-footer{
+  text-align:center;
+  margin-top: 14px;
+  padding: 10px 8px;
+  font-weight: 900;
+  font-size: 12px;
+  letter-spacing: .2px;
+  opacity: .92;
+}
+.lo-footer a{
+  color: rgba(255,255,255,.95);
+  text-decoration: none;
+  border-bottom: 1px dashed rgba(255,255,255,.45);
+  padding-bottom: 2px;
+}
+.lo-footer a:hover{
+  opacity: 1;
+  border-bottom-color: rgba(255,255,255,.85);
+}
+
+}
+
   </style>
 </head>
 
@@ -317,6 +340,9 @@
     <div class="main">
       <div class="boardCard">
         <div id="board" class="board"></div>
+    <div class="lo-footer">
+      ⚡ Powered by <a href="#" onclick="return false;">Little Ollie Studio</a>
+    </div>
       </div>
 
       <div class="sideCard">
@@ -337,6 +363,7 @@
       </div>
     </div>
   </div>
+
 
   <!-- PLAYER SETUP overlay -->
   <div class="overlay" id="playerOverlay">

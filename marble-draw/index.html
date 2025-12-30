@@ -106,6 +106,28 @@
     .small{ font-weight:800; opacity:.95; font-size: 14px; }
     .muted{ opacity:.85; font-weight:800; }
 
+    /* ✅ NEW: compact ink pill for the top bar */
+    .inkPill{
+      display:flex;
+      gap: 10px;
+      align-items:center;
+      min-width: 240px;
+    }
+    .inkMeter{
+      width: 120px;
+      height: 10px;
+      border-radius: 999px;
+      overflow:hidden;
+      background: rgba(255,255,255,.12);
+      border: 1px solid rgba(255,255,255,.16);
+    }
+    .inkFill{
+      height:100%;
+      width: 100%;
+      background: linear-gradient(90deg, rgba(255,255,255,.9), rgba(255,255,255,.45));
+      border-radius: 999px;
+    }
+
     .gameWrap{
       width:100%;
       background: var(--panel);
@@ -132,41 +154,6 @@
       inset: 10px;
       border-radius: 16px;
       pointer-events:none;
-    }
-
-    /* Ink meter */
-    .inkBox{
-      position:absolute;
-      left: 16px;
-      bottom: 16px;
-      width: min(280px, 55%);
-      background: rgba(0,0,0,.28);
-      border-radius: 16px;
-      padding: 10px 12px;
-      box-shadow: 0 12px 26px rgba(0,0,0,.35);
-      pointer-events:none;
-    }
-    .inkTop{
-      display:flex;
-      justify-content:space-between;
-      font-weight: 900;
-      font-size: 14px;
-      letter-spacing:.2px;
-      margin-bottom: 8px;
-      opacity:.95;
-    }
-    .meter{
-      height: 12px;
-      border-radius: 999px;
-      overflow:hidden;
-      background: rgba(255,255,255,.12);
-      border: 1px solid rgba(255,255,255,.16);
-    }
-    .fill{
-      height:100%;
-      width: 100%;
-      background: linear-gradient(90deg, rgba(255,255,255,.9), rgba(255,255,255,.45));
-      border-radius: 999px;
     }
 
     .toast{
@@ -217,6 +204,7 @@
       font-weight: 800;
       line-height: 1.35;
       margin-bottom: 12px;
+      white-space: pre-line;
     }
     .stars{
       font-size: 22px;
@@ -229,11 +217,29 @@
       justify-content:flex-end;
     }
 
+    /* ✅ Powered by */
+    .poweredBy{
+      text-align:center;
+      margin: 10px 0 0;
+      opacity:.85;
+      font-weight: 800;
+      font-size: 13px;
+    }
+    .poweredBy a{
+      color: rgba(255,255,255,.95);
+      text-decoration: none;
+      border-bottom: 1px dashed rgba(255,255,255,.45);
+    }
+    .poweredBy a:hover{
+      opacity: 1;
+    }
+
     @media (max-width: 560px){
       body{ padding: 10px; }
       .btn{ padding: 10px 12px; border-radius: 13px; }
       .pill{ padding: 8px 10px; }
-      .inkBox{ width: min(240px, 70%); }
+      .inkPill{ min-width: 210px; }
+      .inkMeter{ width: 95px; }
     }
   </style>
 </head>
@@ -246,7 +252,7 @@
       <img class="headerImg" src="header.png" alt="Chainstone: The Forge" />
     </div>
 
-    <!-- BUTTON BAR (yellow buttons, left-to-right under header) -->
+    <!-- BUTTON BAR -->
     <div class="bar">
       <div class="leftBtns">
         <button class="btn" id="btnDifficulty">🔥 Difficulty: <span id="difficultyLabel">Ember</span></button>
@@ -257,6 +263,13 @@
 
       <div class="rightInfo">
         <div class="pill">🗺️ <span class="small">Level</span> <span id="levelLabel">1</span>/<span id="levelTotal">10</span></div>
+
+        <!-- ✅ MOVED INK HERE (between Level and Run Time) -->
+        <div class="pill inkPill" title="Chalk Ink remaining">
+          🖍️ <span class="small">Ink</span> <span id="inkLeft">100</span>%
+          <div class="inkMeter" aria-hidden="true"><div class="inkFill" id="inkFill"></div></div>
+        </div>
+
         <div class="pill">⏱️ <span class="small">Run Time</span> <span id="runTime">0.0</span>s</div>
         <div class="pill">🏁 <span class="small">Total</span> <span id="totalTime">0.0</span>s</div>
         <div class="pill">✨ <span class="small">Embers</span> <span id="embers">0</span></div>
@@ -269,18 +282,12 @@
 
       <div class="overlay">
         <div class="toast" id="toast">Draw a chalk track, then press Start ▶️</div>
-
-        <div class="inkBox">
-          <div class="inkTop">
-            <div>🖍️ Chalk Ink</div>
-            <div><span id="inkLeft">100</span>%</div>
-          </div>
-          <div class="meter"><div class="fill" id="inkFill"></div></div>
-          <div class="muted" style="margin-top:8px; font-size:13px;">
-            Draw anywhere • Start locks drawing until Clear
-          </div>
-        </div>
       </div>
+    </div>
+
+    <!-- ✅ Powered By goes HERE (inside app, below the game) -->
+    <div class="poweredBy">
+      ⚡Powered by <a href="#" onclick="return false;">Little Ollie Studio</a>
     </div>
 
   </div>
@@ -301,13 +308,7 @@
 <script>
 (() => {
   // ============================================================
-  //  CHAINSTONE: THE FORGE (single-screen, mobile friendly)
-  //  - Chalk draw track
-  //  - Start locks drawing
-  //  - Timer counts only while rolling
-  //  - Embers reduce time
-  //  - Stars per level
-  //  - Fixed levels per difficulty (Option B: Ember/Heated/Molten)
+  //  CHAINSTONE: THE FORGE
   // ============================================================
 
   const cv = document.getElementById("cv");
@@ -339,18 +340,15 @@
 
   // Canvas scaling to fit container while keeping internal physics resolution
   function resizeCanvasToFit() {
-    // Keep internal resolution constant for stable physics; just let CSS scale it.
-    // But adjust internal size for better mobile sharpness:
     const wrap = cv.getBoundingClientRect();
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     const targetW = Math.max(320, Math.floor(wrap.width * dpr));
-    const targetH = Math.floor(targetW * (9/16)); // 16:9-ish
+    const targetH = Math.floor(targetW * (9/16));
     cv.width = targetW;
     cv.height = targetH;
   }
   window.addEventListener("resize", () => {
     resizeCanvasToFit();
-    // Rebuild current level to match new dimensions
     loadLevel(currentDifficulty, currentLevelIndex);
   });
 
@@ -369,30 +367,24 @@
   }
 
   // ============================================================
-  // LEVEL DATA (fixed, guaranteed solvable "feel" with basic obstacles)
-  // Coordinates are normalized (0..1) so they adapt to canvas size.
+  // LEVEL DATA
   // ============================================================
 
   const DIFFICULTIES = ["Ember","Heated","Molten"];
   let currentDifficulty = "Ember";
   let currentLevelIndex = 0;
 
-  // Each level: start, goal, solids (walls/ramps), hazards optional, embers
-  // Solids are line segments in normalized coords.
   function L(start, goal, solids, embers, starTimes){
-    return { start, goal, solids, embers, starTimes }; // starTimes: [3*,2*,1*] thresholds
+    return { start, goal, solids, embers, starTimes };
   }
 
   const levelsByDiff = {
     Ember: [
       L([0.12,0.28],[0.86,0.72],
         [
-          // outer bounds (keep ball in)
           [[0.05,0.10],[0.95,0.10]], [[0.95,0.10],[0.95,0.90]],
           [[0.95,0.90],[0.05,0.90]], [[0.05,0.90],[0.05,0.10]],
-          // starter ramp (prevents wedge + gives motion)
           [[0.10,0.30],[0.22,0.36]],
-          // a mid rock ridge
           [[0.42,0.48],[0.58,0.44]],
           [[0.58,0.44],[0.70,0.50]],
         ],
@@ -449,7 +441,6 @@
         [[0.36,0.48],[0.54,0.62],[0.72,0.56]],
         [7.4, 11.0, 15.5]
       ),
-      // 10 levels total (simple variations)
       L([0.14,0.26],[0.84,0.78],
         [
           [[0.05,0.10],[0.95,0.10]], [[0.95,0.10],[0.95,0.90]],
@@ -512,19 +503,19 @@
         [9.0, 13.2, 18.2]
       ),
     ],
-
-    Heated: [], // filled below (generated variations)
-    Molten: []  // filled below (generated variations)
+    Heated: [],
+    Molten: []
   };
 
-  // Generate Heated/Molten by taking Ember layouts and adding slightly tougher ridge segments + tighter star times
   function cloneLevels(base, extraSolids, tighten){
-    return base.map((lv, i) => {
+    return base.map((lv) => {
       const solids = lv.solids.slice();
       extraSolids.forEach(seg => solids.push(seg));
       const starTimes = lv.starTimes.map(t => Math.max(4.5, t - tighten));
-      // Move embers slightly for variety
-      const embers = lv.embers.map((e, k) => [clamp(e[0] + (k%2?0.02:-0.02), 0.12, 0.88), clamp(e[1] + (k%3?0.015:-0.01), 0.14, 0.86)]);
+      const embers = lv.embers.map((e, k) => [
+        clamp(e[0] + (k%2?0.02:-0.02), 0.12, 0.88),
+        clamp(e[1] + (k%3?0.015:-0.01), 0.14, 0.86)
+      ]);
       return {...lv, solids, embers, starTimes};
     });
   }
@@ -541,38 +532,24 @@
   ], 1.4);
 
   // ============================================================
-  // PHYSICS
+  // PHYSICS + WORLD
   // ============================================================
 
   const world = {
-    // dimensions in pixels
     w: () => cv.width,
     h: () => cv.height,
-    // ball
-    ball: {
-      x: 0, y: 0,
-      vx: 0, vy: 0,
-      r: 14,
-      released: false,
-      alive: true,
-    },
-    // drawn chalk segments (pixel coords)
+    ball: { x:0,y:0,vx:0,vy:0,r:14,released:false,alive:true },
     chalk: [],
-    // fixed level solids
     solids: [],
-    // goal circle
-    goal: { x:0, y:0, r: 34 },
-    // start circle (Chainstone altar)
-    start: { x:0, y:0, r: 34 },
-    // embers
+    goal:  { x:0,y:0,r:34 },
+    start: { x:0,y:0,r:34 },
     embers: [],
-    // state
-    inkMax: 1200, // increased ink
+    inkMax: 1200,
     ink: 1200,
     drawingLocked: false,
     rolling: false,
-    runTime: 0, // current level rolling time only
-    totalTime: 0, // cumulative across levels (rolling only)
+    runTime: 0,
+    totalTime: 0,
     emberCount: 0,
     completed: false,
   };
@@ -594,31 +571,26 @@
     world.rolling = false;
     world.completed = false;
 
-    // Resize ball & goal slightly based on canvas
     const scale = Math.min(world.w(), world.h());
     world.ball.r = Math.max(11, Math.round(scale * 0.016));
     world.goal.r = Math.max(24, Math.round(scale * 0.038));
     world.start.r = world.goal.r;
 
-    // Build solids
     world.solids = lv.solids.map(s => {
       const a = px(s[0]), b = px(s[1]);
       return { ax:a[0], ay:a[1], bx:b[0], by:b[1], thick: Math.max(10, Math.round(scale*0.010)) };
     });
 
-    // Start/Goal
     const s = px(lv.start), g = px(lv.goal);
     world.start.x = s[0]; world.start.y = s[1];
-    world.goal.x = g[0]; world.goal.y = g[1];
+    world.goal.x  = g[0]; world.goal.y  = g[1];
 
-    // Place ball just above the starter ramp so it doesn't wedge
     world.ball.x = world.start.x;
     world.ball.y = world.start.y - world.ball.r*0.2;
 
-    // Embers
     world.embers = lv.embers.map(e => {
       const p = px(e);
-      return { x:p[0], y:p[1], r: Math.max(10, Math.round(scale*0.012)), taken:false, timeBonus: 2.0 }; // -2s each
+      return { x:p[0], y:p[1], r: Math.max(10, Math.round(scale*0.012)), taken:false, timeBonus: 2.0 };
     });
 
     updateInkUI();
@@ -632,7 +604,7 @@
   }
 
   // ============================================================
-  // DRAWING (chalk)
+  // DRAWING
   // ============================================================
 
   let drawing = false;
@@ -642,13 +614,11 @@
     const rect = cv.getBoundingClientRect();
     const t = (e.touches && e.touches[0]) ? e.touches[0] : e;
     const x = (t.clientX - rect.left) * (cv.width / rect.width);
-    const y = (t.clientY - rect.top) * (cv.height / rect.height);
+    const y = (t.clientY - rect.top)  * (cv.height / rect.height);
     return {x,y};
   }
 
-  function canSpendInk(cost){
-    return world.ink - cost >= 0;
-  }
+  function canSpendInk(cost){ return world.ink - cost >= 0; }
 
   function spendInk(cost){
     world.ink = Math.max(0, world.ink - cost);
@@ -656,7 +626,6 @@
   }
 
   function addChalkSegment(a, b){
-    // Keep inside play bounds with padding
     const pad = 16;
     const ax = clamp(a.x, pad, world.w()-pad);
     const ay = clamp(a.y, pad, world.h()-pad);
@@ -666,16 +635,14 @@
     const d = Math.sqrt(dist2(ax,ay,bx,by));
     if(d < 0.5) return;
 
-    // Ink cost proportional to length
     const cost = d * 0.9;
     if(!canSpendInk(cost)) return;
 
     spendInk(cost);
 
-    const thick = Math.max(12, Math.round(Math.min(world.w(), world.h()) * 0.012)); // chalk thickness
+    const thick = Math.max(12, Math.round(Math.min(world.w(), world.h()) * 0.012));
     world.chalk.push({ ax, ay, bx, by, thick });
 
-    // Cap chalk segments for safety
     if(world.chalk.length > 900) world.chalk.shift();
   }
 
@@ -689,7 +656,6 @@
     if(!drawing || world.drawingLocked) return;
     const p = getPointer(e);
     if(lastPt){
-      // add segment in small steps for smoothness
       const steps = Math.ceil(Math.sqrt(dist2(lastPt.x,lastPt.y,p.x,p.y)) / 8);
       let prev = lastPt;
       for(let i=1;i<=steps;i++){
@@ -711,13 +677,12 @@
   cv.addEventListener("pointermove", pointerMove);
   window.addEventListener("pointerup", pointerUp);
 
-  // Touch fallback (older iOS)
   cv.addEventListener("touchstart", (e)=>{ pointerDown(e); }, {passive:false});
   cv.addEventListener("touchmove",  (e)=>{ pointerMove(e); }, {passive:false});
-  cv.addEventListener("touchend",   (e)=>{ pointerUp(e); }, {passive:true});
+  cv.addEventListener("touchend",   ()=>{ pointerUp(); }, {passive:true});
 
   // ============================================================
-  // COLLISION (ball vs segment with thickness)
+  // COLLISION
   // ============================================================
 
   function collideBallWithSegment(ball, seg, bounce=0.25, friction=0.985){
@@ -726,7 +691,6 @@
     const len2 = vx*vx + vy*vy;
     if(len2 < 0.0001) return;
 
-    // closest point on segment
     const t = clamp(((ball.x-ax)*vx + (ball.y-ay)*vy) / len2, 0, 1);
     const cx = ax + t*vx, cy = ay + t*vy;
     const dx = ball.x - cx, dy = ball.y - cy;
@@ -738,12 +702,10 @@
     const d = Math.sqrt(d2) || 0.0001;
     const nx = dx / d, ny = dy / d;
 
-    // push out
     const pen = (r - d);
     ball.x += nx * pen;
     ball.y += ny * pen;
 
-    // reflect velocity
     const vn = ball.vx*nx + ball.vy*ny;
     if(vn < 0){
       ball.vx -= (1 + bounce) * vn * nx;
@@ -754,7 +716,7 @@
   }
 
   // ============================================================
-  // GAME LOOP
+  // LOOP
   // ============================================================
 
   let lastTs = performance.now();
@@ -762,29 +724,23 @@
   function update(dt){
     const b = world.ball;
 
-    // Only count run time when rolling (released and alive and not completed)
     if(world.rolling && b.alive && !world.completed){
       world.runTime += dt;
     }
 
-    // Physics
     if(b.released && b.alive && !world.completed){
-      const g = 1400; // gravity
+      const g = 1400;
       b.vy += g * dt;
 
-      // integrate
       b.x += b.vx * dt;
       b.y += b.vy * dt;
 
-      // air resistance
       b.vx *= 0.999;
       b.vy *= 0.999;
 
-      // collide with solids + chalk
       for(const s of world.solids) collideBallWithSegment(b, s, 0.15, 0.992);
       for(const s of world.chalk)  collideBallWithSegment(b, s, 0.22, 0.988);
 
-      // keep inside bounds softly
       const pad = 10;
       if(b.x < pad){ b.x = pad; b.vx *= -0.25; }
       if(b.x > world.w()-pad){ b.x = world.w()-pad; b.vx *= -0.25; }
@@ -793,24 +749,20 @@
         b.y = world.h()-pad;
         b.vy *= -0.18;
         b.vx *= 0.98;
-        // if it’s just jittering at bottom, keep it alive but slow
         if(Math.abs(b.vy) < 40) b.vy = 0;
       }
 
-      // Take embers
       for(const em of world.embers){
         if(em.taken) continue;
         if(dist2(b.x,b.y, em.x, em.y) <= (b.r+em.r)*(b.r+em.r)){
           em.taken = true;
           world.emberCount += 1;
-          // reduce run time (clamp at 0)
           world.runTime = Math.max(0, world.runTime - em.timeBonus);
           updateEmbersUI();
           showToast(`✨ Ember collected! -${em.timeBonus.toFixed(0)}s`, 900);
         }
       }
 
-      // Goal check
       if(dist2(b.x,b.y, world.goal.x, world.goal.y) <= (b.r + world.goal.r*0.70) ** 2){
         completeLevel();
       }
@@ -822,14 +774,12 @@
   function render(){
     ctx.clearRect(0,0,cv.width,cv.height);
 
-    // Backplate
     const grd = ctx.createLinearGradient(0,0,0,cv.height);
     grd.addColorStop(0, "rgba(255,180,0,0.10)");
     grd.addColorStop(1, "rgba(0,0,0,0.20)");
     ctx.fillStyle = grd;
     ctx.fillRect(0,0,cv.width,cv.height);
 
-    // subtle cave texture dots
     ctx.globalAlpha = 0.15;
     for(let i=0;i<90;i++){
       const x = (i*73 % cv.width);
@@ -841,22 +791,11 @@
     }
     ctx.globalAlpha = 1;
 
-    // Draw solids (rocks)
     drawSegments(world.solids, "rgba(255,255,255,0.18)");
-
-    // Draw chalk
     drawChalk(world.chalk);
-
-    // Start (Chainstone altar)
     drawStart();
-
-    // Goal (Forge)
     drawForge();
-
-    // Embers
     drawEmbers();
-
-    // Ball
     drawBall();
   }
 
@@ -870,7 +809,6 @@
       ctx.lineTo(s.bx, s.by);
       ctx.stroke();
 
-      // inner line
       ctx.lineWidth = Math.max(2, s.thick*0.25);
       ctx.strokeStyle = "rgba(0,0,0,0.25)";
       ctx.beginPath();
@@ -883,7 +821,6 @@
   function drawChalk(segments){
     ctx.lineCap = "round";
     for(const s of segments){
-      // Chalk: slightly noisy layered strokes
       ctx.lineWidth = s.thick;
       ctx.strokeStyle = "rgba(255,255,255,0.88)";
       ctx.beginPath();
@@ -910,7 +847,6 @@
   function drawStart(){
     const x = world.start.x, y = world.start.y, r = world.start.r;
 
-    // glow
     ctx.save();
     ctx.globalAlpha = 0.75;
     const glow = ctx.createRadialGradient(x,y, r*0.2, x,y, r*2.2);
@@ -922,25 +858,21 @@
     ctx.fill();
     ctx.restore();
 
-    // altar ring
     ctx.fillStyle = "rgba(255,255,255,0.10)";
     ctx.beginPath();
     ctx.arc(x,y, r*1.05, 0, Math.PI*2);
     ctx.fill();
 
-    // chainstone (crystal orb)
     ctx.fillStyle = "rgba(255,205,30,0.95)";
     ctx.beginPath();
     ctx.arc(x,y, r*0.62, 0, Math.PI*2);
     ctx.fill();
 
-    // highlight
     ctx.fillStyle = "rgba(255,255,255,0.55)";
     ctx.beginPath();
     ctx.arc(x - r*0.18, y - r*0.18, r*0.22, 0, Math.PI*2);
     ctx.fill();
 
-    // label
     ctx.font = `900 ${Math.max(14, Math.round(cv.width*0.018))}px system-ui`;
     ctx.fillStyle = "rgba(255,255,255,0.92)";
     ctx.textAlign = "center";
@@ -950,7 +882,6 @@
   function drawForge(){
     const x = world.goal.x, y = world.goal.y, r = world.goal.r;
 
-    // forge glow
     ctx.save();
     const glow = ctx.createRadialGradient(x,y, r*0.2, x,y, r*2.6);
     glow.addColorStop(0, "rgba(255,120,0,0.70)");
@@ -961,7 +892,6 @@
     ctx.fill();
     ctx.restore();
 
-    // forge mouth
     ctx.fillStyle = "rgba(0,0,0,0.45)";
     ctx.beginPath();
     ctx.arc(x,y, r*1.05, Math.PI*0.05, Math.PI*0.95);
@@ -975,7 +905,6 @@
     ctx.arc(x,y+ r*0.12, r*0.72, Math.PI*0.1, Math.PI*0.9);
     ctx.fill();
 
-    // label
     ctx.font = `950 ${Math.max(14, Math.round(cv.width*0.018))}px system-ui`;
     ctx.fillStyle = "rgba(255,210,120,0.96)";
     ctx.textAlign = "center";
@@ -988,7 +917,6 @@
 
       const x = em.x, y = em.y, r = em.r;
 
-      // glow
       ctx.save();
       const g = ctx.createRadialGradient(x,y, r*0.3, x,y, r*2.2);
       g.addColorStop(0, "rgba(255,150,0,0.65)");
@@ -999,7 +927,6 @@
       ctx.fill();
       ctx.restore();
 
-      // core
       ctx.fillStyle = "rgba(255,180,40,0.95)";
       ctx.beginPath();
       ctx.arc(x,y, r*0.65, 0, Math.PI*2);
@@ -1015,13 +942,11 @@
   function drawBall(){
     const b = world.ball;
 
-    // shadow
     ctx.fillStyle = "rgba(0,0,0,0.28)";
     ctx.beginPath();
     ctx.ellipse(b.x, b.y + b.r*0.65, b.r*0.9, b.r*0.45, 0, 0, Math.PI*2);
     ctx.fill();
 
-    // ball body (chainstone orb)
     const g = ctx.createRadialGradient(b.x - b.r*0.35, b.y - b.r*0.35, b.r*0.2, b.x, b.y, b.r*1.2);
     g.addColorStop(0, "rgba(255,220,90,0.98)");
     g.addColorStop(1, "rgba(255,140,0,0.95)");
@@ -1030,13 +955,11 @@
     ctx.arc(b.x, b.y, b.r, 0, Math.PI*2);
     ctx.fill();
 
-    // highlight
     ctx.fillStyle = "rgba(255,255,255,0.55)";
     ctx.beginPath();
     ctx.arc(b.x - b.r*0.25, b.y - b.r*0.25, b.r*0.28, 0, Math.PI*2);
     ctx.fill();
 
-    // tiny outline
     ctx.strokeStyle = "rgba(0,0,0,0.18)";
     ctx.lineWidth = Math.max(2, b.r*0.12);
     ctx.beginPath();
@@ -1048,21 +971,18 @@
     const pct = (world.ink / world.inkMax) * 100;
     inkLeftEl.textContent = Math.round(pct);
     inkFill.style.width = `${pct}%`;
-    // Fade meter a bit when empty
     inkFill.style.opacity = pct < 10 ? "0.35" : "1";
   }
-
   function updateTimeUI(){
     runTimeEl.textContent = world.runTime.toFixed(1);
     totalTimeEl.textContent = world.totalTime.toFixed(1);
   }
-
   function updateEmbersUI(){
     embersEl.textContent = world.emberCount;
   }
 
   // ============================================================
-  // LEVEL COMPLETE + STARS
+  // COMPLETE + STARS
   // ============================================================
 
   function computeStars(lv, time){
@@ -1078,17 +998,13 @@
     modalBody.textContent = msg;
     modal.style.display = "flex";
   }
-
-  function closeModal(){
-    modal.style.display = "none";
-  }
+  function closeModal(){ modal.style.display = "none"; }
 
   function completeLevel(){
     if(world.completed) return;
     world.completed = true;
     world.rolling = false;
 
-    // add run time to total
     world.totalTime += world.runTime;
 
     const lv = levelsByDiff[currentDifficulty][currentLevelIndex];
@@ -1096,7 +1012,9 @@
 
     modalTitle.textContent = `Level ${currentLevelIndex+1} Complete!`;
     const emberTaken = world.embers.filter(e=>e.taken).length;
-    const msg = `Run Time: ${world.runTime.toFixed(1)}s  •  Embers: ${emberTaken}/${world.embers.length}\nTotal Time: ${world.totalTime.toFixed(1)}s`;
+    const msg =
+`Run Time: ${world.runTime.toFixed(1)}s  •  Embers: ${emberTaken}/${world.embers.length}
+Total Time: ${world.totalTime.toFixed(1)}s`;
     openModal(stars, msg);
 
     btnRetry.disabled = false;
@@ -1113,7 +1031,6 @@
     world.ink = world.inkMax;
     world.drawingLocked = false;
 
-    // Reset ball to start (but don’t change level)
     const lv = levelsByDiff[currentDifficulty][currentLevelIndex];
     const s = px(lv.start);
     world.ball.x = s[0];
@@ -1122,7 +1039,6 @@
     world.ball.released = false;
     world.ball.alive = true;
 
-    // Reset run time + embers for this level only (total stays)
     world.runTime = 0;
     world.rolling = false;
     world.completed = false;
@@ -1139,16 +1055,11 @@
   btnStart.addEventListener("click", () => {
     if(world.completed) return;
 
-    // Lock drawing until clear
     world.drawingLocked = true;
-
-    // Release ball
     world.ball.released = true;
     world.rolling = true;
 
-    // tiny nudge so it actually goes (fix “flat start”)
     world.ball.vx += 40;
-    world.ball.vy += 0;
 
     btnRetry.disabled = false;
     btnStart.disabled = true;
@@ -1157,17 +1068,14 @@
   });
 
   btnRetry.addEventListener("click", () => {
-    // Retry keeps total time (your choice). If you prefer retry resets total time, tell me.
     loadLevel(currentDifficulty, currentLevelIndex);
   });
 
   btnDifficulty.addEventListener("click", () => {
-    // cycle difficulties
     const i = DIFFICULTIES.indexOf(currentDifficulty);
     currentDifficulty = DIFFICULTIES[(i+1)%DIFFICULTIES.length];
     difficultyLabel.textContent = currentDifficulty;
 
-    // reset run + total when switching difficulty (better for leaderboard category)
     world.totalTime = 0;
     currentLevelIndex = 0;
     loadLevel(currentDifficulty, currentLevelIndex);
@@ -1182,26 +1090,21 @@
       currentLevelIndex++;
       loadLevel(currentDifficulty, currentLevelIndex);
     } else {
-      // completed all
       showToast("🎉 All levels complete!", 1400);
-      // restart at level 1
       currentLevelIndex = 0;
       loadLevel(currentDifficulty, currentLevelIndex);
     }
   });
 
   btnClose.addEventListener("click", () => closeModal());
-  modal.addEventListener("click", (e) => {
-    if(e.target === modal) closeModal();
-  });
+  modal.addEventListener("click", (e) => { if(e.target === modal) closeModal(); });
 
   // ============================================================
-  // INIT + LOOP
+  // INIT
   // ============================================================
 
   resizeCanvasToFit();
   difficultyLabel.textContent = currentDifficulty;
-
   loadLevel(currentDifficulty, currentLevelIndex);
 
   function loop(ts){

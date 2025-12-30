@@ -17,8 +17,6 @@
 <meta http-equiv="X-Content-Type-Options" content="nosniff">
 <meta http-equiv="X-Frame-Options" content="DENY">
 
-
-
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Little Ollie Noughts & Crosses</title>
@@ -64,31 +62,26 @@
       font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
       color:var(--text);
     }
-.headerWrap{
-  background: rgba(0,0,0,.12);          /* slight blue-ish panel tint like other pages */
-  border: 1px solid rgba(255,255,255,.14);
-  border-radius: 18px;
-  padding: 10px;
-  margin: 0 auto 10px;
-  box-shadow: var(--shadow);
-}
-.header{
-  margin: 0;                             /* headerWrap controls spacing now */
-  border-radius: 14px;
-  box-shadow: none;                      /* avoid double shadow (wrap already has one) */
-}
+
+    .headerWrap{
+      background: rgba(0,0,0,.12);
+      border: 1px solid rgba(255,255,255,.14);
+      border-radius: 18px;
+      padding: 10px;
+      margin: 0 auto 10px;
+      box-shadow: var(--shadow);
+    }
+    .header{
+      margin: 0;
+      border-radius: 14px;
+      box-shadow: none;
+      width:100%;
+      display:block;
+    }
 
     .wrap{
       width: 980px;
       max-width: 96vw;
-    }
-
-    .header{
-      width:100%;
-      display:block;
-      margin: 0 auto 10px;
-      border-radius: 14px;
-      box-shadow: var(--shadow);
     }
 
     .shell{
@@ -105,7 +98,6 @@
       padding: 12px;
     }
 
-    /* LEFT: board area */
     .boardTop{
       display:flex;
       align-items:center;
@@ -114,55 +106,49 @@
       margin-bottom: 10px;
     }
 
-    /* We keep this container (so the layout stays identical),
-       but we hide its contents as you requested earlier. */
-    .titleLine{
-      display:none;
-    }
+    .titleLine{ display:none; }
 
     .controls{
       display:flex;
       gap: 8px;
-      flex-wrap: nowrap;          /* one line */
-      justify-content:flex-start; /* all the way left */
+      flex-wrap: nowrap;
+      justify-content:flex-start;
       width:100%;
       align-items:center;
     }
 
-.btn{
-  appearance:none;
-  border:0;
-  cursor:pointer;
-  background: var(--yellow);
-  color:#222;
-  font-weight: 900;
-  padding: 12px 14px;        /* bigger */
-  border-radius: 14px;       /* slightly rounder */
-  box-shadow: 0 10px 20px rgba(0,0,0,.18);
-  transition: transform .08s ease, filter .15s ease;
-  font-size: 14px;           /* bigger */
-  line-height:1;
-  user-select:none;
-  white-space:nowrap;
-}
-.btn:active{ transform: translateY(1px) scale(.99); }
+    .btn{
+      appearance:none;
+      border:0;
+      cursor:pointer;
+      background: var(--yellow);
+      color:#222;
+      font-weight: 900;
+      padding: 12px 14px;
+      border-radius: 14px;
+      box-shadow: 0 10px 20px rgba(0,0,0,.18);
+      transition: transform .08s ease, filter .15s ease;
+      font-size: 14px;
+      line-height:1;
+      user-select:none;
+      white-space:nowrap;
+    }
+    .btn:active{ transform: translateY(1px) scale(.99); }
 
-.btn.secondary{
-  background: rgba(255,255,255,.16);
-  color: #fff;
-  border: 1px solid rgba(255,255,255,.22);
-  box-shadow:none;
-  font-weight: 800;
-}
+    .btn.secondary{
+      background: rgba(255,255,255,.16);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,.22);
+      box-shadow:none;
+      font-weight: 800;
+    }
 
-/* keep .small, but make it match your other pages better */
-.btn.small{
-  padding: 11px 13px;
-  font-size: 13.5px;
-  border-radius: 13px;
-}
+    .btn.small{
+      padding: 11px 13px;
+      font-size: 13.5px;
+      border-radius: 13px;
+    }
 
-    /* Push restart to the right, without affecting the other two */
     #restartBtn{ margin-left:0; }
 
     .select{
@@ -219,12 +205,11 @@
       align-items:center;
       justify-content:center;
       overflow:hidden;
-      transform: translateZ(0); /* keeps animations crisp */
+      transform: translateZ(0);
     }
     .tile:hover{ background: var(--tileHover); }
     .tile:active{ transform: translateY(1px); }
 
-    /* Fixed-size symbol so it NEVER changes tile size */
     .mark{
       display:block;
       width: 100%;
@@ -240,7 +225,6 @@
       will-change: transform, filter, text-shadow;
     }
 
-    /* ✅ Neon glow per player */
     .mark.x{
       text-shadow: var(--xGlow), 0 8px 22px rgba(0,0,0,.30);
       filter: saturate(1.05);
@@ -250,15 +234,12 @@
       filter: saturate(1.05);
     }
 
-    /* ✅ Pop-in animation */
     @keyframes popIn{
       0%   { transform: translateY(1px) scale(.72); filter: brightness(1.15); }
       55%  { transform: translateY(1px) scale(1.08); }
       100% { transform: translateY(1px) scale(1.00); filter: brightness(1); }
     }
-    .mark.pop{
-      animation: popIn 140ms ease-out;
-    }
+    .mark.pop{ animation: popIn 140ms ease-out; }
 
     .tile.disabled{
       cursor:default;
@@ -269,16 +250,13 @@
       outline: 2px solid rgba(255,221,85,.65);
       box-shadow: var(--winGlow);
       background: rgba(255,221,85,.18);
+      animation: surge 420ms ease-out;
     }
 
-    /* ✅ Win-line power surge */
     @keyframes surge{
       0%   { transform: scale(1); filter: brightness(1); }
       35%  { transform: scale(1.03); filter: brightness(1.35); }
       100% { transform: scale(1); filter: brightness(1); }
-    }
-    .tile.win{
-      animation: surge 420ms ease-out;
     }
     .tile.win .mark{
       text-shadow: var(--surgeGlow), 0 10px 26px rgba(0,0,0,.35);
@@ -314,7 +292,6 @@
       white-space:nowrap;
     }
 
-    /* RIGHT: scores / mode */
     .sideTop{
       display:flex;
       align-items:center;
@@ -380,7 +357,6 @@
       text-align:center;
     }
 
-    /* Active turn highlight */
     .activeTurn .name{
       color: var(--yellow2);
       text-shadow: 0 0 14px rgba(255,221,85,.55), 0 0 30px rgba(255,221,85,.22);
@@ -398,18 +374,38 @@
       padding: 10px 12px;
     }
 
-    /* Mobile */
     @media (max-width: 860px){
       .shell{ grid-template-columns: 1fr; }
+    }
+
+    /* ✅ FOOTER (Row Match style) */
+    .lo-footer{
+      text-align:center;
+      margin-top: 12px;
+      padding: 10px 8px;
+      font-weight: 900;
+      font-size: 12px;
+      letter-spacing: .2px;
+      opacity: .92;
+    }
+    .lo-footer a{
+      color: rgba(255,255,255,.95);
+      text-decoration: none;
+      border-bottom: 1px dashed rgba(255,255,255,.45);
+      padding-bottom: 2px;
+    }
+    .lo-footer a:hover{
+      opacity: 1;
+      border-bottom-color: rgba(255,255,255,.85);
     }
   </style>
 </head>
 
 <body>
   <div class="wrap">
-<div class="headerWrap">
-  <img class="header" src="header.png" alt="Little Ollie Arcade Header" />
-</div>
+    <div class="headerWrap">
+      <img class="header" src="header.png" alt="Little Ollie Arcade Header" />
+    </div>
 
     <div class="shell">
       <!-- LEFT -->
@@ -429,7 +425,6 @@
               <option value="hard">Difficulty - 🔴 Hard</option>
             </select>
 
-            <!-- ✅ Restart is now yellow (removed "secondary") -->
             <button class="btn small" id="restartBtn" type="button">🔁 Restart</button>
           </div>
         </div>
@@ -479,6 +474,11 @@
         </div>
       </div>
     </div>
+
+    <!-- ✅ FOOTER (INSIDE .wrap so it stays at the bottom, centered) -->
+    <div class="lo-footer">
+      ⚡ Powered by <a href="#" onclick="return false;">Little Ollie Studio</a>
+    </div>
   </div>
 
   <script>
@@ -499,7 +499,6 @@
     const p1ScoreEl = document.getElementById("p1Score");
     const p2ScoreEl = document.getElementById("p2Score");
 
-    // ✅ Draws
     const drawScoreEl = document.getElementById("drawScore");
     let drawScore = 0;
 
@@ -515,18 +514,16 @@
       [0,4,8],[2,4,6]
     ];
 
-    let mode = "computer"; // "computer" or "two"
+    let mode = "computer";
     let difficulty = "medium";
 
     let cells = Array(9).fill("");
     let current = "X";
     let locked = false;
 
-    // Scores for this session
     let p1Score = 0;
     let p2Score = 0;
 
-    // Alternating starter each round
     let nextStarter = "X";
 
     // ---------------------------
@@ -556,7 +553,6 @@
         const val = cells[i] || "";
         m.textContent = val;
 
-        // keep mark classes consistent
         m.classList.remove("x","o","pop");
         if(val === "X") m.classList.add("x");
         if(val === "O") m.classList.add("o");
@@ -565,7 +561,6 @@
         t.classList.remove("win");
       });
 
-      // Active glow on name
       p1Row.classList.toggle("activeTurn", current === "X" && !locked);
       p2Row.classList.toggle("activeTurn", current === "O" && !locked);
 
@@ -660,13 +655,11 @@
         const m = tile.querySelector(".mark");
         m.textContent = mark;
 
-        // ✅ Neon class per player
         m.classList.remove("x","o","pop");
         if(mark === "X") m.classList.add("x");
         if(mark === "O") m.classList.add("o");
 
-        // ✅ Pop-in animation (retrigger safely)
-        void m.offsetWidth;     // force reflow
+        void m.offsetWidth;
         m.classList.add("pop");
 
         tile.classList.add("disabled");
@@ -707,7 +700,6 @@
       locked = true;
 
       if(winLine){
-        // ✅ Win-line power surge (CSS animation on .tile.win)
         winLine.forEach(idx => {
           const tile = boardEl.querySelector(`.tile[data-i="${idx}"]`);
           if(tile){
@@ -726,7 +718,6 @@
           statusText.textContent = (mode === "computer") ? "Computer wins! (O)" : "Player 2 wins! (O)";
         }
       }else{
-        // ✅ count draws
         drawScore++;
         statusText.textContent = "Draw! Nobody wins.";
       }
@@ -754,7 +745,7 @@
     }
 
     // ---------------------------
-    // Computer AI (not always middle)
+    // Computer AI
     // ---------------------------
     function computerMove(){
       if(locked) return;
@@ -887,9 +878,6 @@
     });
 
     arcadeBtn.addEventListener("click", () => {
-      // ✅ This is the ONLY thing you might need to change:
-      // If your hub is in the SAME folder, use "index.html"
-      // If this game is inside a subfolder, "../index.html" is correct.
       window.location.href = "../index.html";
     });
 

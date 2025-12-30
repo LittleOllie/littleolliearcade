@@ -17,8 +17,6 @@
 <meta http-equiv="X-Content-Type-Options" content="nosniff">
 <meta http-equiv="X-Frame-Options" content="DENY">
 
-
-
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Little Ollie Row Match</title>
@@ -312,11 +310,39 @@
       font-weight: 900;
     }
 
+    /* ✅ ADDED: “This run” chip look (slightly punchier) */
+    .runChip{
+      background: rgba(0,0,0,.22);
+      border: 1px solid rgba(255,255,255,.14);
+      box-shadow: 0 10px 18px rgba(0,0,0,.18);
+    }
+
     @media (max-width: 520px){
       .btn{ padding:10px 11px; border-radius: 12px; }
       .pill{ padding:10px 11px; border-radius: 12px; }
       th, td{ font-size: 13px; padding:9px 9px; }
     }
+
+/* ✅ Footer brand */
+.powered-by{
+  margin-top: 12px;
+  text-align: center;
+  font-weight: 900;
+  letter-spacing: .2px;
+  opacity: .9;
+  font-size: 13px;
+  padding: 10px 8px 2px;
+}
+.powered-by a{
+  color: #fff;
+  text-decoration: none;
+  border-bottom: 1px dashed rgba(255,255,255,.55);
+}
+.powered-by a:hover{
+  opacity: 1;
+  border-bottom-color: rgba(255,255,255,.9);
+}
+
   </style>
 </head>
 
@@ -334,7 +360,6 @@
           <button class="btn" id="btnStart">▶️ Start</button>
           <button class="btn" id="btnReset">🔄 Reset</button>
           <button class="btn" id="btnLeaderboard">🏆 Leaderboard</button>
-
         </div>
 
         <div class="stats">
@@ -353,6 +378,14 @@
           </div>
         </div>
       </div>
+
+      <div class="powered-by">
+        ⚡ Powered by <a href="../index.html">Little Ollie Studio</a>
+      </div>
+
+    </div>
+  </div>
+
 
     </div>
   </div>
@@ -424,10 +457,20 @@
 
         <div style="height:10px;"></div>
 
+        <!-- ✅ ADDED: “This run” preview so they can compare before submitting -->
+        <div class="row" style="margin-bottom:10px;">
+          <div class="chip runChip" id="runPreviewChip">
+            📊 This run:
+            ⏱️ <span id="runTimePreview">0</span>s
+            • 🧠 <span id="runMovesPreview">0</span> moves
+          </div>
+        </div>
+
         <div class="row">
           <input id="nameInput" maxlength="20" placeholder="✍️ Your name (1–20 chars)" />
           <button class="btn" id="submitScoreBtn">✅ Submit Score</button>
         </div>
+
         <div class="note" id="submitNote">
           Finish a game first — then submit. (Only 1 submission per win.)
         </div>
@@ -532,6 +575,11 @@
     const playerDisplay = document.getElementById("playerDisplay");
     const changePlayerBtn = document.getElementById("changePlayerBtn");
 
+    // ✅ ADDED: run preview elements
+    const runTimePreview = document.getElementById("runTimePreview");
+    const runMovesPreview = document.getElementById("runMovesPreview");
+    const runPreviewChip = document.getElementById("runPreviewChip");
+
     let db = null;
     let firebaseReady = false;
 
@@ -621,6 +669,16 @@
     function closeModal(el){
       el.classList.remove("show");
       el.setAttribute("aria-hidden","true");
+    }
+
+    // ✅ ADDED: update “This run” preview (time + moves)
+    function syncRunPreview(){
+      if(!runTimePreview || !runMovesPreview) return;
+      runTimePreview.textContent = String(currentTimeSeconds());
+      runMovesPreview.textContent = String(moves);
+      if(runPreviewChip){
+        runPreviewChip.style.opacity = won ? "1" : ".85";
+      }
     }
 
     // ✅ SHARED PLAYER FUNCTIONS
@@ -723,6 +781,7 @@
 
       render();
       updateButtons();
+      syncRunPreview(); // ✅ ADDED
     }
 
     function newGame(){
@@ -777,12 +836,14 @@
         moves++;
         movesText.textContent = String(moves);
         checkWin();
+        syncRunPreview(); // ✅ ADDED (keeps preview current if modal is open)
       }
       render();
     }
 
     async function onWinOpenLeaderboard(){
       openModal(lbModal);
+      syncRunPreview(); // ✅ ADDED (shows final time+moves immediately)
       await loadLeaderboard();
       updateSubmitNote(true);
 
@@ -824,6 +885,7 @@
       gameStarted = false;
       updateButtons();
 
+      syncRunPreview(); // ✅ ADDED
       updateSubmitNote(true);
       onWinOpenLeaderboard();
     }
@@ -834,6 +896,9 @@
       timerHandle = setInterval(() => {
         const t = Math.max(0, Math.floor((Date.now() - startTimeMs) / 1000));
         timeText.textContent = String(t);
+
+        // ✅ ADDED: if leaderboard modal is open, keep preview live
+        if(lbModal.classList.contains("show")) syncRunPreview();
       }, 200);
     }
 
@@ -887,6 +952,7 @@
       winId = newWinId();
       updateSubmitNote();
 
+      syncRunPreview(); // ✅ ADDED
       startTimer();
       render();
       updateButtons();
@@ -1038,6 +1104,7 @@
 
     btnLeaderboard.addEventListener("click", async () => {
       openModal(lbModal);
+      syncRunPreview(); // ✅ ADDED
       await loadLeaderboard();
       updateSubmitNote();
       if(!isAnon && won && !scoreSubmitted){

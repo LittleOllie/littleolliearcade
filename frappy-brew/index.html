@@ -27,14 +27,6 @@
       --gameScale: 0.80;
     }
 
-    /* ✅ iPhone double-tap zoom / gesture hardening */
-    html, body{
-      touch-action: manipulation;
-      -webkit-text-size-adjust: 100%;
-      -webkit-user-select: none;
-      user-select: none;
-    }
-
     body{
       margin:0;
       min-height:100vh;
@@ -45,6 +37,13 @@
       background: radial-gradient(1200px 800px at 30% 10%, var(--bg1), var(--bg2));
       font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
       color: var(--text);
+
+      /* ✅ iOS anti-zoom helpers */
+      -webkit-text-size-adjust: 100%;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-touch-callout: none;
+      touch-action: manipulation;
     }
 
     .wrap{
@@ -95,7 +94,7 @@
       font-weight: 800;
       letter-spacing:.2px;
       user-select:none;
-      touch-action: manipulation; /* ✅ helps iOS not treat rapid taps as zoom */
+      touch-action: manipulation; /* ✅ helps iOS interpret as tap not zoom */
     }
     .btn:active{ transform: translateY(1px); }
 
@@ -130,13 +129,21 @@
       /* ✅ 20% smaller gameplay area (visual) */
       max-width: calc(800px * var(--gameScale));
       margin: 0 auto;
+
+      /* ✅ iOS anti-zoom helpers */
+      touch-action: none;
     }
 
     canvas{
       width:100%;
       height:auto;
       display:block;
-      touch-action: none; /* ✅ prevents pinch/double-tap behavior on the gameplay surface */
+
+      /* ✅ iOS anti-zoom helpers */
+      touch-action: none;              /* prevent gestures/double-tap zoom on canvas */
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-touch-callout: none;
     }
 
     .footer{
@@ -259,34 +266,37 @@
   const lbBackdrop = document.getElementById('lbBackdrop');
   const lbClose = document.getElementById('lbClose');
 
-  /* ✅ iPhone: prevent double-tap zoom anywhere on the page */
+  // ✅ iOS: prevent pinch / double-tap zoom (Safari)
+  // - gesture events exist on iOS Safari
+  // - double-tap zoom is prevented by canceling rapid touchend
+  document.addEventListener('gesturestart', (e) => e.preventDefault(), { passive:false });
+  document.addEventListener('gesturechange', (e) => e.preventDefault(), { passive:false });
+  document.addEventListener('gestureend', (e) => e.preventDefault(), { passive:false });
+
   let __lastTouchEnd = 0;
   document.addEventListener('touchend', (e) => {
     const now = Date.now();
     if (now - __lastTouchEnd <= 300) {
-      e.preventDefault();
+      e.preventDefault(); // ✅ stops iOS double-tap zoom
     }
     __lastTouchEnd = now;
   }, { passive:false });
 
   // ----------- Assets -----------
-  // ✅ 3 backgrounds that alternate EACH game (bg.png -> bg1.png -> bg2.png -> repeat)
-  const BG_SOURCES = ['bg.png', 'bg1.png', 'bg2.png'];
-  const BG_KEY = 'baristaBgIndex';
-  let bgIndex = Number(localStorage.getItem(BG_KEY) || '0') || 0;
-
-  const imgBG = new Image();
-  function setNextBG() {
-    // advance index
-    bgIndex = (bgIndex + 1) % BG_SOURCES.length;
-    localStorage.setItem(BG_KEY, String(bgIndex));
-    imgBG.src = BG_SOURCES[bgIndex];
-  }
-  // initial bg (use saved index)
-  imgBG.src = BG_SOURCES[bgIndex];
-
+  const imgBG = new Image(); imgBG.src = 'bg.png';
   const imgCup = new Image(); imgCup.src = 'cup.png';
   const imgChar = new Image(); imgChar.src = 'character.png';
+
+  // ✅ BG rotation list (you said: bg.png, bg1.png, bg2.png, bg3.png)
+  const BG_LIST = ['bg.png','bg1.png','bg2.png','bg3.png'];
+  let bgIndex = Number(localStorage.getItem('baristaBgIndex') || '0');
+  function setNextBG(){
+    bgIndex = (bgIndex + 1) % BG_LIST.length;
+    localStorage.setItem('baristaBgIndex', String(bgIndex));
+    imgBG.src = BG_LIST[bgIndex];
+  }
+  // preload
+  BG_LIST.forEach(src => { const i = new Image(); i.src = src; });
 
   // Beans:
   // - gold: points
@@ -412,6 +422,9 @@
   function clamp(n, a, b){ return Math.max(a, Math.min(b, n)); }
 
   function resetGame() {
+    // ✅ rotate background each run
+    setNextBG();
+
     state = 'idle';
     score = 0;
     combo = 0;
@@ -420,9 +433,6 @@
     shake = 0;
     endMsg = "";
     scoreEl.textContent = '0';
-
-    // ✅ change background EACH new game/reset
-    setNextBG();
 
     player.y = Math.round(H * 0.48);
     player.vy = 0;
@@ -590,7 +600,9 @@
 
     if (!img || !img.complete || !img.naturalWidth) return;
 
-    const targetH = player.h * 0.9;
+    // 🔧 Target height relative to player size
+    // This keeps beans feeling "character-sized"
+    const targetH = player.h * 0.9;   // tweak 0.8–1.1 if needed
     const aspect  = img.naturalWidth / img.naturalHeight;
     const targetW = targetH * aspect;
 
@@ -656,6 +668,7 @@
     // 🛡️ SHIELD GLOW (visual feedback)
     if (shield > 0) {
       ctx.save();
+
       ctx.globalAlpha = 0.85;
       ctx.strokeStyle = 'rgba(120, 255, 180, 0.9)';
       ctx.lineWidth = 6;
@@ -664,11 +677,12 @@
       ctx.arc(
         player.x,
         player.y,
-        Math.max(player.w, player.h) * 0.75,
+        Math.max(player.w, player.h) * 0.75, // size of glow
         0,
         Math.PI * 2
       );
       ctx.stroke();
+
       ctx.restore();
     }
 
@@ -805,19 +819,22 @@
         }
 
         // Near miss spark:
+        // If player is within NEAR_MISS_PX of the gap edge while inside x-range of pipe.
+        // (A fun “whoa!” moment.)
         if (!p.nearMissed) {
           const inX = (player.x + hitW/2) > p.x && (player.x - hitW/2) < (p.x + p.w);
           if (inX) {
             const topEdge = p.gapTop;
             const botEdge = p.gapBottom;
 
-            const distToTop = Math.abs((hitY) - topEdge);
-            const distToBot = Math.abs((hitY + hitH) - botEdge);
+            const distToTop = Math.abs((hitY) - topEdge);           // top of hitbox to top edge
+            const distToBot = Math.abs((hitY + hitH) - botEdge);    // bottom of hitbox to bottom edge
 
             if (distToTop < NEAR_MISS_PX || distToBot < NEAR_MISS_PX) {
               p.nearMissed = true;
               shake = Math.max(shake, 2.5);
               spawnSparks(player.x + 20, player.y, 10);
+              // tiny bonus? kept subtle:
               score += 1;
               scoreEl.textContent = String(score);
               beep(920, 0.04, 'triangle', 0.04);
@@ -892,8 +909,6 @@
   btnRestart.addEventListener('click', () => { combo = 0; });
 
   // ----------- Boot -----------
-  // NOTE: resetGame() now advances the background, so first load will go to the "next" bg.
-  // If you want first load to use the saved bg without advancing, swap these two lines:
   resetGame();
   requestAnimationFrame(tick);
 

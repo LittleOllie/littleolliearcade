@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Barista Flappy</title>
+
+  <style>
+    *{ box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
+    :root{
+      --bg1:#6de0ff; --bg2:#4c6fff;
+      --panel: rgba(0,0,0,.18);
+      --panel2: rgba(0,0,0,.22);
+      --shadow: 0 14px 34px rgba(0,0,0,.35);
+
+      --btnYellow:#ffdd55;
+      --btnYellow2:#ffd22e;
+      --btnText:#222;
+      --btnShadow: 0 10px 20px rgba(0,0,0,.22);
+
+      --text:#fff;
+      --radius: 18px;
+      --gap: 10px;
+      --maxWidth: 980px;
+
+      /* ✅ GAME VISUAL SCALE (20% smaller) */
+      --gameScale: 0.80;
+    }
+
+    body{
+      margin:0;
+      min-height:100vh;
+      display:flex;
+      justify-content:center;
+      align-items:flex-start;
+      padding:18px 12px 24px;
+      background: radial-gradient(1200px 800px at 30% 10%, var(--bg1), var(--bg2));
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color: var(--text);
+    }
+
+    .wrap{
+      width:min(var(--maxWidth), 100%);
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
+
+    .headerCard{
+      background: var(--panel);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 10px;
+      overflow:hidden;
+    }
+    .headerImg{
+      width:100%;
+      height:auto;
+      display:block;
+      border-radius: 14px;
+    }
+
+    .topBar{
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-start;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+
+    .leftControls{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+
+    .btn{
+      appearance:none;
+      border:none;
+      cursor:pointer;
+      padding: 10px 12px;
+      border-radius: 14px;
+      background: linear-gradient(180deg, var(--btnYellow), var(--btnYellow2));
+      box-shadow: var(--btnShadow);
+      color: var(--btnText);
+      font-weight: 800;
+      letter-spacing:.2px;
+      user-select:none;
+    }
+    .btn:active{ transform: translateY(1px); }
+
+    .pill{
+      background: var(--panel2);
+      border-radius: 14px;
+      padding: 10px 12px;
+      box-shadow: var(--shadow);
+      font-weight:800;
+      display:flex;
+      gap:10px;
+      align-items:center;
+      white-space:nowrap;
+    }
+
+    .gameCard{
+      background: var(--panel);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 12px;
+    }
+
+    .canvasWrap{
+      width:100%;
+      border-radius: 16px;
+      overflow:hidden;
+      background: rgba(0,0,0,.18);
+      display:flex;
+      justify-content:center;
+      align-items:center;
+
+      /* ✅ 20% smaller gameplay area (visual) */
+      max-width: calc(800px * var(--gameScale));
+      margin: 0 auto;
+    }
+
+    canvas{
+      width:100%;
+      height:auto;
+      display:block;
+      touch-action: manipulation;
+    }
+
+    .footer{
+      text-align:center;
+      opacity:.95;
+      font-weight:800;
+      font-size: 12px;
+      padding-top: 6px;
+    }
+
+    /* ✅ Leaderboard modal scaffold */
+    .modalBackdrop{
+      position:fixed;
+      inset:0;
+      background: rgba(0,0,0,.55);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding: 18px;
+      z-index: 9999;
+    }
+    .modal{
+      width: min(640px, 100%);
+      background: rgba(0,0,0,.55);
+      border-radius: 18px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.45);
+      border: 1px solid rgba(255,255,255,.12);
+      overflow:hidden;
+    }
+    .modalHeader{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding: 12px 14px;
+      background: rgba(255,255,255,.06);
+      font-weight:900;
+    }
+    .modalBody{
+      padding: 14px;
+      background: rgba(0,0,0,.18);
+      font-weight:800;
+      opacity:.95;
+    }
+    .modalClose{
+      border:none;
+      cursor:pointer;
+      border-radius: 12px;
+      padding: 8px 10px;
+      background: linear-gradient(180deg, var(--btnYellow), var(--btnYellow2));
+      box-shadow: var(--btnShadow);
+      color: var(--btnText);
+      font-weight: 900;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="headerCard">
+      <img class="headerImg" src="header.png" alt="Header" />
+    </div>
+
+    <div class="topBar">
+      <div class="leftControls">
+        <button class="btn" id="btnArcade">🎮 Arcade Menu</button>
+        <button class="btn" id="btnStart">▶️ Start</button>
+        <button class="btn" id="btnRestart">🔁 Restart</button>
+
+        <!-- ✅ Leaderboard button (for later) -->
+        <button class="btn" id="btnLeaderboard">🏆 Leaderboard</button>
+      </div>
+
+      <div class="pill" id="scorePill">
+        <span>Score: <span id="score">0</span></span>
+        <span style="opacity:.9">Best: <span id="best">0</span></span>
+      </div>
+    </div>
+
+    <div class="gameCard">
+      <div class="canvasWrap">
+        <canvas id="game" width="800" height="1200"></canvas>
+      </div>
+    </div>
+
+    <div class="footer">⚡Powered by Little Ollie Studio</div>
+  </div>
+
+  <!-- ✅ Leaderboard modal scaffold -->
+  <div class="modalBackdrop" id="lbBackdrop" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-label="Leaderboard">
+      <div class="modalHeader">
+        <div>🏆 Leaderboard</div>
+        <button class="modalClose" id="lbClose">Close</button>
+      </div>
+      <div class="modalBody">
+        <div style="opacity:.95; margin-bottom:10px;">
+          Leaderboard will go here (Firebase / local / whatever you choose).
+        </div>
+        <div style="opacity:.85; font-weight:800;">
+          Placeholder only — ready for your submit + scores UI when you add it.
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+
+  const scoreEl = document.getElementById('score');
+  const bestEl  = document.getElementById('best');
+
+  const btnArcade  = document.getElementById('btnArcade');
+  const btnStart   = document.getElementById('btnStart');
+  const btnRestart = document.getElementById('btnRestart');
+
+  const btnLeaderboard = document.getElementById('btnLeaderboard');
+  const lbBackdrop = document.getElementById('lbBackdrop');
+  const lbClose = document.getElementById('lbClose');
+
+  // ----------- Assets -----------
+  const imgBG = new Image(); imgBG.src = 'bg.png';
+  const imgCup = new Image(); imgCup.src = 'cup.png';
+  const imgChar = new Image(); imgChar.src = 'character.png';
+
+  // Beans:
+  // - gold: points
+  // - slow: slow-time power-up
+  // - shield: one free hit
+  const imgGold = new Image();   imgGold.src   = 'beangold.png';
+  const imgSlow = new Image();   imgSlow.src   = 'beanslow.png';     // OPTIONAL art
+  const imgShield = new Image(); imgShield.src = 'beanshield.png';   // OPTIONAL art
+
+  // ----------- Game Tunables -----------
+  const W = canvas.width;
+  const H = canvas.height;
+
+  // ✅ Character half size (relative to your last)
+  // Your previous was: 0.38 * 0.82 * 0.85  (~0.265)
+  // Half of that:
+  const PLAYER_SCALE = (0.38 * 0.82 * 0.85) * 0.50;  // ✅ half size
+  const PLAYER_X = Math.round(W * 0.23);
+
+  /*
+    ✅ HITBOX SCALE (slightly BIGGER than your last)
+    - You said: "I hit cup by a fair bit and nothing happened"
+    - So we make it less forgiving = bigger hitbox.
+    - Old: 0.72 (very forgiving)
+    - New: 0.84 (still not huge, but hits register properly)
+  */
+  const HITBOX_SCALE = 0.70;
+
+  // Cups: slightly smaller + less overlap (so they don’t stack as tightly)
+  const CUP_SCALE   = 0.40;  // was 0.42
+  const CUP_OVERLAP = 0.10;  // was 0.14 (less overlap)
+  const CUP_PAD_X = 12;
+
+  // Pipe/gap tuning (base values)
+  const GAP_BASE = Math.round(H * 0.34);
+  const SPEED_BASE = 4.2;
+  const DIST_BASE = Math.round(W * 0.62);
+  const PIPE_WIDTH = Math.round(W * 0.22);
+
+  // Physics (base)
+  const GRAVITY_BASE = 0.62;
+  const FLAP_VY = -10.8;
+
+  // ----------- Power-up settings -----------
+  const GOLD_POINTS = 3;
+  const POWER_SLOW_MS = 6500;     // ✅ 6.5 seconds (your request)
+  const POWER_SHIELD_MAX = 1;     // one free hit
+
+  // Spawn weights per new pipe
+  // (kept simple: gold common-ish, slow/shield rare)
+  const SPAWN_GOLD_CHANCE   = 0.35;
+  const SPAWN_SLOW_CHANCE   = 0.12;
+  const SPAWN_SHIELD_CHANCE = 0.10;
+
+  // ----------- Fun systems -----------
+  const NEAR_MISS_PX = 18; // how close counts as a near miss (sparks)
+  const COMBO_BONUS_EVERY = 3; // every 3 pipes in a row gives +1 bonus point
+
+  const END_MESSAGES = [
+    "Spilled… but stylish ☕😅",
+    "Barista down! Try again 🫶",
+    "That was a spicy roast 🔥",
+    "Almost… SO close 😭",
+    "Next run is THE run 💪",
+    "Cups were jealous 😤",
+  ];
+
+  // ----------- State -----------
+  let state = 'idle'; // 'idle' | 'playing' | 'dead'
+  let score = 0;
+  let best = Number(localStorage.getItem('baristaBest') || '0');
+
+  // combo/streak
+  let combo = 0;
+
+  // power-ups
+  let slowUntil = 0;
+  let shield = 0;
+
+  // camera shake
+  let shake = 0;
+
+  bestEl.textContent = best.toString();
+
+  const player = {
+    x: PLAYER_X,
+    y: Math.round(H * 0.48),
+    vy: 0,
+    w: 60,
+    h: 60
+  };
+
+  let pipes = [];
+  let beans = [];
+  let particles = [];
+  let endMsg = "";
+
+  // ----------- Tiny SFX (no files needed) -----------
+  let audioCtx = null;
+  function beep(freq=440, dur=0.06, type='sine', gain=0.06){
+    try{
+      if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const t0 = audioCtx.currentTime;
+      const osc = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, t0);
+      g.gain.setValueAtTime(0, t0);
+      g.gain.linearRampToValueAtTime(gain, t0+0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0+dur);
+      osc.connect(g); g.connect(audioCtx.destination);
+      osc.start(t0); osc.stop(t0+dur);
+    }catch(_){}
+  }
+
+  function sfxFlap(){ beep(520, 0.045, 'triangle', 0.05); }
+  function sfxScore(){ beep(740, 0.06, 'sine', 0.05); }
+  function sfxGold(){ beep(880, 0.07, 'square', 0.045); }
+  function sfxPower(){ beep(660, 0.08, 'sawtooth', 0.045); }
+  function sfxHit(){ beep(160, 0.10, 'square', 0.06); }
+
+  // ----------- Helpers -----------
+  function clamp(n, a, b){ return Math.max(a, Math.min(b, n)); }
+
+  function resetGame() {
+    state = 'idle';
+    score = 0;
+    combo = 0;
+    shield = 0;
+    slowUntil = 0;
+    shake = 0;
+    endMsg = "";
+    scoreEl.textContent = '0';
+
+    player.y = Math.round(H * 0.48);
+    player.vy = 0;
+
+    pipes = [];
+    beans = [];
+    particles = [];
+
+    // Start with a few pipes correctly spaced
+    const startX = W + 240;
+    for (let i = 0; i < 3; i++) spawnPipe(startX + i * getPipeDistance());
+
+    render(0);
+  }
+
+  function startGame() {
+    if (state === 'playing') return;
+    state = 'playing';
+  }
+
+  function die() {
+    if (state !== 'playing') return;
+    state = 'dead';
+
+    endMsg = END_MESSAGES[Math.floor(Math.random() * END_MESSAGES.length)];
+
+    if (score > best) {
+      best = score;
+      localStorage.setItem('baristaBest', String(best));
+      bestEl.textContent = String(best);
+    }
+  }
+
+  function isSlow() {
+    return performance.now() < slowUntil;
+  }
+
+  function getSpeed() {
+    // Difficulty ramp: speed increases slowly with score
+    const ramp = Math.min(2.0, score * 0.04); // up to +2.0
+    const base = SPEED_BASE + ramp;
+
+    // Slow-time power reduces speed
+    return isSlow() ? base * 0.55 : base;
+  }
+
+  function getGapSize() {
+    // Difficulty ramp: gap shrinks slightly with score (but never too small)
+    const shrink = Math.min(Math.round(H * 0.08), score * 2); // up to ~96px
+    const base = GAP_BASE - shrink;
+    return Math.max(Math.round(H * 0.24), base);
+  }
+
+  function getGravity() {
+    // Slow-time also slightly reduces gravity for nicer feel
+    return isSlow() ? GRAVITY_BASE * 0.60 : GRAVITY_BASE;
+  }
+
+  function getPipeDistance() {
+    // Keep your spacing feel, slight increase later so it doesn't get impossible
+    const add = Math.min(Math.round(W * 0.12), score * 2);
+    return DIST_BASE + add;
+  }
+
+  function rectsOverlap(ax, ay, aw, ah, bx, by, bw, bh) {
+    return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
+  }
+
+  function circleRectCollide(cx, cy, cr, rx, ry, rw, rh) {
+    const nx = clamp(cx, rx, rx + rw);
+    const ny = clamp(cy, ry, ry + rh);
+    const dx = cx - nx, dy = cy - ny;
+    return (dx*dx + dy*dy) <= cr*cr;
+  }
+
+  function spawnPipe(x) {
+    const GAP_SIZE = getGapSize();
+    const margin = Math.round(H * 0.12);
+    const gapTopMin = margin;
+    const gapTopMax = H - margin - GAP_SIZE;
+
+    const gapTop = Math.round(gapTopMin + Math.random() * (gapTopMax - gapTopMin));
+    const gapBottom = gapTop + GAP_SIZE;
+
+    pipes.push({
+      x,
+      w: PIPE_WIDTH,
+      gapTop,
+      gapBottom,
+      scored: false,
+      nearMissed: false
+    });
+
+    // Spawn bean(s) near the gap — only one per pipe max
+    const r = Math.random();
+    let type = null;
+    if (r < SPAWN_SHIELD_CHANCE) type = 'shield';
+    else if (r < SPAWN_SHIELD_CHANCE + SPAWN_SLOW_CHANCE) type = 'slow';
+    else if (Math.random() < SPAWN_GOLD_CHANCE) type = 'gold';
+
+    if (type) {
+      const gx = x + PIPE_WIDTH + Math.round(W * 0.08);
+      const gy = Math.round((gapTop + gapBottom) / 2 + (Math.random() * 120 - 60));
+      beans.push({
+        type,
+        x: gx,
+        y: clamp(gy, margin + 40, H - margin - 40),
+        r: 26,
+        alive: true
+      });
+    }
+  }
+
+  function flap() {
+    if (state !== 'playing') return;
+    player.vy = FLAP_VY;
+    sfxFlap();
+  }
+
+  // ----------- Drawing: cups as stacked pipe -----------
+  function drawCupStack(pipeX, yStart, yEnd) {
+    if (!imgCup.complete) return;
+
+    const cw = imgCup.naturalWidth || 291;
+    const ch = imgCup.naturalHeight || 342;
+
+    const drawW = cw * CUP_SCALE;
+    const drawH = ch * CUP_SCALE;
+
+    const step = drawH * (1 - CUP_OVERLAP);
+    const x = pipeX + CUP_PAD_X;
+
+    for (let y = yStart; y < yEnd; y += step) {
+      ctx.drawImage(imgCup, x, y, drawW, drawH);
+    }
+  }
+
+  function drawPipe(pipe) {
+    drawCupStack(pipe.x, -40, pipe.gapTop);
+    drawCupStack(pipe.x, pipe.gapBottom, H + 60);
+  }
+
+  function getPlayerSize() {
+    const nw = imgChar.naturalWidth || 512;
+    const nh = imgChar.naturalHeight || 512;
+    return { w: nw * PLAYER_SCALE, h: nh * PLAYER_SCALE };
+  }
+
+  function spawnSparks(x, y, n=10) {
+    for (let i=0;i<n;i++){
+      particles.push({
+        x, y,
+        vx: (Math.random()*2-1) * 4,
+        vy: (Math.random()*2-1) * 4,
+        life: 24 + Math.random()*12
+      });
+    }
+  }
+
+function drawBean(b) {
+  const img =
+    (b.type === 'gold')   ? imgGold :
+    (b.type === 'slow')   ? imgSlow :
+                            imgShield;
+
+  if (!img || !img.complete || !img.naturalWidth) return;
+
+  // 🔧 Target height relative to player size
+  // This keeps beans feeling "character-sized"
+  const targetH = player.h * 0.9;   // tweak 0.8–1.1 if needed
+  const aspect  = img.naturalWidth / img.naturalHeight;
+  const targetW = targetH * aspect;
+
+  ctx.drawImage(
+    img,
+    b.x - targetW / 2,
+    b.y - targetH / 2,
+    targetW,
+    targetH
+  );
+}
+
+
+  function render(ts) {
+    // camera shake
+    const sx = (shake > 0) ? (Math.random()*2-1) * shake : 0;
+    const sy = (shake > 0) ? (Math.random()*2-1) * shake : 0;
+    if (shake > 0) shake *= 0.86;
+
+    ctx.save();
+    ctx.translate(sx, sy);
+
+    // BG
+    if (imgBG.complete) ctx.drawImage(imgBG, 0, 0, W, H);
+    else {
+      ctx.fillStyle = '#2a6fff';
+      ctx.fillRect(0,0,W,H);
+    }
+
+    // Pipes
+    for (const p of pipes) drawPipe(p);
+
+    // Beans
+    for (const b of beans) {
+      if (!b.alive) continue;
+      drawBean(b);
+    }
+
+    // Player
+    const ps = getPlayerSize();
+    player.w = ps.w;
+    player.h = ps.h;
+
+    if (imgChar.complete) {
+      ctx.drawImage(imgChar, player.x - player.w/2, player.y - player.h/2, player.w, player.h);
+    } else {
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(player.x, player.y, 26, 0, Math.PI*2);
+      ctx.fill();
+    }
+
+    // Particles (near-miss sparks)
+    if (particles.length) {
+      ctx.save();
+      ctx.globalAlpha = 0.9;
+      for (const p of particles) {
+        ctx.fillStyle = 'rgba(255,255,255,.95)';
+        ctx.fillRect(p.x, p.y, 3, 3);
+      }
+      ctx.restore();
+    }
+// 🛡️ SHIELD GLOW (visual feedback)
+if (shield > 0) {
+  ctx.save();
+
+  ctx.globalAlpha = 0.85;
+  ctx.strokeStyle = 'rgba(120, 255, 180, 0.9)';
+  ctx.lineWidth = 6;
+
+  ctx.beginPath();
+  ctx.arc(
+    player.x,
+    player.y,
+    Math.max(player.w, player.h) * 0.75, // size of glow
+    0,
+    Math.PI * 2
+  );
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+    // small status (combo + powerups) inside canvas only (no UI changes)
+    ctx.save();
+    ctx.textAlign = 'left';
+    ctx.fillStyle = 'rgba(0,0,0,.35)';
+    ctx.font = '900 22px system-ui, -apple-system, Segoe UI, Roboto, Arial';
+    const left = 18, top = 42;
+
+    if (combo >= 2) ctx.fillText(`Combo x${combo}`, left, top);
+
+    if (shield > 0) {
+      ctx.font = '900 20px system-ui, -apple-system, Segoe UI, Roboto, Arial';
+      ctx.fillText(`🛡️ Shield`, left, top + 28);
+    }
+    if (isSlow()) {
+      ctx.font = '900 20px system-ui, -apple-system, Segoe UI, Roboto, Arial';
+      ctx.fillText(`⏳ Slow`, left, top + (shield>0 ? 56 : 28));
+    }
+    ctx.restore();
+
+    // Overlay text when idle/dead
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.fillStyle = 'rgba(0,0,0,.35)';
+    ctx.font = '900 52px system-ui, -apple-system, Segoe UI, Roboto, Arial';
+    if (state === 'idle') {
+      ctx.fillText('Press Start', W/2, Math.round(H*0.18));
+      ctx.font = '800 28px system-ui, -apple-system, Segoe UI, Roboto, Arial';
+      ctx.fillText('Space / Tap to flap', W/2, Math.round(H*0.23));
+    }
+    if (state === 'dead') {
+      ctx.fillText('Game Over', W/2, Math.round(H*0.18));
+      ctx.font = '900 34px system-ui, -apple-system, Segoe UI, Roboto, Arial';
+      ctx.fillText('Press Restart', W/2, Math.round(H*0.23));
+      ctx.font = '900 26px system-ui, -apple-system, Segoe UI, Roboto, Arial';
+      ctx.fillText(endMsg || '', W/2, Math.round(H*0.28));
+    }
+    ctx.restore();
+
+    ctx.restore(); // shake translate
+    ctx.restore();
+  }
+
+  // ----------- Update loop -----------
+  let last = 0;
+  function tick(ts) {
+    const dt = Math.min(32, ts - last);
+    last = ts;
+
+    const speed = getSpeed();
+    const gravity = getGravity();
+
+    if (state === 'playing') {
+      // physics
+      player.vy += gravity;
+      player.y += player.vy;
+
+      // floor/ceiling
+      if (player.y + player.h/2 > H - 6) { player.y = H - 6 - player.h/2; sfxHit(); shake = 8; die(); }
+      if (player.y - player.h/2 < 0)      { player.y = player.h/2; player.vy = 0; }
+
+      // move pipes
+      for (const p of pipes) p.x -= speed;
+
+      // spawn new pipes (keeps spacing perfect)
+      const rightMost = pipes.reduce((m,p)=>Math.max(m,p.x), -Infinity);
+      if (rightMost < W + 240) {
+        spawnPipe(rightMost + getPipeDistance());
+      }
+
+      // remove offscreen
+      pipes = pipes.filter(p => p.x + p.w > -200);
+
+      // update particles
+      if (particles.length) {
+        for (const p of particles) {
+          p.x += p.vx;
+          p.y += p.vy;
+          p.vx *= 0.92;
+          p.vy *= 0.92;
+          p.life -= 1;
+        }
+        particles = particles.filter(p => p.life > 0);
+      }
+
+      // ✅ Player hitbox (slightly bigger now)
+      const hitW = player.w * HITBOX_SCALE;
+      const hitH = player.h * HITBOX_SCALE;
+      const hitX = player.x - hitW/2;
+      const hitY = player.y - hitH/2;
+
+      // scoring + collision + near-miss
+      for (const p of pipes) {
+        // score when passing pipe
+        if (!p.scored && (p.x + p.w) < player.x) {
+          p.scored = true;
+          combo += 1;
+
+          score += 1;
+          // combo bonus every N in a row
+          if (combo > 0 && combo % COMBO_BONUS_EVERY === 0) {
+            score += 1;
+            sfxScore();
+          } else {
+            sfxScore();
+          }
+
+          scoreEl.textContent = String(score);
+        }
+
+        // collision rects for pipe blocks
+        const topRect = { x: p.x, y: 0, w: p.w, h: p.gapTop };
+        const botRect = { x: p.x, y: p.gapBottom, w: p.w, h: H - p.gapBottom };
+
+        const hitTop = rectsOverlap(hitX, hitY, hitW, hitH, topRect.x, topRect.y, topRect.w, topRect.h);
+        const hitBot = rectsOverlap(hitX, hitY, hitW, hitH, botRect.x, botRect.y, botRect.w, botRect.h);
+
+        if (hitTop || hitBot) {
+          // Shield absorbs ONE hit
+          if (shield > 0) {
+            shield -= 1;
+            shake = 6;
+            sfxHit();
+            spawnSparks(player.x + 20, player.y, 14);
+            combo = 0; // reset combo on shield hit
+          } else {
+            shake = 10;
+            sfxHit();
+            die();
+          }
+          break;
+        }
+
+        // Near miss spark:
+        // If player is within NEAR_MISS_PX of the gap edge while inside x-range of pipe.
+        // (A fun “whoa!” moment.)
+        if (!p.nearMissed) {
+          const inX = (player.x + hitW/2) > p.x && (player.x - hitW/2) < (p.x + p.w);
+          if (inX) {
+            const topEdge = p.gapTop;
+            const botEdge = p.gapBottom;
+
+            const distToTop = Math.abs((hitY) - topEdge);           // top of hitbox to top edge
+            const distToBot = Math.abs((hitY + hitH) - botEdge);    // bottom of hitbox to bottom edge
+
+            if (distToTop < NEAR_MISS_PX || distToBot < NEAR_MISS_PX) {
+              p.nearMissed = true;
+              shake = Math.max(shake, 2.5);
+              spawnSparks(player.x + 20, player.y, 10);
+              // tiny bonus? kept subtle:
+              score += 1;
+              scoreEl.textContent = String(score);
+              beep(920, 0.04, 'triangle', 0.04);
+            }
+          }
+        }
+      }
+
+      // beans movement + collection
+      for (const b of beans) {
+        if (!b.alive) continue;
+        b.x -= speed;
+
+        if (circleRectCollide(b.x, b.y, b.r, hitX, hitY, hitW, hitH)) {
+          b.alive = false;
+          shake = Math.max(shake, 4);
+
+          if (b.type === 'gold') {
+            score += GOLD_POINTS;
+            sfxGold();
+          } else if (b.type === 'slow') {
+            slowUntil = performance.now() + POWER_SLOW_MS; // ✅ 6.5 seconds
+            sfxPower();
+          } else if (b.type === 'shield') {
+            shield = Math.min(POWER_SHIELD_MAX, shield + 1);
+            sfxPower();
+          }
+
+          scoreEl.textContent = String(score);
+        }
+      }
+      beans = beans.filter(b => b.x > -200 && b.alive);
+
+    } // end playing
+
+    render(ts);
+    requestAnimationFrame(tick);
+  }
+
+  // ----------- Input -----------
+  window.addEventListener('keydown', (e) => {
+    if (e.code === 'Space') {
+      e.preventDefault();
+      if (state !== 'playing') return;
+      flap();
+    }
+  }, { passive:false });
+
+  canvas.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    if (state === 'idle') startGame();
+    if (state !== 'playing') return;
+    flap();
+  }, { passive:false });
+
+  // Buttons
+  btnStart.addEventListener('click', () => startGame());
+  btnRestart.addEventListener('click', () => { resetGame(); startGame(); });
+  btnArcade.addEventListener('click', () => {
+    window.location.href = '../index.html';
+  });
+
+  // Leaderboard modal (placeholder)
+  function openLB(){ lbBackdrop.style.display = 'flex'; lbBackdrop.setAttribute('aria-hidden','false'); }
+  function closeLB(){ lbBackdrop.style.display = 'none'; lbBackdrop.setAttribute('aria-hidden','true'); }
+  btnLeaderboard.addEventListener('click', openLB);
+  lbClose.addEventListener('click', closeLB);
+  lbBackdrop.addEventListener('click', (e) => { if (e.target === lbBackdrop) closeLB(); });
+
+  // Reset combo when you die (happens automatically on new run)
+  // Reset combo when you restart:
+  btnRestart.addEventListener('click', () => { combo = 0; });
+
+  // ----------- Boot -----------
+  resetGame();
+  requestAnimationFrame(tick);
+
+})();
+</script>
+</body>
+</html>

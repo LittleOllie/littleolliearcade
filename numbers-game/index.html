@@ -379,7 +379,7 @@ select{
 
     <div class="controls">
       <div class="group">
-        <button class="btn" id="backMenuBtn">🕹️ Menu</button>
+        <button class="btn" id="backMenuBtn">🕹️ Arcade Menu</button>
         <select id="modeSelect" title="Difficulty">
           <option value="easy">😊 Easy</option>
           <option value="medium" selected>😎 Medium</option>
@@ -391,7 +391,6 @@ select{
 
       <div class="group">
         <button class="btn" id="streakBtn">🔥 Streak</button>
-        <button class="btn" id="clearSelBtn" disabled>🧹 Clear</button>
         <button class="btn" id="undoBtn" disabled>↩️ Undo</button>
         <button class="btn" id="finishBtn" disabled>🏁 Finish</button>
         <button class="btn" id="rulesBtn">📜 Rules</button>
@@ -534,7 +533,6 @@ const modeSelect  = $("modeSelect");
 const newRoundBtn = $("newRoundBtn");
 const startBtn    = $("startBtn");
 const streakBtn   = $("streakBtn");
-const clearSelBtn = $("clearSelBtn");
 const undoBtn     = $("undoBtn");
 const finishBtn   = $("finishBtn");
 const rulesBtn    = $("rulesBtn");
@@ -659,7 +657,6 @@ function setOpsEnabled(on){ [opAdd,opSub,opMul,opDiv].forEach(b => b.disabled = 
 
 function syncButtons(){
   const canPlay = started && !spinning;
-  clearSelBtn.disabled = !canPlay || (aPickId == null && !opPick);
   undoBtn.disabled = !canPlay || history.length === 0;
   finishBtn.disabled = !canPlay;
 
@@ -1176,7 +1173,6 @@ opSub.onclick = () => setOp("-");
 opMul.onclick = () => setOp("*");
 opDiv.onclick = () => setOp("/");
 
-clearSelBtn.onclick = () => clearSelections();
 undoBtn.onclick = () => undo();
 finishBtn.onclick = () => finishRound({ reason:"manual" });
 

@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Little Ollie Beach Battle (Snowcraft-style)</title>
+  <style>
+    *{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
+    html,body{height:100%; margin:0; background:#0b1020; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial;}
+    body{
+      display:flex; align-items:center; justify-content:center;
+      overscroll-behavior:none;
+    }
+    .wrap{
+      width:min(980px, 96vw);
+      aspect-ratio: 16 / 9;
+      position:relative;
+      border-radius:18px;
+      overflow:hidden;
+      box-shadow: 0 18px 50px rgba(0,0,0,.45);
+      background:#111;
+    }
+    canvas{
+      width:100%; height:100%;
+      display:block;
+      touch-action:none; /* CRITICAL: prevents iOS pinch/scroll gestures */
+      user-select:none;
+    }
+    .hud{
+      position:absolute; left:10px; top:10px; right:10px;
+      display:flex; gap:10px; align-items:center; justify-content:space-between;
+      color:#fff;
+      pointer-events:none;
+      text-shadow: 0 2px 10px rgba(0,0,0,.5);
+      font-weight:700;
+    }
+    .pill{
+      background: rgba(0,0,0,.35);
+      border: 1px solid rgba(255,255,255,.18);
+      padding:8px 12px;
+      border-radius:999px;
+      font-size:14px;
+      pointer-events:none;
+      backdrop-filter: blur(6px);
+    }
+    .hint{
+      position:absolute; left:10px; bottom:10px; right:10px;
+      display:flex; justify-content:center;
+      pointer-events:none;
+    }
+    .hint .pill{font-weight:600; opacity:.95;}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hud">
+    <div class="pill">LO Beach Battle</div>
+    <div class="pill" id="status">Hold + drag a kid, release to throw</div>
+    <div class="pill" id="score">You: 0 | CPU: 0</div>
+  </div>
+  <canvas id="c"></canvas>
+  <div class="hint">
+    <div class="pill">One-button control: press a player = charge starts • drag while charging • release = throw (fixed direction)</div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+
+  // --- DPR resize ---
+  function resize(){
+    const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+    const rect = canvas.getBoundingClientRect();
+    canvas.width  = Math.floor(rect.width * dpr);
+    canvas.height = Math.floor(rect.height * dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+  window.addEventListener('resize', resize, {passive:true});
+  resize();
+
+  // --- Background image ---
+  const bg = new Image();
+  bg.src = 'bg.png';
+
+  // --- Helpers ---
+  const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
+  const dist2 = (ax,ay,bx,by)=>{ const dx=ax-bx, dy=ay-by; return dx*dx+dy*dy; };
+  const len = (x,y)=>Math.hypot(x,y) || 1;
+  const now = () => performance.now();
+
+function isOnOwnSide(team, x, y) {
+  const { w, h } = arena();
+
+  // Diagonal line equation:
+  // y = (-h/w) * x + h
+  // We test which side of the line the point is on
+  const lineY = (-h / w) * x + h;
+
+  if (team === TEAM_A) {
+    // Team A is bottom-right side (below the line)
+    return y > lineY;
+  } else {
+    // Team B is top-left side (above the line)
+    return y < lineY;
+  }
+}
+
+  // --- Game constants (tune here) ---
+  const TEAM_A = 0; // player
+  const TEAM_B = 1; // cpu
+
+  const PLAYER_COUNT = 3;
+  const CPU_COUNT = 3;
+
+  const PLAYER_RADIUS = 16; // placeholder circle size
+  const BALL_RADIUS = 6;
+
+  // Fixed directions (Snowcraft-ish: no aiming)
+  // Players throw toward top-left, CPUs throw toward bottom-right
+  function dirForTeam(team){
+    if(team === TEAM_A){
+      const dx = -1, dy = -1;
+      const L = len(dx,dy);
+      return {x: dx/L, y: dy/L};
+    } else {
+      const dx =  1, dy =  1;
+      const L = len(dx,dy);
+      return {x: dx/L, y: dy/L};
+    }
+  }
+
+  // Charge (hold) controls power
+  const CHARGE_MAX_MS = 1100;         // time to reach max throw
+  const POWER_MIN = 280;             // px/s
+  const POWER_MAX = 700;            // px/s
+
+  // Reload (delay between throws)
+  const RELOAD_PLAYER = 600;         // ms
+  const RELOAD_CPU    = 1050;        // ms (slower per your request)
+
+  // Movement
+  const DRAG_SPEED = 1.0;            // direct drag; kept simple
+  const CPU_MOVE_SPEED = 55;         // px/s slower
+  const CPU_WANDER_RADIUS = 40;      // small movement range
+
+  // Arena padding
+  const PAD = 26;
+
+  // --- Entities ---
+  class Kid {
+    constructor(team, x, y){
+      this.team = team;
+      this.x = x; this.y = y;
+      this.r = PLAYER_RADIUS;
+      this.alive = true;
+      this.reloadUntil = 0;
+
+      // CPU brain
+      this.aiTarget = {x, y};
+      this.aiNextThink = 0;
+      this.aiLastShot = 0;
+
+      // Visual
+      this.color = team===TEAM_A ? '#ff4b4b' : '#5aa7ff';
+    }
+  }
+
+  class Ball {
+    constructor(team, x, y, vx, vy){
+      this.team = team;
+      this.x=x; this.y=y;
+      this.vx=vx; this.vy=vy;
+      this.r = BALL_RADIUS;
+      this.alive = true;
+    }
+  }
+
+  class Mound {
+    constructor(x,y,r){
+      this.x=x; this.y=y; this.r=r;
+    }
+  }
+
+  // --- Setup arena based on canvas size (in CSS pixels) ---
+  function arena(){
+    const rect = canvas.getBoundingClientRect();
+    return { w: rect.width, h: rect.height };
+  }
+
+  let kids = [];
+  let balls = [];
+  let mounds = [];
+
+  let scoreA = 0, scoreB = 0;
+
+  function resetRound(){
+    balls.length = 0;
+    kids.length = 0;
+
+    const {w,h} = arena();
+
+    // Mimic Snowcraft layout: opponents top-left, players bottom-right
+    const startA = [
+      {x: w*0.78, y: h*0.70},
+      {x: w*0.83, y: h*0.80},
+      {x: w*0.73, y: h*0.82},
+    ];
+    const startB = [
+      {x: w*0.22, y: h*0.30},
+      {x: w*0.17, y: h*0.20},
+      {x: w*0.27, y: h*0.18},
+    ];
+
+    for(let i=0;i<PLAYER_COUNT;i++){
+      const p = startA[i] || {x:w*0.8, y:h*(0.65+i*0.08)};
+      kids.push(new Kid(TEAM_A, p.x, p.y));
+    }
+    for(let i=0;i<CPU_COUNT;i++){
+      const e = startB[i] || {x:w*0.2, y:h*(0.25+i*0.08)};
+      const k = new Kid(TEAM_B, e.x, e.y);
+      k.home = {x:e.x, y:e.y};
+      kids.push(k);
+    }
+
+    // Two mounds: top-left-ish and bottom-right-ish, closer in like Snowcraft
+    mounds = [
+      new Mound(w*0.34, h*0.34, 52),
+      new Mound(w*0.66, h*0.66, 52),
+    ];
+
+    updateHUD();
+  }
+
+  function updateHUD(){
+    document.getElementById('score').textContent = `You: ${scoreA} | CPU: ${scoreB}`;
+  }
+
+  resetRound();
+
+  // --- Input: one-button press/drag/charge/release ---
+  let pointerDown = false;
+  let activeKid = null;
+  let activeKidId = -1;
+  let pointerId = null;
+
+  let pressStartT = 0;
+  let lastPointer = {x:0,y:0};
+  let startKidPos = {x:0,y:0};
+  let movedPixels = 0;
+
+  function getPos(e){
+    const rect = canvas.getBoundingClientRect();
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  }
+
+  function findKidAt(x,y){
+    // topmost preference: if multiple overlap, pick closest
+    let best = null;
+    let bestD = Infinity;
+    for(let i=0;i<kids.length;i++){
+      const k = kids[i];
+      if(!k.alive || k.team!==TEAM_A) continue;
+      const d = dist2(x,y,k.x,k.y);
+      if(d <= (k.r+10)*(k.r+10) && d < bestD){
+        best = {kid:k, id:i, d};
+        bestD = d;
+      }
+    }
+    return best;
+  }
+
+function clampKidInArena(k){
+  const { w, h } = arena();
+
+  // Keep inside screen bounds
+  k.x = clamp(k.x, PAD, w - PAD);
+  k.y = clamp(k.y, PAD, h - PAD);
+
+  // Enforce diagonal "half-map" rule
+  if (!isOnOwnSide(k.team, k.x, k.y)) {
+    // Push the kid slightly back toward their side
+    const push = 6;
+    const dir = k.team === TEAM_A
+      ? { x: 1, y: 1 }   // push back toward bottom-right
+      : { x: -1, y: -1 }; // push back toward top-left
+
+    k.x += dir.x * push;
+    k.y += dir.y * push;
+  }
+}
+
+
+  function tryShoot(k, power01){
+    const t = now();
+    if(t < k.reloadUntil) return false;
+
+    // fixed direction per team
+    const d = dirForTeam(k.team);
+
+    // convert power
+    const spd = POWER_MIN + (POWER_MAX-POWER_MIN) * power01;
+
+    // spawn slightly forward
+    const ox = k.x + d.x*(k.r+6);
+    const oy = k.y + d.y*(k.r+6);
+
+    balls.push(new Ball(k.team, ox, oy, d.x*spd, d.y*spd));
+    k.reloadUntil = t + (k.team===TEAM_A ? RELOAD_PLAYER : RELOAD_CPU);
+    return true;
+  }
+
+  canvas.addEventListener('pointerdown', (e) => {
+    canvas.setPointerCapture(e.pointerId);
+    pointerDown = true;
+    pointerId = e.pointerId;
+
+    const p = getPos(e);
+    lastPointer = p;
+
+    const hit = findKidAt(p.x,p.y);
+    if(hit){
+      activeKid = hit.kid;
+      activeKidId = hit.id;
+
+      pressStartT = now();
+      startKidPos = {x: activeKid.x, y: activeKid.y};
+      movedPixels = 0;
+
+      document.getElementById('status').textContent = 'Charging… drag to reposition, release to throw';
+    } else {
+      activeKid = null;
+      activeKidId = -1;
+      document.getElementById('status').textContent = 'Tap directly on a player to control them';
+    }
+    e.preventDefault();
+  }, {passive:false});
+
+  canvas.addEventListener('pointermove', (e) => {
+    if(!pointerDown || e.pointerId !== pointerId) return;
+
+    const p = getPos(e);
+    const dx = p.x - lastPointer.x;
+    const dy = p.y - lastPointer.y;
+    lastPointer = p;
+
+    if(activeKid && activeKid.alive){
+      // Move while charging (ONE action)
+      activeKid.x += dx * DRAG_SPEED;
+      activeKid.y += dy * DRAG_SPEED;
+      clampKidInArena(activeKid);
+
+      movedPixels += Math.hypot(dx,dy);
+    }
+
+    e.preventDefault();
+  }, {passive:false});
+
+  canvas.addEventListener('pointerup', (e) => {
+    if(e.pointerId !== pointerId) return;
+    pointerDown = false;
+    pointerId = null;
+
+    if(activeKid && activeKid.alive){
+      // Charge starts immediately on press; release shoots
+      const held = clamp(now() - pressStartT, 0, CHARGE_MAX_MS);
+      const power01 = held / CHARGE_MAX_MS;
+
+      const fired = tryShoot(activeKid, power01);
+      document.getElementById('status').textContent = fired
+        ? 'Nice! Hold + drag another kid, release to throw'
+        : 'Reloading… pick another kid or wait a moment';
+    } else {
+      document.getElementById('status').textContent = 'Hold + drag a kid, release to throw';
+    }
+
+    activeKid = null;
+    activeKidId = -1;
+    e.preventDefault();
+  }, {passive:false});
+
+  canvas.addEventListener('pointercancel', () => {
+    pointerDown = false;
+    pointerId = null;
+    activeKid = null;
+    activeKidId = -1;
+  });
+
+  // --- Collisions: balls vs kids/mounds ---
+  function ballHitsMound(b){
+    for(const m of mounds){
+      const rr = (b.r + m.r);
+      if(dist2(b.x,b.y,m.x,m.y) <= rr*rr) return true;
+    }
+    return false;
+  }
+
+  function ballHitsKid(b){
+    for(const k of kids){
+      if(!k.alive) continue;
+      if(k.team === b.team) continue; // no friendly hit for now
+      const rr = (b.r + k.r);
+      if(dist2(b.x,b.y,k.x,k.y) <= rr*rr){
+        return k;
+      }
+    }
+    return null;
+  }
+
+  // --- CPU AI (slow + slower reload) ---
+  function cpuThink(k){
+    const t = now();
+    if(t < k.aiNextThink) return;
+    k.aiNextThink = t + 450 + Math.random()*500;
+
+    // wander near home, small jitter
+    const hx = k.home?.x ?? k.x;
+    const hy = k.home?.y ?? k.y;
+    k.aiTarget.x = clamp(hx + (Math.random()*2-1)*CPU_WANDER_RADIUS, PAD, arena().w-PAD);
+    k.aiTarget.y = clamp(hy + (Math.random()*2-1)*CPU_WANDER_RADIUS, PAD, arena().h-PAD);
+
+    // sometimes shoot if ready
+    if(t >= k.reloadUntil){
+      // pick a living player
+      const targets = kids.filter(p => p.alive && p.team===TEAM_A);
+      if(targets.length){
+        // simple cadence: don’t spam
+        if(t - k.aiLastShot > 650 + Math.random()*400){
+          // CPU power is moderate and ramps with score later if you want
+          const power01 = 0.35 + Math.random()*0.35; // softer throws
+          if(tryShoot(k, power01)){
+            k.aiLastShot = t;
+          }
+        }
+      }
+    }
+  }
+
+  function cpuMove(k, dt){
+    // slow drift toward target
+    const dx = k.aiTarget.x - k.x;
+    const dy = k.aiTarget.y - k.y;
+    const L = len(dx,dy);
+    const step = CPU_MOVE_SPEED * dt;
+    if(L > 2){
+      k.x += (dx/L) * Math.min(step, L);
+      k.y += (dy/L) * Math.min(step, L);
+      clampKidInArena(k);
+    }
+  }
+
+  // --- Loop ---
+  let lastT = now();
+  function tick(){
+    const t = now();
+    const dt = Math.min(0.033, (t-lastT)/1000);
+    lastT = t;
+
+    // Update CPU
+    for(const k of kids){
+      if(!k.alive || k.team!==TEAM_B) continue;
+      cpuThink(k);
+      cpuMove(k, dt);
+    }
+
+    // Update balls
+    const {w,h} = arena();
+    for(const b of balls){
+      if(!b.alive) continue;
+
+      b.x += b.vx * dt;
+      b.y += b.vy * dt;
+
+      // out of bounds
+      if(b.x < -20 || b.y < -20 || b.x > w+20 || b.y > h+20){
+        b.alive = false;
+        continue;
+      }
+
+      // mound shield
+      if(ballHitsMound(b)){
+        b.alive = false;
+        continue;
+      }
+
+      // hit kid
+      const hit = ballHitsKid(b);
+      if(hit){
+        hit.alive = false;
+        b.alive = false;
+
+        if(hit.team === TEAM_A) scoreB++;
+        else scoreA++;
+
+        updateHUD();
+
+        // round end check
+        const aliveA = kids.some(k=>k.alive && k.team===TEAM_A);
+        const aliveB = kids.some(k=>k.alive && k.team===TEAM_B);
+        if(!aliveA || !aliveB){
+          // quick reset
+          setTimeout(resetRound, 650);
+        }
+      }
+    }
+    // cleanup
+    balls = balls.filter(b=>b.alive);
+
+    // Render
+    render(t);
+
+    requestAnimationFrame(tick);
+  }
+
+  function drawMound(m){
+    // placeholder mound style (replace later with sprite)
+    ctx.save();
+    ctx.translate(m.x, m.y);
+
+    // body
+    ctx.beginPath();
+    ctx.arc(0,0,m.r,0,Math.PI*2);
+    ctx.fillStyle = 'rgba(0,0,0,.18)';
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(-4,-4,m.r*0.92,0,Math.PI*2);
+    ctx.fillStyle = 'rgba(255,220,140,.85)';
+    ctx.fill();
+
+    // outline
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = 'rgba(0,0,0,.28)';
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  function drawKid(k, isActive){
+    ctx.save();
+    ctx.translate(k.x, k.y);
+
+    // body circle placeholder
+    ctx.beginPath();
+    ctx.arc(0,0,k.r,0,Math.PI*2);
+    ctx.fillStyle = k.color;
+    ctx.globalAlpha = k.alive ? 1 : 0.25;
+    ctx.fill();
+
+    // outline
+    ctx.globalAlpha = k.alive ? 1 : 0.25;
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = 'rgba(0,0,0,.35)';
+    ctx.stroke();
+
+    // reload ring indicator
+    const t = now();
+    const remain = Math.max(0, k.reloadUntil - t);
+    if(k.alive && remain > 0){
+      const p = 1 - clamp(remain / (k.team===TEAM_A ? RELOAD_PLAYER : RELOAD_CPU), 0, 1);
+      ctx.beginPath();
+      ctx.arc(0,0,k.r+7, -Math.PI/2, -Math.PI/2 + Math.PI*2*p);
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = 'rgba(255,255,255,.75)';
+      ctx.stroke();
+    }
+
+    // active marker
+    if(isActive && k.alive){
+      ctx.beginPath();
+      ctx.arc(0,0,k.r+10,0,Math.PI*2);
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = 'rgba(255,255,255,.9)';
+      ctx.stroke();
+    }
+
+    ctx.restore();
+  }
+
+  function drawBall(b){
+    ctx.save();
+    ctx.translate(b.x,b.y);
+    ctx.beginPath();
+    ctx.arc(0,0,b.r,0,Math.PI*2);
+    ctx.fillStyle = 'rgba(255,255,255,.95)';
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = 'rgba(0,0,0,.25)';
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawPowerBar(k){
+    if(!pointerDown || !activeKid || k !== activeKid) return;
+
+    const held = clamp(now() - pressStartT, 0, CHARGE_MAX_MS);
+    const p = held / CHARGE_MAX_MS;
+
+    const barW = 54;
+    const barH = 8;
+    const x = k.x - barW/2;
+    const y = k.y + k.r + 10;
+
+    ctx.save();
+    // bg
+    ctx.fillStyle = 'rgba(0,0,0,.35)';
+    ctx.strokeStyle = 'rgba(255,255,255,.22)';
+    ctx.lineWidth = 1;
+    roundRect(x,y,barW,barH,5);
+    ctx.fill();
+    ctx.stroke();
+
+    // fill
+    ctx.fillStyle = 'rgba(255,221,85,.95)';
+    roundRect(x,y,barW*p,barH,5);
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  function roundRect(x,y,w,h,r){
+    const rr = Math.min(r, w/2, h/2);
+    ctx.beginPath();
+    ctx.moveTo(x+rr, y);
+    ctx.arcTo(x+w, y, x+w, y+h, rr);
+    ctx.arcTo(x+w, y+h, x, y+h, rr);
+    ctx.arcTo(x, y+h, x, y, rr);
+    ctx.arcTo(x, y, x+w, y, rr);
+    ctx.closePath();
+  }
+
+  function render(){
+    const {w,h} = arena();
+    ctx.clearRect(0,0,w,h);
+
+    // bg
+    if(bg.complete && bg.naturalWidth){
+      // cover
+      const iw = bg.naturalWidth, ih = bg.naturalHeight;
+      const s = Math.max(w/iw, h/ih);
+      const dw = iw*s, dh = ih*s;
+      const dx = (w - dw)/2, dy = (h - dh)/2;
+      ctx.drawImage(bg, dx, dy, dw, dh);
+    } else {
+      // fallback
+      const g = ctx.createLinearGradient(0,0,0,h);
+      g.addColorStop(0,'#ffd792');
+      g.addColorStop(1,'#f5b66a');
+      ctx.fillStyle = g;
+      ctx.fillRect(0,0,w,h);
+    }
+
+    // mounds
+    for(const m of mounds) drawMound(m);
+
+    // balls
+    for(const b of balls) if(b.alive) drawBall(b);
+
+    // kids
+    for(let i=0;i<kids.length;i++){
+      drawKid(kids[i], i===activeKidId);
+    }
+
+    // power bar under active kid
+    for(const k of kids){
+      if(k.team===TEAM_A) drawPowerBar(k);
+    }
+
+    // subtle vignette
+    ctx.save();
+    const vg = ctx.createRadialGradient(w/2,h/2,Math.min(w,h)*0.25, w/2,h/2, Math.max(w,h)*0.62);
+    vg.addColorStop(0,'rgba(0,0,0,0)');
+    vg.addColorStop(1,'rgba(0,0,0,.22)');
+    ctx.fillStyle = vg;
+    ctx.fillRect(0,0,w,h);
+    ctx.restore();
+  }
+
+  // Start loop
+  requestAnimationFrame(tick);
+
+})();
+</script>
+</body>
+</html>

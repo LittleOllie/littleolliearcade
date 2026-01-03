@@ -1,0 +1,1212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Little Ollie Number Forge</title>
+
+<style>
+*{ box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
+
+body{
+  margin:0;
+  min-height:100vh;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  background: radial-gradient(circle at top, #6de0ff, #4c6fff);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  color:#fff;
+  overscroll-behavior: none;
+  touch-action: manipulation;
+}
+
+.game-wrapper{
+  background: rgba(0,0,0,0.18);
+  border-radius: 20px;
+  padding: 16px;
+  box-shadow: 0 12px 28px rgba(0,0,0,0.35);
+  width: 960px;
+  max-width: 96vw;
+}
+
+.header-image{ width:100%; margin-bottom:10px; display:block; }
+
+.controls{
+  display:flex; gap:10px; flex-wrap:wrap;
+  margin-bottom: 12px; align-items:center;
+  justify-content: space-between;
+}
+.controls .group{
+  display:flex; gap:10px; flex-wrap:wrap; align-items:center;
+}
+
+button,.btn{
+  padding: 8px 16px;
+  border-radius: 10px;
+  border:none;
+  cursor:pointer;
+  background:#ffdd55;
+  color:#222;
+  font-weight:900;
+}
+button:active,.btn:active{ transform: translateY(1px); }
+button:disabled,.btn:disabled{ opacity:.7; cursor:not-allowed; }
+
+select{
+  padding: 10px 12px;
+  border-radius: 12px;
+  border:none;
+  outline:none;
+  font-weight:900;
+  background:#ffdd55;
+  color:#222;
+}
+
+.panel{
+  background: rgba(0,0,0,0.15);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 14px;
+  padding: 12px;
+  margin-top: 10px;
+}
+
+.hr{ height:1px; background: rgba(255,255,255,0.22); border-radius:999px; margin: 12px 0; }
+
+.topline{
+  display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;
+  font-weight:1000;
+}
+
+.target-box{
+  display:flex; align-items:center; justify-content:center;
+  font-weight: 1000; font-size: 50px; letter-spacing: 1px;
+  padding: 16px 12px;
+  border-radius: 16px;
+  background: rgba(255,255,255,0.14);
+  border: 1px solid rgba(255,255,255,0.18);
+  min-height: 84px;
+}
+
+.tile-row{
+  display:flex; flex-wrap:wrap; gap:12px;
+  align-items:center; justify-content:center;
+  margin-top: 10px;
+}
+
+.tile{
+  min-width: 84px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background:
+    linear-gradient(rgba(255,255,255,0.92), rgba(255,255,255,0.92)),
+    url("logo.png");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  color:#111;
+  font-weight:1000;
+  font-size: 22px;
+  border: 3px solid #111;
+  text-align:center;
+  user-select:none;
+  cursor:pointer;
+  transition: transform 160ms cubic-bezier(.22,.61,.36,1), opacity 160ms;
+  box-shadow: 0 10px 18px rgba(0,0,0,0.18);
+}
+.tile:active{ transform: translateY(1px); }
+
+.tile.used{ opacity: .35; transform: scale(.98); cursor:not-allowed; }
+
+.tile.result{
+  background:
+    linear-gradient(rgba(209,250,229,0.92), rgba(209,250,229,0.92)),
+    url("logo.png");
+  background-size: cover;
+  background-position: center;
+  border-color: #10b981;
+}
+
+.tile.selected{
+  outline: 5px solid rgba(255,221,85,0.85);
+  transform: translateY(-1px);
+}
+
+.op-btn{
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-size: 20px;
+}
+.op-btn.active{
+  outline: 5px solid rgba(255,221,85,0.85);
+  transform: translateY(-1px);
+}
+
+.disclaimer{
+  margin-top: 8px;
+  text-align:center;
+  font-weight: 1000;
+  font-size: 13px;
+  opacity: .92;
+  background: rgba(0,0,0,0.16);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 999px;
+  padding: 8px 12px;
+}
+
+.powered-by{
+  margin-top: 12px;
+  text-align:center;
+  font-weight: 1000;
+  letter-spacing: .3px;
+  font-size: 12px;
+  opacity: .92;
+  background: rgba(0,0,0,.12);
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 999px;
+  padding: 8px 12px;
+}
+
+.steps{ display:grid; gap:8px; margin-top:10px; }
+.step-row{
+  display:flex; justify-content:space-between; align-items:center;
+  gap:10px; padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.12);
+  font-weight: 1000;
+}
+.step-left{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+.step-chip{
+  background: rgba(0,0,0,0.18);
+  border: 1px solid rgba(255,255,255,0.14);
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-weight: 1000;
+  white-space: nowrap;
+}
+.step-right{ opacity:.95; font-weight: 1000; }
+
+/* Confetti */
+.confetti{
+  position: fixed;
+  top: -10px;
+  width: 10px;
+  height: 14px;
+  animation: fall linear forwards;
+  z-index: 60;
+}
+@keyframes fall { to { transform: translateY(110vh) rotate(360deg); } }
+
+/* Overlays */
+.overlay{
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.6);
+  display:none;
+  justify-content:center;
+  align-items:center;
+  z-index: 70;
+}
+.overlay-box{
+  background: rgba(255,255,255,.18);
+  backdrop-filter: blur(12px);
+  border-radius: 20px;
+  padding: 24px;
+  text-align: center;
+  box-shadow: 0 20px 50px rgba(0,0,0,.5);
+  width: min(620px, 94vw);
+}
+.overlay-box h2{ margin: 0 0 8px; }
+.overlay-box p{ margin: 8px 0; font-weight: 900; opacity: .97; }
+
+.solution-box{
+  margin-top: 12px;
+  text-align:left;
+  background: rgba(0,0,0,0.18);
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 14px;
+  padding: 12px;
+  display:none;
+}
+.solution-box ol{ margin: 8px 0 0; padding-left: 18px; }
+.solution-box li{ margin: 6px 0; font-weight: 900; }
+
+.rules-box{
+  text-align:left;
+  background: rgba(0,0,0,0.18);
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 14px;
+  padding: 12px;
+  margin-top: 12px;
+  font-weight: 900;
+  line-height: 1.4;
+}
+.rules-box ul{ margin: 8px 0 0; padding-left: 18px; }
+.rules-box li{ margin: 6px 0; }
+
+.toast{
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 18px;
+  background: rgba(0,0,0,0.75);
+  color: #fff;
+  padding: 10px 14px;
+  border-radius: 999px;
+  font-weight: 900;
+  z-index: 80;
+  display:none;
+  max-width: 92vw;
+  text-align:center;
+}
+
+/* =========================
+   MICRO-ANIMATIONS
+   ========================= */
+@keyframes pop {
+  0%   { transform: scale(1); }
+  55%  { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+.pop { animation: pop 160ms cubic-bezier(.22,.61,.36,1); }
+
+@keyframes dropIn {
+  0%   { transform: translateY(-10px) scale(.96); opacity: 0; }
+  70%  { transform: translateY(2px) scale(1.02); opacity: 1; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+.drop-in { animation: dropIn 220ms cubic-bezier(.22,.61,.36,1); }
+
+@keyframes shake {
+  0% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(4px); }
+  100% { transform: translateX(0); }
+}
+.shake { animation: shake 220ms ease; }
+
+@keyframes glowPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+  100% { transform: scale(1); }
+}
+.pulse { animation: glowPulse 420ms ease; }
+</style>
+</head>
+
+<body>
+  <!-- WIN OVERLAY -->
+  <div class="overlay" id="winOverlay">
+    <div class="overlay-box">
+      <h2 id="winTitle">🎉 Nice one! 🎉</h2>
+      <p id="winLine1"></p>
+      <p id="winLine2"></p>
+      <p id="winLine3" style="opacity:.95;"></p>
+
+      <div style="display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:12px;">
+        <button class="btn" id="showSolutionBtn" style="display:none;">👀 Show one possible solution</button>
+        <button class="btn" id="copyShareBtn">📣 Copy share text</button>
+      </div>
+
+      <div class="solution-box" id="solutionBox">
+        <div style="font-weight:1000;">🧩 One possible way:</div>
+        <ol id="solutionSteps"></ol>
+      </div>
+
+      <div style="display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:14px;">
+        <button class="btn" id="playAgainBtn">🔁 Play Again</button>
+        <button class="btn" id="closeWinBtn">✅ Keep Playing</button>
+      </div>
+
+      <div class="disclaimer" style="margin-top:14px;">
+        🔥 Streak: <span id="winStreak">0</span> (Best: <span id="winBestStreak">0</span>)
+      </div>
+
+      <div class="disclaimer" style="margin-top:10px;">
+        🧠 Exact solutions aren’t guaranteed — get as close as you can!
+      </div>
+    </div>
+  </div>
+
+  <!-- RULES OVERLAY -->
+  <div class="overlay" id="rulesOverlay">
+    <div class="overlay-box">
+      <h2>📜 Rules</h2>
+      <div class="rules-box">
+        <ul>
+          <li>Tap a number, tap an operator, tap a second number.</li>
+          <li>Each number can be used once (results can be reused).</li>
+          <li>Division must be a whole number (no decimals).</li>
+          <li>Subtraction never goes negative (it uses the bigger minus smaller).</li>
+          <li><b>Exact solutions aren’t guaranteed</b> — get as close as you can.</li>
+        </ul>
+      </div>
+      <div style="display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:14px;">
+        <button class="btn" id="closeRulesBtn">✅ Got it</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STREAK OVERLAY -->
+  <div class="overlay" id="streakOverlay">
+    <div class="overlay-box">
+      <h2>🔥 Streak</h2>
+      <p style="font-size:18px;font-weight:1000;margin-top:10px;">
+        Current: <span id="streakNow">0</span>
+      </p>
+      <p style="font-size:16px;font-weight:1000;opacity:.95;">
+        Best: <span id="streakBest">0</span>
+      </p>
+      <div class="rules-box" style="margin-top:12px;">
+        <b>How it works:</b>
+        <ul>
+          <li>Streak increases only when you hit the target exactly.</li>
+          <li>Finishing without exact (or timeout) resets streak to 0.</li>
+          <li>Saves on this device.</li>
+        </ul>
+      </div>
+      <div style="display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:14px;">
+        <button class="btn" id="closeStreakBtn">✅ Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="game-wrapper" id="wrap">
+    <img src="header.png" class="header-image" alt="Header" />
+
+    <div class="controls">
+      <div class="group">
+        <button class="btn" id="backMenuBtn">🕹️ Menu</button>
+        <select id="modeSelect" title="Difficulty">
+          <option value="easy">😊 Easy</option>
+          <option value="medium" selected>😎 Medium</option>
+          <option value="hard">🔥 Hard</option>
+        </select>
+        <button class="btn" id="newRoundBtn">🎲 New</button>
+        <button class="btn" id="startBtn">▶️ Start</button>
+      </div>
+
+      <div class="group">
+        <button class="btn" id="streakBtn">🔥 Streak</button>
+        <button class="btn" id="clearSelBtn" disabled>🧹 Clear</button>
+        <button class="btn" id="undoBtn" disabled>↩️ Undo</button>
+        <button class="btn" id="finishBtn" disabled>🏁 Finish</button>
+        <button class="btn" id="rulesBtn">📜 Rules</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="topline">
+        <div>🎯 Target</div>
+        <div style="opacity:.92;">⏱️ <span id="timeLeft">—</span></div>
+      </div>
+
+      <div style="margin-top:10px;" class="target-box" id="targetBox">—</div>
+      <div class="disclaimer">🧠 Exact solutions aren’t guaranteed — get as close as you can!</div>
+
+      <div class="hr"></div>
+
+      <div style="font-weight:1000;">🔢 Numbers</div>
+      <div class="tile-row" id="numbersRow"></div>
+
+      <div style="margin-top:12px;font-weight:1000;">✨ Results</div>
+      <div class="tile-row" id="resultsRow"></div>
+
+      <div class="tile-row" style="margin-top:12px;" id="opsRow">
+        <button class="btn op-btn" id="opAdd" disabled>+</button>
+        <button class="btn op-btn" id="opSub" disabled>−</button>
+        <button class="btn op-btn" id="opMul" disabled>×</button>
+        <button class="btn op-btn" id="opDiv" disabled>÷</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="topline">
+        <div>🧠 Steps</div>
+        <div style="opacity:.92;">Tap same tile to unselect</div>
+      </div>
+      <div class="steps" id="stepsBox"></div>
+    </div>
+
+    <div class="powered-by">⚡ Powered by <span style="font-weight:1100;">Little Ollie Studio</span> ⚡</div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+<script>
+/* Helpers */
+const $ = (id) => document.getElementById(id);
+
+function toast(msg){
+  const t = $("toast");
+  t.textContent = msg;
+  t.style.display = "block";
+  clearTimeout(t._to);
+  t._to = setTimeout(() => t.style.display = "none", 1400);
+}
+function randInt(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
+function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+function opSymbol(op){ return op==="*"?"×":op==="/"
+?"÷":op==="-"?"−":op; }
+
+function launchConfetti(count = 120){
+  const total = Math.max(60, Math.min(180, count));
+  for (let i = 0; i < total; i++) {
+    const c = document.createElement("div");
+    c.className = "confetti";
+    c.style.left = Math.random() * 100 + "vw";
+    c.style.background = `hsl(${Math.random() * 360},90%,60%)`;
+    c.style.animationDuration = (2 + Math.random() * 3) + "s";
+    document.body.appendChild(c);
+    setTimeout(() => c.remove(), 5000);
+  }
+}
+
+/* micro-anim helpers */
+function bump(el, cls){
+  if (!el) return;
+  el.classList.remove(cls);
+  void el.offsetWidth;
+  el.classList.add(cls);
+}
+function shake(el){
+  if (!el) return;
+  bump(el, "shake");
+}
+
+/* =========================
+   STREAK (localStorage)
+   ========================= */
+const LS_STREAK = "lo_nf_streak_v1";
+const LS_BEST   = "lo_nf_best_streak_v1";
+
+function getStreak(){
+  return parseInt(localStorage.getItem(LS_STREAK) || "0", 10);
+}
+function getBestStreak(){
+  return parseInt(localStorage.getItem(LS_BEST) || "0", 10);
+}
+function setStreak(n){
+  localStorage.setItem(LS_STREAK, String(Math.max(0, n|0)));
+}
+function setBestStreak(n){
+  localStorage.setItem(LS_BEST, String(Math.max(0, n|0)));
+}
+function updateStreakDisplay(){
+  $("streakNow").textContent = String(getStreak());
+  $("streakBest").textContent = String(getBestStreak());
+}
+function updateWinStreakDisplay(){
+  $("winStreak").textContent = String(getStreak());
+  $("winBestStreak").textContent = String(getBestStreak());
+}
+function applyStreakResult(isExact){
+  let s = getStreak();
+  let best = getBestStreak();
+
+  if (isExact){
+    s += 1;
+    if (s > best) best = s;
+  } else {
+    s = 0;
+  }
+
+  setStreak(s);
+  setBestStreak(best);
+}
+
+/* Config */
+const MODES = {
+  easy:   { slots: 4, time: null, bigPool:[10,20,25],     target:[20,100]  },
+  medium: { slots: 6, time: 60,   bigPool:[10,20,25,50],  target:[1,999]   },
+  hard:   { slots: 6, time: 45,   bigPool:[25,50,75,100], target:[200,999] }
+};
+const LITTLE_POOL = [1,2,3,4,5,6,7,8,9,10];
+
+/* DOM */
+const opsRow = $("opsRow");
+
+const backMenuBtn = $("backMenuBtn");
+const modeSelect  = $("modeSelect");
+const newRoundBtn = $("newRoundBtn");
+const startBtn    = $("startBtn");
+const streakBtn   = $("streakBtn");
+const clearSelBtn = $("clearSelBtn");
+const undoBtn     = $("undoBtn");
+const finishBtn   = $("finishBtn");
+const rulesBtn    = $("rulesBtn");
+
+const targetBox   = $("targetBox");
+const timeLeftEl  = $("timeLeft");
+const numbersRow  = $("numbersRow");
+const resultsRow  = $("resultsRow");
+const stepsBox    = $("stepsBox");
+
+const opAdd = $("opAdd");
+const opSub = $("opSub");
+const opMul = $("opMul");
+const opDiv = $("opDiv");
+
+/* Overlays */
+const winOverlay = $("winOverlay");
+const winTitle = $("winTitle");
+const winLine1 = $("winLine1");
+const winLine2 = $("winLine2");
+const winLine3 = $("winLine3");
+const showSolutionBtn = $("showSolutionBtn");
+const solutionBox = $("solutionBox");
+const solutionSteps = $("solutionSteps");
+const copyShareBtn = $("copyShareBtn");
+const playAgainBtn = $("playAgainBtn");
+const closeWinBtn = $("closeWinBtn");
+
+const rulesOverlay = $("rulesOverlay");
+const closeRulesBtn = $("closeRulesBtn");
+
+const streakOverlay = $("streakOverlay");
+const closeStreakBtn = $("closeStreakBtn");
+
+/* State */
+let modeKey = "medium";
+let target = null;
+
+let baseNumbers = [];
+let results = [];
+let available = [];
+let originalValues = [];
+
+let steps = [];
+let history = [];
+
+let aPickId = null;
+let opPick  = null;
+
+let started = false;
+let spinning = false;
+
+let timer = null;
+let timeLeft = null;
+
+/* Render */
+function renderTarget(){ targetBox.textContent = target==null ? "—" : String(target); }
+function refreshAvailable(){ available = [...baseNumbers, ...results]; }
+function findNum(id){ return available.find(n => n.id === id) || null; }
+
+function clearSelections(){
+  aPickId = null;
+  opPick = null;
+  setOpActiveStyles();
+  renderRows();
+  syncButtons();
+}
+
+function setOpActiveStyles(){
+  [opAdd,opSub,opMul,opDiv].forEach(btn => btn.classList.remove("active"));
+  if (!opPick) return;
+  const map = { "+":opAdd, "-":opSub, "*":opMul, "/":opDiv };
+  map[opPick]?.classList.add("active");
+}
+
+function tileEl(n){
+  const d = document.createElement("div");
+  d.className = "tile" +
+    (n.used ? " used" : "") +
+    (n.isResult ? " result" : "") +
+    (aPickId === n.id ? " selected" : "");
+  d.textContent = n.value;
+  d.dataset.id = String(n.id);
+  d.onclick = () => onNumberTap(n.id);
+  return d;
+}
+
+function renderRows(){
+  numbersRow.innerHTML = "";
+  resultsRow.innerHTML = "";
+  baseNumbers.forEach(n => numbersRow.appendChild(tileEl(n)));
+  results.forEach(n => resultsRow.appendChild(tileEl(n)));
+}
+
+function renderSteps(){
+  stepsBox.innerHTML = "";
+  if (!steps.length){
+    const empty = document.createElement("div");
+    empty.style.textAlign = "center";
+    empty.style.opacity = ".92";
+    empty.style.fontWeight = "1000";
+    empty.style.marginTop = "8px";
+    empty.textContent = started ? "Tap numbers to start 🔥" : "Press Start ▶️";
+    stepsBox.appendChild(empty);
+    return;
+  }
+  steps.forEach((s, idx) => {
+    const row = document.createElement("div");
+    row.className = "step-row";
+    row.innerHTML = `
+      <div class="step-left">
+        <span class="step-chip">Line ${idx+1}</span>
+        <span>${s.a} ${opSymbol(s.op)} ${s.b} =</span>
+      </div>
+      <div class="step-right">${s.res}</div>
+    `;
+    stepsBox.appendChild(row);
+  });
+}
+
+function setOpsEnabled(on){ [opAdd,opSub,opMul,opDiv].forEach(b => b.disabled = !on); }
+
+function syncButtons(){
+  const canPlay = started && !spinning;
+  clearSelBtn.disabled = !canPlay || (aPickId == null && !opPick);
+  undoBtn.disabled = !canPlay || history.length === 0;
+  finishBtn.disabled = !canPlay;
+
+  startBtn.disabled = spinning;
+  modeSelect.disabled = canPlay || spinning;
+  newRoundBtn.disabled = spinning;
+}
+
+/* Build numbers */
+function buildNumbersForMode(){
+  const cfg = MODES[modeKey];
+  const count = cfg.slots;
+
+  let bigCount = (modeKey === "easy") ? randInt(0,1) : 2;
+  if (modeKey === "hard") bigCount = 3;
+
+  const nums = [];
+  for (let i=0;i<bigCount;i++) nums.push(pick(cfg.bigPool));
+  while (nums.length < count) nums.push(pick(LITTLE_POOL));
+
+  for (let i = nums.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [nums[i], nums[j]] = [nums[j], nums[i]];
+  }
+
+  originalValues = nums.slice();
+
+  let id = 1;
+  baseNumbers = nums.map(v => ({ id:id++, value:v, used:false, isResult:false }));
+  results = [];
+  refreshAvailable();
+}
+
+function dealTargetForMode(){
+  const cfg = MODES[modeKey];
+  target = randInt(cfg.target[0], cfg.target[1]);
+}
+
+/* Spin */
+async function spinIn(){
+  spinning = true;
+  syncButtons();
+
+  const cfg = MODES[modeKey];
+  const spinMs = 950;
+  const tick = 40;
+  const ticks = Math.floor(spinMs / tick);
+  const tempTargetRange = (modeKey === "easy") ? [20, 150] : [1, 999];
+
+  const baseEls = [];
+  [...numbersRow.children].forEach(el => baseEls.push(el));
+
+  bump(targetBox, "pulse");
+
+  for (let i=0;i<ticks;i++){
+    targetBox.textContent = String(randInt(tempTargetRange[0], tempTargetRange[1]));
+    for (let k=0;k<baseEls.length;k++){
+      const el = baseEls[k];
+      const v = (Math.random() < 0.35) ? pick(cfg.bigPool) : pick(LITTLE_POOL);
+      el.textContent = String(v);
+    }
+    await new Promise(r => setTimeout(r, tick));
+  }
+
+  renderTarget();
+  renderRows();
+
+  spinning = false;
+  syncButtons();
+}
+
+/* Timer */
+function setTimer(){
+  clearInterval(timer); timer = null;
+  const cfg = MODES[modeKey];
+
+  if (cfg.time == null){
+    timeLeft = null;
+    timeLeftEl.textContent = "∞";
+    return;
+  }
+  timeLeft = cfg.time;
+  timeLeftEl.textContent = timeLeft + "s";
+
+  timer = setInterval(() => {
+    timeLeft--;
+    timeLeftEl.textContent = timeLeft + "s";
+    if (timeLeft <= 0){
+      clearInterval(timer); timer = null;
+      finishRound({ reason:"timeout" });
+    }
+  }, 1000);
+}
+
+/* Start */
+function startRound(){
+  if (spinning) return;
+  clearInterval(timer); timer = null;
+
+  steps = []; history = [];
+  clearSelections();
+
+  buildNumbersForMode();
+  dealTargetForMode();
+
+  renderTarget();
+  renderRows();
+  renderSteps();
+
+  started = true;
+  setOpsEnabled(true);
+  setTimer();
+
+  spinIn().then(() => toast("GO! 🔥"));
+
+  syncButtons();
+}
+
+/* Gameplay */
+function compute(a, op, b){
+  if (op === "+") return a + b;
+  if (op === "*") return a * b;
+  if (op === "-") return Math.abs(a - b);
+  if (op === "/"){
+    const hi = Math.max(a,b), lo = Math.min(a,b);
+    if (lo === 0) return null;
+    if (hi % lo !== 0) return null;
+    return hi / lo;
+  }
+  return null;
+}
+
+function setOp(op){
+  if (!started || spinning) return;
+  if (aPickId == null){
+    toast("Pick a number first");
+    shake(opsRow);
+    return;
+  }
+  if (opPick === op){
+    opPick = null;
+    setOpActiveStyles();
+    syncButtons();
+    toast("Operator cleared");
+    return;
+  }
+  opPick = op;
+  setOpActiveStyles();
+  syncButtons();
+  toast("Op: " + opSymbol(op));
+}
+
+function popTileById(id){
+  const el = document.querySelector(`.tile[data-id="${id}"]`);
+  bump(el, "pop");
+}
+
+function onNumberTap(id){
+  if (!started || spinning) return;
+
+  refreshAvailable();
+  const n = findNum(id);
+  if (!n || n.used) return;
+
+  if (aPickId === id){
+    aPickId = null;
+    opPick = null;
+    setOpActiveStyles();
+    renderRows();
+    syncButtons();
+    toast("Selection cleared");
+    return;
+  }
+
+  if (aPickId == null){
+    aPickId = id;
+    renderRows();
+    popTileById(id);
+    syncButtons();
+    return;
+  }
+
+  if (!opPick){
+    toast("Pick an operator");
+    shake(opsRow);
+    return;
+  }
+
+  const a = findNum(aPickId);
+  const b = n;
+  if (!a || a.used){ clearSelections(); return; }
+
+  const res = compute(a.value, opPick, b.value);
+  if (res == null){
+    toast("Not allowed");
+    shake(opsRow);
+    return;
+  }
+
+  a.used = true;
+  b.used = true;
+
+  const newId = (available.reduce((m,x)=>Math.max(m,x.id),0)) + 1;
+  const created = { id:newId, value:res, used:false, isResult:true };
+  results.push(created);
+  refreshAvailable();
+
+  steps.push({ a:a.value, op:opPick, b:b.value, res });
+  history.push({ aId:a.id, bId:b.id, createdId:newId });
+
+  clearSelections();
+  renderRows();
+  renderSteps();
+  syncButtons();
+
+  const createdEl = document.querySelector(`.tile[data-id="${newId}"]`);
+  bump(createdEl, "drop-in");
+
+  if (res === target){
+    finishRound({ reason:"exact" });
+  } else {
+    toast(String(res));
+  }
+}
+
+/* Undo */
+function undo(){
+  if (!started || spinning || history.length === 0) return;
+  const last = history.pop();
+
+  results = results.filter(r => r.id !== last.createdId);
+
+  refreshAvailable();
+  const a = findNum(last.aId);
+  const b = findNum(last.bId);
+  if (a) a.used = false;
+  if (b) b.used = false;
+
+  steps.pop();
+
+  clearSelections();
+  refreshAvailable();
+  renderRows();
+  renderSteps();
+  syncButtons();
+  toast("Undone");
+}
+
+/* Best current & scoring */
+function bestCurrent(){
+  refreshAvailable();
+  let best = null;
+  for (const n of available){
+    const diff = Math.abs(n.value - target);
+    if (best == null || diff < best.diff) best = { value:n.value, diff };
+  }
+  return best || { value:null, diff:null };
+}
+function scoreForDiff(diff){
+  if (diff === 0) return 150;
+  if (diff <= 2) return 120;
+  if (diff <= 5) return 90;
+  if (diff <= 10) return 60;
+  if (diff <= 20) return 30;
+  return 0;
+}
+
+/* Solver (post-finish analysis) */
+function solverKey(arr){ return arr.slice().sort((a,b)=>a-b).join(","); }
+
+function solveBest(numbers, target){
+  const start = numbers.map(v => ({ v, steps: [] }));
+  let best = { value: start[0]?.v ?? 0, diff: Infinity, steps: [] };
+  let exactFound = false;
+  const seen = new Set();
+
+  function consider(node){
+    const d = Math.abs(node.v - target);
+    if (d < best.diff){
+      best = { value: node.v, diff: d, steps: node.steps };
+      if (d === 0) exactFound = true;
+    } else if (d === best.diff && best.steps.length === 0 && node.steps.length){
+      best = { value: node.v, diff: d, steps: node.steps };
+    }
+  }
+
+  function dfs(list){
+    if (exactFound) return;
+
+    const key = solverKey(list.map(x=>x.v));
+    if (seen.has(key)) return;
+    seen.add(key);
+
+    for (const node of list) consider(node);
+    if (list.length === 1) return;
+
+    for (let i=0;i<list.length;i++){
+      for (let j=i+1;j<list.length;j++){
+        const A = list[i], B = list[j];
+        const rest = list.filter((_, idx) => idx !== i && idx !== j);
+
+        const a = A.v, b = B.v;
+        const hi = Math.max(a,b), lo = Math.min(a,b);
+
+        { // +
+          const res = a + b;
+          const steps = [...A.steps, ...B.steps, `${a} + ${b} = ${res}`];
+          dfs([...rest, { v: res, steps }]);
+          if (exactFound) return;
+        }
+
+        { // ×
+          const res = a * b;
+          const steps = [...A.steps, ...B.steps, `${a} × ${b} = ${res}`];
+          dfs([...rest, { v: res, steps }]);
+          if (exactFound) return;
+        }
+
+        if (hi !== lo){ // −
+          const res = hi - lo;
+          const steps = [...A.steps, ...B.steps, `${hi} − ${lo} = ${res}`];
+          dfs([...rest, { v: res, steps }]);
+          if (exactFound) return;
+        }
+
+        if (lo !== 0 && hi % lo === 0){ // ÷
+          const res = hi / lo;
+          const steps = [...A.steps, ...B.steps, `${hi} ÷ ${lo} = ${res}`];
+          dfs([...rest, { v: res, steps }]);
+          if (exactFound) return;
+        }
+      }
+    }
+  }
+
+  for (const n of start) consider(n);
+  dfs(start);
+
+  return { exact: best.diff === 0, bestValue: best.value, bestDiff: best.diff, steps: best.steps || [] };
+}
+
+/* Finish */
+function setWinSolution(stepsArr){
+  solutionSteps.innerHTML = "";
+  (stepsArr || []).forEach(s => {
+    const li = document.createElement("li");
+    li.textContent = s;
+    solutionSteps.appendChild(li);
+  });
+}
+
+async function finishRound({ reason }){
+  if (!started) return;
+
+  clearInterval(timer); timer = null;
+  setOpsEnabled(false);
+
+  const playerBest = bestCurrent();
+  const base = scoreForDiff(playerBest.diff);
+
+  let bonus = 0;
+  const cfg = MODES[modeKey];
+  if (cfg.time != null && timeLeft != null){
+    if (timeLeft >= 30) bonus += 20;
+    else if (timeLeft >= 10) bonus += 10;
+  }
+  const totalScore = base + bonus;
+
+  started = false;
+  spinning = false;
+  clearSelections();
+  syncButtons();
+  renderRows();
+  renderSteps();
+
+  // ✅ Update streak NOW
+  const isExact = (reason === "exact");
+  applyStreakResult(isExact);
+  updateWinStreakDisplay();
+
+  // Near-miss celebration
+  const diff = playerBest.diff;
+
+  if (reason === "exact"){
+    launchConfetti(170);
+    bump(targetBox, "pulse");
+    winTitle.textContent = "🎉 CONGRATS!! 🎉";
+    winLine1.textContent = `You hit ${target} EXACTLY! 😤🔥`;
+  } else if (reason === "timeout"){
+    if (diff <= 2) launchConfetti(120);
+    else if (diff <= 5) launchConfetti(90);
+    else launchConfetti(70);
+
+    bump(targetBox, "pulse");
+
+    winTitle.textContent =
+      diff <= 2 ? "😤 SO CLOSE!!" :
+      diff <= 5 ? "🔥 Almost!!" : "⏱️ Time’s up!";
+
+    winLine1.textContent = `Best you made: ${playerBest.value} (off by ${diff})`;
+  } else {
+    if (diff <= 2) launchConfetti(120);
+    else if (diff <= 5) launchConfetti(90);
+    else launchConfetti(70);
+
+    bump(targetBox, "pulse");
+
+    winTitle.textContent =
+      diff <= 2 ? "😤 SO CLOSE!!" :
+      diff <= 5 ? "🔥 Almost!!" : "🏁 Finished!";
+
+    winLine1.textContent = `Best you made: ${playerBest.value} (off by ${diff})`;
+  }
+
+  winLine2.textContent = `⭐ Score: ${totalScore}`;
+  winLine3.textContent = "🧠 Checking what was possible…";
+
+  showSolutionBtn.style.display = "none";
+  solutionBox.style.display = "none";
+  setWinSolution([]);
+
+  winOverlay.style.display = "flex";
+
+  await new Promise(r => setTimeout(r, 60));
+
+  const analysis = solveBest(originalValues, target);
+
+  if (analysis.exact){
+    if (playerBest.diff === 0){
+      winLine3.textContent = "🏆 Perfect play — exact solution exists and you nailed it!";
+    } else {
+      winLine3.textContent = `✨ An exact solution DID exist. Best possible is ${target} exactly.`;
+    }
+  } else {
+    if (playerBest.diff === analysis.bestDiff){
+      winLine3.textContent = `🧠 Optimal play! Closest possible was ${analysis.bestValue} (off by ${analysis.bestDiff}).`;
+    } else {
+      winLine3.textContent = `🧩 Closest possible was ${analysis.bestValue} (off by ${analysis.bestDiff}).`;
+    }
+  }
+
+  if (analysis.steps && analysis.steps.length){
+    showSolutionBtn.style.display = "inline-block";
+    setWinSolution(analysis.steps);
+  }
+
+  copyShareBtn.onclick = async () => {
+    const status =
+      (playerBest.diff === 0) ? "HIT IT EXACTLY 🎯" :
+      (playerBest.diff <= 2) ? `SO CLOSE (off by ${playerBest.diff}) 😤` :
+      `Off by ${playerBest.diff}`;
+
+    const txt =
+      `I played Little Ollie Number Forge (${modeKey})!\n` +
+      `Target: ${target}\n` +
+      `Best I made: ${playerBest.value} (${status})\n` +
+      `Streak: ${getStreak()} 🔥 (Best ${getBestStreak()})\n` +
+      `Score: ${totalScore} ⭐`;
+
+    try{
+      await navigator.clipboard.writeText(txt);
+      toast("✅ Share copied");
+    } catch {
+      alert(txt);
+    }
+  };
+}
+
+/* Events */
+backMenuBtn.onclick = () => location.href = "../index.html";
+
+rulesBtn.onclick = () => { rulesOverlay.style.display = "flex"; };
+closeRulesBtn.onclick = () => { rulesOverlay.style.display = "none"; };
+
+streakBtn.onclick = () => {
+  updateStreakDisplay();
+  streakOverlay.style.display = "flex";
+};
+closeStreakBtn.onclick = () => { streakOverlay.style.display = "none"; };
+
+modeSelect.onchange = () => {
+  modeKey = modeSelect.value;
+  clearInterval(timer); timer = null;
+  started = false; spinning = false;
+  target = null; baseNumbers = []; results = []; available = [];
+  steps = []; history = [];
+  originalValues = [];
+  clearSelections();
+  timeLeftEl.textContent = "—";
+  renderTarget(); renderRows(); renderSteps();
+  setOpsEnabled(false);
+  syncButtons();
+  toast("Mode set. Press Start ▶️");
+};
+
+newRoundBtn.onclick = () => {
+  clearInterval(timer); timer = null;
+  started = false; spinning = false;
+  target = null; baseNumbers = []; results = []; available = [];
+  steps = []; history = [];
+  originalValues = [];
+  clearSelections();
+  timeLeftEl.textContent = "—";
+  renderTarget(); renderRows(); renderSteps();
+  setOpsEnabled(false);
+  syncButtons();
+  toast("New round ready 🎲");
+};
+
+startBtn.onclick = () => startRound();
+
+opAdd.onclick = () => setOp("+");
+opSub.onclick = () => setOp("-");
+opMul.onclick = () => setOp("*");
+opDiv.onclick = () => setOp("/");
+
+clearSelBtn.onclick = () => clearSelections();
+undoBtn.onclick = () => undo();
+finishBtn.onclick = () => finishRound({ reason:"manual" });
+
+showSolutionBtn.onclick = () => {
+  const showing = solutionBox.style.display === "block";
+  solutionBox.style.display = showing ? "none" : "block";
+  showSolutionBtn.textContent = showing ? "👀 Show one possible solution" : "🙈 Hide solution";
+};
+
+playAgainBtn.onclick = () => {
+  winOverlay.style.display = "none";
+  startRound();
+};
+closeWinBtn.onclick = () => {
+  winOverlay.style.display = "none";
+  toast("Keep going 😎");
+};
+
+/* Init */
+(function init(){
+  modeKey = modeSelect.value;
+  renderTarget();
+  renderRows();
+  renderSteps();
+  setOpsEnabled(false);
+  syncButtons();
+  updateStreakDisplay();
+  updateWinStreakDisplay();
+  toast("Press Start ▶️");
+})();
+</script>
+</body>
+</html>

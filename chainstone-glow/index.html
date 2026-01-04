@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Chainstone: Hold the Glow</title>
+
+<style>
+  *{ box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
+  html,body{ height:100%; margin:0; }
+  body{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    background: radial-gradient(circle at top, #6de0ff, #4c6fff);
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    color:#fff;
+    overscroll-behavior:none;
+    touch-action: manipulation;
+  }
+
+  :root{
+    --panel: rgba(0,0,0,.18);
+    --panel2: rgba(0,0,0,.22);
+    --shadow: 0 14px 34px rgba(0,0,0,.35);
+    --btnYellow:#ffdd55;
+    --btnYellow2:#ffd22e;
+    --btnText:#222;
+  }
+
+  .wrap{
+    width:min(980px, 96vw);
+    height:min(760px, 96vh);
+    border-radius:18px;
+    overflow:hidden;
+    box-shadow: var(--shadow);
+    background: rgba(0,0,0,.08);
+    display:grid;
+    grid-template-rows: auto auto 1fr auto;
+  }
+
+  .headerArea{
+    background: var(--panel);
+    border-bottom: 1px solid rgba(255,255,255,.10);
+    padding:10px 12px;
+  }
+  .headerImg{
+    width:100%;
+    height:92px;
+    display:block;
+    border-radius:12px;
+    border: 1px solid rgba(255,255,255,.12);
+    background: rgba(0,0,0,.10);
+    object-fit: cover;
+  }
+
+  .topControls{
+    padding:10px 12px;
+    background: var(--panel);
+    backdrop-filter: blur(6px);
+    border-bottom: 1px solid rgba(255,255,255,.10);
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+  }
+
+  .btnRow{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    align-items:center;
+    justify-content:flex-start;
+  }
+
+  button{
+    appearance:none;
+    border:none;
+    border-radius:14px;
+    padding:11px 14px;
+    font-weight:900;
+    font-size:14px;
+    cursor:pointer;
+    color: var(--btnText);
+    background: linear-gradient(180deg, var(--btnYellow), var(--btnYellow2));
+    box-shadow: 0 10px 22px rgba(0,0,0,.25);
+    transition: transform .06s ease;
+    touch-action: manipulation;
+    white-space:nowrap;
+  }
+  button:active{ transform: translateY(1px) scale(.99); }
+  button[disabled]{ opacity:.55; cursor:not-allowed; }
+
+  .hud{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    flex-wrap:wrap;
+    justify-content:flex-start;
+  }
+  .pill{
+    background: var(--panel2);
+    border: 1px solid rgba(255,255,255,.16);
+    padding:10px 12px;
+    border-radius:16px;
+    font-size:15px;
+    display:flex;
+    align-items:center;
+    gap:10px;
+    font-weight:900;
+  }
+  .bar{
+    width:220px;
+    height:16px;
+    border-radius:999px;
+    background: rgba(255,255,255,.16);
+    overflow:hidden;
+    border: 1px solid rgba(255,255,255,.16);
+  }
+  .bar > i{
+    display:block;
+    height:100%;
+    width:60%;
+    background: rgba(255,255,255,.92);
+    border-radius:999px;
+    transform-origin:left center;
+  }
+
+  .stage{
+    position:relative;
+    padding:12px;
+    min-height:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+
+  /* ✅ square gameplay */
+  .playframe{
+    width:100%;
+    height:100%;
+    max-width: 100%;
+    max-height: 100%;
+    aspect-ratio: 1 / 1;
+    border-radius:14px;
+    overflow:hidden;
+    border: 1px solid rgba(255,255,255,.12);
+    background: rgba(0,0,0,.10);
+    position:relative;
+  }
+
+  canvas{
+    width:100%;
+    height:100%;
+    display:block;
+    touch-action:none;
+  }
+
+  .bottomFooter{
+    padding:10px 12px 12px;
+    text-align:center;
+    font-size:12px;
+    opacity:.85;
+    background: var(--panel);
+    border-top: 1px solid rgba(255,255,255,.10);
+  }
+
+  .modalBackdrop{
+    position:absolute;
+    inset:0;
+    background: rgba(0,0,0,.55);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    padding:16px;
+    z-index:50;
+  }
+  .modal{
+    width:min(560px, 96vw);
+    background: rgba(12,16,32,.92);
+    border:1px solid rgba(255,255,255,.16);
+    border-radius:16px;
+    box-shadow: 0 18px 48px rgba(0,0,0,.45);
+    overflow:hidden;
+  }
+  .modalHeader{
+    padding:12px 14px;
+    background: rgba(255,255,255,.08);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+  }
+  .modalHeader h2{ margin:0; font-size:16px; }
+  .modalBody{ padding:14px; }
+
+  .muted{ opacity:.9; font-weight:800; }
+  .scores{ display:flex; flex-direction:column; gap:8px; margin-top:10px; }
+  .scoreRow{
+    display:flex; justify-content:space-between; gap:10px;
+    padding:10px 12px; border-radius:12px;
+    background: rgba(255,255,255,.06);
+    border:1px solid rgba(255,255,255,.10);
+    font-size:14px;
+  }
+
+  .submitRow{
+    margin-top:12px;
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    align-items:center;
+  }
+  input{
+    flex: 1 1 180px;
+    min-width: 180px;
+    padding:12px 12px;
+    border-radius:12px;
+    border:1px solid rgba(255,255,255,.18);
+    background: rgba(255,255,255,.10);
+    color:#fff;
+    font-weight:800;
+    outline:none;
+  }
+  input::placeholder{ color: rgba(255,255,255,.65); font-weight:700; }
+
+  .tiny{ font-size:12px; opacity:.8; margin-top:10px; line-height:1.35; }
+
+  @media (max-width: 720px){
+    .headerImg{ height:78px; }
+    .bar{ width:160px; height:14px; }
+    .pill{ font-size:14px; padding:9px 10px; }
+    button{ padding:10px 12px; font-size:13px; }
+  }
+</style>
+</head>
+
+<body>
+  <div class="wrap">
+    <div class="headerArea">
+      <img class="headerImg" src="header.png" alt="Header" />
+    </div>
+
+    <div class="topControls">
+      <div class="btnRow">
+        <button id="arcadeBtn">🏠 Arcade</button>
+        <button id="startBtn">▶️ Start</button>
+        <button id="pauseBtn" disabled>⏸ Pause</button>
+        <button id="restartBtn" disabled>🔄 Restart</button>
+        <button id="leaderBtn">🏆 Leaderboard</button>
+        <button id="soundBtn">🔊 Sound: On</button>
+      </div>
+
+      <div class="hud">
+        <div class="pill">
+          🔥 Glow
+          <span class="bar"><i id="glowBar"></i></span>
+          <span id="glowText">60%</span>
+        </div>
+
+        <div class="pill">
+          ⏱ <span id="timeText">0.0s</span> • 💥 <span id="killsText">0</span>
+        </div>
+
+        <div class="pill">
+          🛡 <span id="shieldText">0</span> • 🐢 <span id="slowText">0.0</span>s • ⚡ <span id="overText">0.0</span>s
+        </div>
+      </div>
+    </div>
+
+    <div class="stage">
+      <div class="playframe">
+        <canvas id="c"></canvas>
+
+        <div class="modalBackdrop" id="lbBackdrop">
+          <div class="modal" role="dialog" aria-modal="true">
+            <div class="modalHeader">
+              <h2>🏆 Leaderboard</h2>
+              <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                <button id="closeLbBtn">❌ Close</button>
+              </div>
+            </div>
+
+            <div class="modalBody">
+              <div id="runSummary" class="muted" style="display:none;"></div>
+
+              <div id="submitBlock" style="display:none;">
+                <div class="submitRow">
+                  <input id="nameInput" maxlength="18" placeholder="Name (for leaderboard)" />
+                  <button id="submitScoreBtn">✅ Submit</button>
+                  <button id="skipScoreBtn">⏭ Skip</button>
+                </div>
+              </div>
+
+              <div class="muted" style="margin-top:10px;">Best runs (Time, then Kills)</div>
+              <div class="scores" id="scoresList"></div>
+
+              <div class="tiny">Scores save on this device.</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="bottomFooter">Powered by Little Ollie Studio ⚡</div>
+  </div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+
+  // UI
+  const glowBar    = document.getElementById('glowBar');
+  const glowText   = document.getElementById('glowText');
+  const timeText   = document.getElementById('timeText');
+  const killsText  = document.getElementById('killsText');
+  const shieldText = document.getElementById('shieldText');
+  const slowText   = document.getElementById('slowText');
+  const overText   = document.getElementById('overText');
+
+  const startBtn   = document.getElementById('startBtn');
+  const pauseBtn   = document.getElementById('pauseBtn');
+  const restartBtn = document.getElementById('restartBtn');
+  const soundBtn   = document.getElementById('soundBtn');
+  const leaderBtn  = document.getElementById('leaderBtn');
+  const arcadeBtn  = document.getElementById('arcadeBtn');
+
+  // Modal / leaderboard
+  const lbBackdrop = document.getElementById('lbBackdrop');
+  const scoresList = document.getElementById('scoresList');
+  const closeLbBtn = document.getElementById('closeLbBtn');
+
+  const runSummary = document.getElementById('runSummary');
+  const submitBlock = document.getElementById('submitBlock');
+  const nameInput = document.getElementById('nameInput');
+  const submitScoreBtn = document.getElementById('submitScoreBtn');
+  const skipScoreBtn = document.getElementById('skipScoreBtn');
+
+  // Canvas sizing
+  function resizeCanvas(){
+    const rect = canvas.getBoundingClientRect();
+    const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+    canvas.width  = Math.floor(rect.width * dpr);
+    canvas.height = Math.floor(rect.height * dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+  window.addEventListener('resize', resizeCanvas);
+  resizeCanvas();
+
+  // Helpers
+  const clamp = (v,a,b)=> Math.max(a, Math.min(b, v));
+  const rand  = (a,b)=> a + Math.random()*(b-a);
+  const dist  = (ax,ay,bx,by)=> Math.hypot(ax-bx, ay-by);
+  const lerp  = (a,b,t)=> a + (b-a)*t;
+
+  function canvasPosFromEvent(e){
+    const rect = canvas.getBoundingClientRect();
+    const clientX = (e.touches ? e.touches[0].clientX : e.clientX);
+    const clientY = (e.touches ? e.touches[0].clientY : e.clientY);
+    return { x: clientX - rect.left, y: clientY - rect.top };
+  }
+
+  // Chainstone slightly smaller
+  function getStone(){
+    const rect = canvas.getBoundingClientRect();
+    const cx = rect.width/2, cy = rect.height/2;
+    const r = Math.min(rect.width, rect.height) * 0.112;
+    return { cx, cy, r };
+  }
+
+  // Juice
+  const sparks = [];
+  let shakeMag = 0;
+  function triggerShake(mag=6){ shakeMag = Math.max(shakeMag, mag); }
+  function spawnSparks(x,y,count=10){
+    for(let i=0;i<count;i++){
+      const a = Math.random()*Math.PI*2;
+      const s = rand(60,170);
+      sparks.push({ x,y, vx:Math.cos(a)*s, vy:Math.sin(a)*s, life:rand(0.25,0.45) });
+    }
+  }
+
+  // Sound placeholders
+  const sounds = {};
+  let audioUnlocked = false;
+  let soundOn = true;
+
+  function unlockAudio(){
+    if(audioUnlocked) return;
+    audioUnlocked = true;
+    const silentWav = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=";
+    sounds.hit = new Audio(silentWav);
+    sounds.pop = new Audio(silentWav);
+    sounds.power = new Audio(silentWav);
+  }
+  function playSound(name){
+    if(!soundOn || !audioUnlocked || !sounds[name]) return;
+    const a = sounds[name].cloneNode();
+    a.volume = 0.35;
+    a.play().catch(()=>{});
+  }
+
+  // Leaderboard store
+  const SCORE_KEY = "lo_chainstone_glow_scores_square_v3";
+
+  function esc(str){
+    return String(str)
+      .replaceAll("&","&amp;")
+      .replaceAll("<","&lt;")
+      .replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;")
+      .replaceAll("'","&#039;");
+  }
+
+  function loadScores(){
+    try{
+      const raw = localStorage.getItem(SCORE_KEY);
+      const arr = raw ? JSON.parse(raw) : [];
+      return Array.isArray(arr) ? arr : [];
+    }catch(e){ return []; }
+  }
+  function saveScores(arr){
+    localStorage.setItem(SCORE_KEY, JSON.stringify(arr));
+  }
+  function addScore(name,time,kills){
+    const scores = loadScores();
+    scores.push({ name:(name||"Anon").slice(0,18), time:Number(time)||0, kills:Number(kills)||0, ts:Date.now() });
+    scores.sort((a,b)=> (b.time - a.time) || (b.kills - a.kills));
+    saveScores(scores.slice(0,20));
+  }
+  function renderScores(){
+    const scores = loadScores();
+    scoresList.innerHTML = "";
+    if(scores.length === 0){
+      const empty = document.createElement("div");
+      empty.className = "scoreRow";
+      empty.textContent = "No scores yet — play a run!";
+      scoresList.appendChild(empty);
+      return;
+    }
+    scores.forEach((s, idx) => {
+      const row = document.createElement("div");
+      row.className = "scoreRow";
+      row.innerHTML = `<div><strong>#${idx+1}</strong> ${esc(s.name)}</div><div><strong>${s.time.toFixed(1)}s</strong> • 💥 ${s.kills}</div>`;
+      scoresList.appendChild(row);
+    });
+  }
+
+  function openLeaderboard({ showSubmit=false, summaryText="" } = {}){
+    renderScores();
+    runSummary.style.display = summaryText ? "block" : "none";
+    runSummary.textContent = summaryText || "";
+    submitBlock.style.display = showSubmit ? "block" : "none";
+    if(showSubmit){
+      nameInput.value = "";
+      setTimeout(()=> nameInput.focus(), 50);
+    }
+    lbBackdrop.style.display = "flex";
+  }
+
+  function closeLeaderboard(){
+    lbBackdrop.style.display = "none";
+    runSummary.style.display = "none";
+    submitBlock.style.display = "none";
+  }
+
+  // Game state
+  const state = {
+    running:false, paused:false,
+    t:0, glow:60, holding:false, kills:0,
+    shieldCharges:0, slowTimer:0, overchargeTimer:0,
+    spawnRate:0.46, spawnAcc:0, difficultyTimer:0,
+    enemies:[], powerups:[],
+
+    // ✅ refill faster than drain
+    holdFillRate:22.0,
+    drainRate:6.6,
+
+    // ✅ penalty ONLY on miss taps (NOT on successful enemy/powerup taps)
+    missPenalty:6.0,
+
+    hitDamage:16,
+    drainRampSecs: 18
+  };
+
+  let pendingRun = null;
+
+  function setUIRunning(r){
+    startBtn.disabled = r;
+    pauseBtn.disabled = !r;
+    restartBtn.disabled = !r;
+  }
+
+  function fullResetAndRun(){
+    closeLeaderboard();
+    resizeCanvas();
+    pendingRun = null;
+
+    Object.assign(state, {
+      running:true, paused:false,
+      t:0, glow:60, holding:false, kills:0,
+      shieldCharges:0, slowTimer:0, overchargeTimer:0,
+      spawnRate:0.46, spawnAcc:0, difficultyTimer:0,
+      enemies:[], powerups:[]
+    });
+
+    pauseBtn.textContent = "⏸ Pause";
+    setUIRunning(true);
+    lastTime = performance.now();
+    requestAnimationFrame(loop);
+  }
+
+  function applyMissPenalty(){
+    state.glow = clamp(state.glow - state.missPenalty, 0, 100);
+  }
+
+  // Spawning
+  function spawnEnemy(){
+    const rect = canvas.getBoundingClientRect();
+    const pad = 44;
+    const side = Math.floor(Math.random()*4);
+    let x,y;
+    if(side===0){ x=rand(0,rect.width); y=-pad; }
+    if(side===1){ x=rect.width+pad; y=rand(0,rect.height); }
+    if(side===2){ x=rand(0,rect.width); y=rect.height+pad; }
+    if(side===3){ x=-pad; y=rand(0,rect.height); }
+
+    const type = (Math.random() < 0.78) ? "basic" : "charger";
+    const baseSpeed = 46 + state.t * 1.10;
+    const speed = (type==="charger") ? clamp(baseSpeed*1.18, 64, 205) : clamp(baseSpeed, 46, 185);
+
+    // ✅ enemies bigger
+    const r = (type==="charger") ? 15 : 19;
+    const damage = (type==="charger") ? state.hitDamage*0.85 : state.hitDamage;
+
+    state.enemies.push({ type,x,y,r,speed,damage,wob:rand(0,Math.PI*2) });
+  }
+
+  function maybeSpawnPowerup(){
+    const chance = 0.010 + Math.min(0.010, state.t * 0.0002);
+    if(Math.random() < chance){
+      const rect = canvas.getBoundingClientRect();
+      const tr = Math.random();
+      const type = (tr < 0.45) ? "shield" : (tr < 0.80) ? "slow" : "overcharge";
+      // ✅ powerups bigger
+      state.powerups.push({ type, x:rand(58,rect.width-58), y:rand(58,rect.height-58), r:20, ttl:10 });
+    }
+  }
+
+  function applyPowerup(type){
+    playSound("power");
+    if(type==="shield") state.shieldCharges = clamp(state.shieldCharges+1, 0, 2);
+    else if(type==="slow") state.slowTimer = Math.max(state.slowTimer, 6.5);
+    else if(type==="overcharge") state.overchargeTimer = Math.max(state.overchargeTimer, 3.0);
+  }
+
+  // ✅ INPUT: meter penalty ONLY if you tap and MISS everything
+  function onPointerDown(e){
+    if(!state.running || state.paused) return;
+    const p = canvasPosFromEvent(e);
+
+    const ENEMY_TAP_MULT = 2.05;
+    const PWR_TAP_MULT   = 1.55;
+
+    // 1) Enemy tap = SUCCESS (no penalty)
+    for(let i=state.enemies.length-1;i>=0;i--){
+      const en = state.enemies[i];
+      if(dist(p.x,p.y,en.x,en.y) <= en.r * ENEMY_TAP_MULT){
+        state.holding = false; // stop charging if you were charging previously
+        spawnSparks(en.x,en.y,12);
+        triggerShake(4);
+        playSound("pop");
+        state.enemies.splice(i,1);
+        state.kills++;
+        return;
+      }
+    }
+
+    // 2) Powerup tap = SUCCESS (no penalty)
+    for(let i=state.powerups.length-1;i>=0;i--){
+      const pu = state.powerups[i];
+      if(dist(p.x,p.y,pu.x,pu.y) <= pu.r * PWR_TAP_MULT){
+        state.holding = false;
+        applyPowerup(pu.type);
+        state.powerups.splice(i,1);
+        return;
+      }
+    }
+
+    // 3) Chainstone hold = SUCCESS (no penalty)
+    const {cx,cy,r} = getStone();
+    if(dist(p.x,p.y,cx,cy) <= r * 1.70){
+      state.holding = true;
+      return;
+    }
+
+    // 4) Miss tap = penalty
+    state.holding = false;
+    applyMissPenalty();
+  }
+
+  function onPointerUp(){
+    if(!state.running) return;
+    // ✅ Lifting finger should NOT cause a penalty
+    state.holding = false;
+  }
+
+  canvas.addEventListener('pointerdown', onPointerDown);
+  window.addEventListener('pointerup', onPointerUp);
+
+  canvas.addEventListener('touchstart', e => e.preventDefault(), { passive:false });
+  canvas.addEventListener('touchmove',  e => e.preventDefault(), { passive:false });
+
+  // Buttons
+  startBtn.addEventListener('click', () => { unlockAudio(); fullResetAndRun(); });
+  restartBtn.addEventListener('click', () => { unlockAudio(); fullResetAndRun(); });
+
+  pauseBtn.addEventListener('click', () => {
+    if(!state.running) return;
+    state.paused = !state.paused;
+    pauseBtn.textContent = state.paused ? "▶️ Resume" : "⏸ Pause";
+    if(!state.paused){
+      lastTime = performance.now();
+      requestAnimationFrame(loop);
+    }
+  });
+
+  soundBtn.addEventListener('click', () => {
+    soundOn = !soundOn;
+    soundBtn.textContent = `${soundOn ? "🔊" : "🔇"} Sound: ${soundOn ? "On" : "Off"}`;
+  });
+
+  leaderBtn.addEventListener('click', () => openLeaderboard({ showSubmit:false }));
+  closeLbBtn.addEventListener('click', closeLeaderboard);
+  lbBackdrop.addEventListener('click', (e) => { if(e.target === lbBackdrop) closeLeaderboard(); });
+
+  arcadeBtn.addEventListener('click', () => { window.location.href = "../index.html"; });
+
+  // Submit flow
+  submitScoreBtn.addEventListener('click', () => {
+    if(!pendingRun) return;
+    const name = (nameInput.value || "Anon").trim().slice(0,18);
+    addScore(name, pendingRun.time, pendingRun.kills);
+    pendingRun = null;
+    openLeaderboard({ showSubmit:false, summaryText:"✅ Score submitted!" });
+  });
+
+  skipScoreBtn.addEventListener('click', () => {
+    pendingRun = null;
+    openLeaderboard({ showSubmit:false });
+  });
+
+  function endGame(){
+    state.running = false;
+    state.paused = false;
+    setUIRunning(false);
+    pauseBtn.textContent = "⏸ Pause";
+
+    pendingRun = { time: state.t, kills: state.kills };
+    openLeaderboard({
+      showSubmit:true,
+      summaryText: `Game Over — ⏱ ${state.t.toFixed(1)}s • 💥 ${state.kills} (submit to leaderboard)`
+    });
+  }
+
+  // Loop
+  let lastTime = performance.now();
+
+  function loop(now){
+    if(!state.running || state.paused) return;
+    const dt = Math.min(0.033, (now - lastTime)/1000);
+    lastTime = now;
+    update(dt);
+    render();
+    if(state.running) requestAnimationFrame(loop);
+  }
+
+  function update(dt){
+    state.t += dt;
+    state.difficultyTimer += dt;
+
+    if(state.difficultyTimer >= 5){
+      state.difficultyTimer = 0;
+      state.spawnRate = clamp(state.spawnRate + 0.065, 0.46, 2.3);
+    }
+
+    state.slowTimer = Math.max(0, state.slowTimer - dt);
+    state.overchargeTimer = Math.max(0, state.overchargeTimer - dt);
+
+    const rampT = clamp(state.t / state.drainRampSecs, 0, 1);
+    const drainMul = lerp(0.38, 1.00, rampT);
+    const effectiveDrain = state.drainRate * drainMul;
+
+    if(state.holding) state.glow += state.holdFillRate * dt;
+    else state.glow -= effectiveDrain * dt;
+
+    if(state.overchargeTimer > 0){
+      state.glow += (state.holdFillRate * 0.85) * dt;
+    }
+
+    state.glow = clamp(state.glow, 0, 100);
+
+    state.spawnAcc += state.spawnRate * dt;
+    while(state.spawnAcc >= 1){
+      spawnEnemy();
+      state.spawnAcc -= 1;
+    }
+
+    maybeSpawnPowerup();
+
+    for(let i=state.powerups.length-1;i>=0;i--){
+      state.powerups[i].ttl -= dt;
+      if(state.powerups[i].ttl <= 0) state.powerups.splice(i,1);
+    }
+
+    const stone = getStone();
+    const slowMul = (state.slowTimer > 0) ? 0.62 : 1.0;
+
+    for(let i=state.enemies.length-1;i>=0;i--){
+      const en = state.enemies[i];
+      const wobble = (en.type === "charger") ? (Math.sin(state.t*6 + en.wob) * 0.25) : 0;
+
+      const dx = stone.cx - en.x;
+      const dy = stone.cy - en.y;
+      const d  = Math.max(0.001, Math.hypot(dx,dy));
+      const nx = dx/d, ny = dy/d;
+
+      const vx = (nx * en.speed * slowMul) + (-ny * wobble * 20);
+      const vy = (ny * en.speed * slowMul) + ( nx * wobble * 20);
+
+      en.x += vx * dt;
+      en.y += vy * dt;
+
+      if(d <= stone.r + en.r){
+        spawnSparks(stone.cx, stone.cy, 16);
+        triggerShake(7);
+        playSound("hit");
+
+        if(state.shieldCharges > 0) state.shieldCharges -= 1;
+        else state.glow = clamp(state.glow - en.damage, 0, 100);
+
+        state.enemies.splice(i,1);
+      }
+    }
+
+    for(let i=sparks.length-1;i>=0;i--){
+      const s = sparks[i];
+      s.life -= dt;
+      s.x += s.vx * dt;
+      s.y += s.vy * dt;
+      s.vx *= 0.92;
+      s.vy *= 0.92;
+      if(s.life <= 0) sparks.splice(i,1);
+    }
+
+    shakeMag *= 0.88;
+
+    if(state.glow <= 0) endGame();
+
+    glowText.textContent = `${Math.round(state.glow)}%`;
+    glowBar.style.width  = `${state.glow}%`;
+    timeText.textContent = `${state.t.toFixed(1)}s`;
+    killsText.textContent= `${state.kills}`;
+    shieldText.textContent = `${state.shieldCharges}`;
+    slowText.textContent   = `${state.slowTimer.toFixed(1)}`;
+    overText.textContent   = `${state.overchargeTimer.toFixed(1)}`;
+  }
+
+  function render(){
+    const rect = canvas.getBoundingClientRect();
+    const w = rect.width, h = rect.height;
+
+    const ox = (shakeMag>0.01) ? rand(-shakeMag, shakeMag) : 0;
+    const oy = (shakeMag>0.01) ? rand(-shakeMag, shakeMag) : 0;
+
+    ctx.clearRect(0,0,w,h);
+    ctx.save();
+    ctx.translate(ox, oy);
+
+    ctx.globalAlpha = 0.18;
+    ctx.fillStyle = "#000";
+    ctx.fillRect(0,0,w,h);
+    ctx.globalAlpha = 1;
+
+    const { cx, cy, r } = getStone();
+    const glow = state.glow / 100;
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, r*2.05, 0, Math.PI*2);
+    ctx.fillStyle = `rgba(255, 220, 90, ${0.18 + 0.42*glow})`;
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI*2);
+    ctx.fillStyle = `rgba(255, 220, 90, ${0.50 + 0.50*glow})`;
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(cx - r*0.18, cy - r*0.18, r*0.52, 0, Math.PI*2);
+    ctx.fillStyle = `rgba(255,255,255, ${0.10 + 0.25*glow})`;
+    ctx.fill();
+
+    if(state.shieldCharges > 0){
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = "rgba(180, 255, 255, .85)";
+      ctx.beginPath();
+      ctx.arc(cx, cy, r*1.45, 0, Math.PI*2);
+      ctx.stroke();
+    }
+
+    for(const en of state.enemies){
+      ctx.beginPath();
+      ctx.arc(en.x, en.y, en.r, 0, Math.PI*2);
+      ctx.fillStyle = (en.type==="charger") ? "rgba(255,120,60,.95)" : "rgba(255,90,90,.95)";
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = "rgba(255,255,255,.25)";
+      ctx.stroke();
+    }
+
+    for(const p of state.powerups){
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+      ctx.fillStyle =
+        p.type==="shield" ? "rgba(200,200,255,.95)" :
+        p.type==="slow" ? "rgba(120,190,255,.95)" :
+        "rgba(255,255,255,.95)";
+      ctx.fill();
+
+      ctx.fillStyle = "#111";
+      ctx.font = "bold 15px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(p.type==="shield" ? "🛡" : p.type==="slow" ? "🐢" : "⚡", p.x, p.y+0.5);
+    }
+
+    for(const s of sparks){
+      ctx.globalAlpha = Math.max(0, s.life * 2);
+      ctx.fillStyle = "rgba(255,220,120,1)";
+      ctx.fillRect(s.x, s.y, 3, 3);
+    }
+    ctx.globalAlpha = 1;
+
+    ctx.fillStyle = "rgba(255,255,255,.85)";
+    ctx.font = "800 13px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    ctx.fillText(state.holding ? "Holding…" : (state.running ? "Hold the Chainstone" : "Press Start"), cx, 10);
+
+    if(state.paused){
+      ctx.fillStyle = "rgba(0,0,0,.45)";
+      ctx.fillRect(0,0,w,h);
+      ctx.fillStyle = "rgba(255,255,255,.95)";
+      ctx.font = "900 24px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("Paused", cx, cy);
+    }
+
+    ctx.restore();
+  }
+
+  function setUIRunning(r){
+    startBtn.disabled = r;
+    pauseBtn.disabled = !r;
+    restartBtn.disabled = !r;
+  }
+
+  // Init
+  setUIRunning(false);
+})();
+</script>
+</body>
+</html>

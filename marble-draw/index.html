@@ -266,6 +266,9 @@
       .inkMeter{ width: 95px; }
     }
   </style>
+
+<link rel="stylesheet" href="../ui/lo-arcade-kit.css">
+<script defer src="../ui/lo-arcade-kit.js"></script>
 </head>
 
 <body>
@@ -280,7 +283,7 @@
     <div class="bar">
       <div class="leftBtns">
         <!-- ✅ EXACT ORDER YOU ASKED (actions): Arcade, Start, Clear, Retry -->
-        <button class="btn" id="btnArcade">🕹️ Arcade</button>
+        <button class="btn" id="btnArcade">🕹️ Arcade Menu</button>
         <button class="btn" id="btnStart">▶️ Start</button>
         <button class="btn" id="btnClear">🧽 Clear</button>
         <button class="btn" id="btnRetry" disabled>🔁 Retry</button>
@@ -1253,9 +1256,11 @@ Total Time: ${world.totalTime.toFixed(1)}s`;
   // BUTTONS
   // ============================================================
 
-  btnArcade.addEventListener("click", () => {
-    window.location.href = "arcade.html";
-  });
+// BUTTONS
+btnArcade.addEventListener("click", () => {
+  window.location.href = "../index.html";
+});
+
 
   btnLeaderboard.addEventListener("click", () => {
     openLeaderboard("");

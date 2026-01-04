@@ -260,6 +260,30 @@ select{
   max-width: 92vw;
   text-align:center;
 }
+/* Numbers Game: clip header.png to rounded corners */
+.header,
+.game-header,
+.topbar,
+.top-bar,
+#header,
+.header-wrap{
+  border-radius: 18px;
+  overflow: hidden;
+}
+
+.header img,
+.game-header img,
+.topbar img,
+.top-bar img,
+#header img,
+.header-wrap img,
+img[src*="header.png"]{
+  display:block;
+  width:100%;
+  height:auto;
+  border-radius: inherit;
+}
+
 
 /* =========================
    MICRO-ANIMATIONS
@@ -295,6 +319,9 @@ select{
 }
 .pulse { animation: glowPulse 420ms ease; }
 </style>
+
+<link rel="stylesheet" href="../ui/lo-arcade-kit.css">
+<script defer src="../ui/lo-arcade-kit.js"></script>
 </head>
 
 <body>

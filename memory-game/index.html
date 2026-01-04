@@ -18,7 +18,7 @@
 <meta http-equiv="X-Frame-Options" content="DENY">
 
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no" />
 <title>Little Ollie Memory Game</title>
 
 <style>
@@ -360,7 +360,35 @@ hr {
   border-radius: 999px;
   padding: 8px 12px;
 }
+/* Memory Game: clip header.png to rounded corners */
+header,
+.header,
+.topbar,
+.top-bar,
+#header,
+.header-wrap{
+  border-radius: 18px;
+  overflow: hidden;
+}
+
+header img,
+.header img,
+.topbar img,
+.top-bar img,
+#header img,
+.header-wrap img,
+img[src*="header.png"]{
+  display:block;
+  width:100%;
+  height:auto;
+  border-radius: inherit;
+}
+
+
 </style>
+
+<link rel="stylesheet" href="../ui/lo-arcade-kit.css">
+<script defer src="../ui/lo-arcade-kit.js"></script>
 </head>
 
 <body>

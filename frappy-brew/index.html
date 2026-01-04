@@ -201,9 +201,12 @@
     }
   </style>
 
-<link rel="stylesheet" href="../ui/lo-arcade-kit.css">
-<script defer src="../ui/lo-arcade-kit.js"></script>
+  <link rel="stylesheet" href="../ui/lo-arcade-kit.css">
+  <script defer src="../ui/lo-arcade-kit.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 </head>
+
 <body>
   <div class="wrap">
     <div class="headerCard">
@@ -215,8 +218,6 @@
         <button class="btn" id="btnArcade">🎮 Arcade Menu</button>
         <button class="btn" id="btnStart">▶️ Start</button>
         <button class="btn" id="btnRestart">🔁 Restart</button>
-
-        <!-- ✅ Leaderboard button (for later) -->
         <button class="btn" id="btnLeaderboard">🏆 Leaderboard</button>
       </div>
 
@@ -235,19 +236,36 @@
     <div class="footer">⚡Powered by Little Ollie Studio</div>
   </div>
 
-  <!-- ✅ Leaderboard modal scaffold -->
+  <!-- ✅ Leaderboard modal -->
   <div class="modalBackdrop" id="lbBackdrop" aria-hidden="true">
     <div class="modal" role="dialog" aria-modal="true" aria-label="Leaderboard">
       <div class="modalHeader">
         <div>🏆 Leaderboard</div>
         <button class="modalClose" id="lbClose">Close</button>
       </div>
+
+      <!-- ✅ REAL leaderboard UI -->
       <div class="modalBody">
-        <div style="opacity:.95; margin-bottom:10px;">
-          Leaderboard will go here (Firebase / local / whatever you choose).
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:10px;">
+          <div style="font-weight:900;">Your Score: <span id="lbScore" style="font-size:20px;">0</span></div>
+          <button class="btn" id="lbRefresh" type="button">Refresh</button>
         </div>
-        <div style="opacity:.85; font-weight:800;">
-          Placeholder only — ready for your submit + scores UI when you add it.
+
+        <div style="display:flex; gap:10px; margin-bottom:10px; flex-wrap:wrap;">
+          <input id="lbName" type="text" maxlength="18" placeholder="Your name"
+            style="flex:1; min-width:180px; padding:10px 12px; border-radius:12px; border:1px solid rgba(255,255,255,.18);
+                   background: rgba(0,0,0,.25); color:#fff; font-weight:800; outline:none;" />
+          <button class="btn" id="lbSubmit" type="button">Submit</button>
+        </div>
+
+        <div id="lbHint" style="opacity:.85; font-weight:800; margin-bottom:10px;">Tip: use your LO name 👀</div>
+
+        <div style="border:1px solid rgba(255,255,255,.12); border-radius:14px; overflow:hidden;">
+          <div style="display:grid; grid-template-columns: 34px 1fr 70px 92px; gap:10px; padding:10px 12px;
+                      background: rgba(255,255,255,.06); font-weight:900; font-size:12px;">
+            <div>#</div><div>Name</div><div>Score</div><div>Date</div>
+          </div>
+          <div id="lbRows" style="max-height:260px; overflow:auto; background: rgba(0,0,0,.12);"></div>
         </div>
       </div>
     </div>
@@ -269,9 +287,38 @@
   const lbBackdrop = document.getElementById('lbBackdrop');
   const lbClose = document.getElementById('lbClose');
 
+  // ===== Leaderboard UI elements =====
+  const lbScoreEl   = document.getElementById('lbScore');
+  const lbNameEl    = document.getElementById('lbName');
+  const lbSubmitEl  = document.getElementById('lbSubmit');
+  const lbRowsEl    = document.getElementById('lbRows');
+  const lbHintEl    = document.getElementById('lbHint');
+  const lbRefreshEl = document.getElementById('lbRefresh');
+
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyCofa72bvnM2MiX5rGB2N_Mz69UZ9brCUg",
+  authDomain: "frappy-brew.firebaseapp.com",
+  projectId: "frappy-brew",
+  storageBucket: "frappy-brew.firebasestorage.app",
+  messagingSenderId: "601596016112",
+  appId: "1:601596016112:web:ceeb8a4352a71ba9d41935",
+  measurementId: "G-GVR85N4C6D"
+};
+
+  const LB_COLLECTION = "leaderboards_frappy_brew";
+  let db = null;
+
+  try{
+    // Prevent "already exists" if you later embed this in a hub that initializes firebase elsewhere
+    if (firebase.apps && firebase.apps.length === 0) firebase.initializeApp(firebaseConfig);
+    db = firebase.firestore();
+  }catch(err){
+    console.warn("Firebase init failed:", err);
+    db = null;
+  }
+
   // ✅ iOS: prevent pinch / double-tap zoom (Safari)
-  // - gesture events exist on iOS Safari
-  // - double-tap zoom is prevented by canceling rapid touchend
   document.addEventListener('gesturestart', (e) => e.preventDefault(), { passive:false });
   document.addEventListener('gesturechange', (e) => e.preventDefault(), { passive:false });
   document.addEventListener('gestureend', (e) => e.preventDefault(), { passive:false });
@@ -284,6 +331,135 @@
     }
     __lastTouchEnd = now;
   }, { passive:false });
+
+  // ----------- Leaderboard helpers -----------
+  function safeText(t){ return String(t || "").replace(/[<>]/g, ""); }
+  function clampName(raw){
+    return (raw || "").trim().replace(/\s+/g, " ").slice(0, 18);
+  }
+  function fmtDate(ms){
+    const d = new Date(ms);
+    const dd = String(d.getDate()).padStart(2,"0");
+    const mm = String(d.getMonth()+1).padStart(2,"0");
+    const yy = String(d.getFullYear()).slice(-2);
+    return `${dd}/${mm}/${yy}`;
+  }
+
+  let lastScoreToSubmit = 0;
+
+  function openLB(scoreToShow){
+    lbBackdrop.style.display = 'flex';
+    lbBackdrop.setAttribute('aria-hidden','false');
+
+    lastScoreToSubmit = Number(scoreToShow || 0) | 0;
+    if (lbScoreEl) lbScoreEl.textContent = String(lastScoreToSubmit);
+
+    const saved = localStorage.getItem("lo_name") || "";
+    if (lbNameEl) lbNameEl.value = saved;
+
+    if (lbHintEl) lbHintEl.textContent = "Tip: use your LO name 👀";
+
+    loadLeaderboard();
+    setTimeout(() => lbNameEl && lbNameEl.focus(), 60);
+  }
+
+  function closeLB(){
+    lbBackdrop.style.display = 'none';
+    lbBackdrop.setAttribute('aria-hidden','true');
+  }
+
+  async function loadLeaderboard(){
+    if (!lbRowsEl) return;
+
+    if (!db){
+      lbRowsEl.innerHTML = `<div style="padding:10px 12px; opacity:.9; font-weight:800;">Firestore not connected — paste firebaseConfig ✅</div>`;
+      return;
+    }
+
+    lbRowsEl.innerHTML = `<div style="padding:10px 12px; opacity:.9; font-weight:800;">Loading…</div>`;
+
+    try{
+      const snap = await db.collection(LB_COLLECTION)
+        .orderBy("score","desc")
+        .orderBy("createdAt","asc")
+        .limit(10)
+        .get();
+
+      if (snap.empty){
+        lbRowsEl.innerHTML = `<div style="padding:10px 12px; opacity:.9; font-weight:800;">Be the first legend 😎</div>`;
+        return;
+      }
+
+      let i = 0;
+      lbRowsEl.innerHTML = "";
+      snap.forEach(doc=>{
+        i++;
+        const d = doc.data() || {};
+        const nm = safeText(d.name || "Anon");
+        const sc = Number(d.score || 0) | 0;
+        const dt = d.createdAt ? fmtDate(d.createdAt) : "-";
+
+        const row = document.createElement("div");
+        row.style.display = "grid";
+        row.style.gridTemplateColumns = "34px 1fr 70px 92px";
+        row.style.gap = "10px";
+        row.style.padding = "10px 12px";
+        row.style.borderTop = "1px solid rgba(255,255,255,.10)";
+        row.style.fontWeight = "800";
+        row.style.fontSize = "13px";
+
+        row.innerHTML = `<div>${i}</div><div>${nm}</div><div>${sc}</div><div style="opacity:.75;">${dt}</div>`;
+        lbRowsEl.appendChild(row);
+      });
+    }catch(err){
+      console.error(err);
+      lbRowsEl.innerHTML = `<div style="padding:10px 12px; opacity:.9; font-weight:800;">Couldn’t load leaderboard 😅</div>`;
+    }
+  }
+
+  async function submitScore(){
+    if (!db){
+      lbHintEl.textContent = "Firestore not connected — paste firebaseConfig ✅";
+      return;
+    }
+
+    const name = clampName(lbNameEl ? lbNameEl.value : "");
+    if(!name){
+      lbHintEl.textContent = "Please enter a name 🙏";
+      lbNameEl && lbNameEl.focus();
+      return;
+    }
+
+    localStorage.setItem("lo_name", name);
+
+    const payload = {
+      name,
+      score: lastScoreToSubmit,
+      createdAt: Date.now()
+    };
+
+    lbSubmitEl.disabled = true;
+    lbHintEl.textContent = "Submitting…";
+
+    try{
+      await db.collection(LB_COLLECTION).add(payload);
+      lbHintEl.textContent = "Saved! 🔥";
+      await loadLeaderboard();
+    }catch(err){
+      console.error(err);
+      lbHintEl.textContent = "Submit failed (check Firestore rules) 😅";
+    }finally{
+      lbSubmitEl.disabled = false;
+    }
+  }
+
+  // Wire leaderboard UI
+  btnLeaderboard.addEventListener('click', () => openLB(score));
+  lbClose.addEventListener('click', closeLB);
+  lbBackdrop.addEventListener('click', (e) => { if (e.target === lbBackdrop) closeLB(); });
+  lbRefreshEl && lbRefreshEl.addEventListener('click', loadLeaderboard);
+  lbSubmitEl && lbSubmitEl.addEventListener('click', submitScore);
+  lbNameEl && lbNameEl.addEventListener('keydown', (e) => { if (e.key === "Enter") submitScore(); });
 
   // ----------- Assets -----------
   const imgBG = new Image(); imgBG.src = 'bg.png';
@@ -313,50 +489,34 @@
   const W = canvas.width;
   const H = canvas.height;
 
-  // ✅ Character half size (relative to your last)
-  // Your previous was: 0.38 * 0.82 * 0.85  (~0.265)
-  // Half of that:
   const PLAYER_SCALE = (0.38 * 0.82 * 0.85) * 0.50;  // ✅ half size
   const PLAYER_X = Math.round(W * 0.23);
 
-  /*
-    ✅ HITBOX SCALE (slightly BIGGER than your last)
-    - You said: "I hit cup by a fair bit and nothing happened"
-    - So we make it less forgiving = bigger hitbox.
-    - Old: 0.72 (very forgiving)
-    - New: 0.84 (still not huge, but hits register properly)
-  */
   const HITBOX_SCALE = 0.70;
 
-  // Cups: slightly smaller + less overlap (so they don’t stack as tightly)
-  const CUP_SCALE   = 0.40;  // was 0.42
-  const CUP_OVERLAP = 0.10;  // was 0.14 (less overlap)
+  const CUP_SCALE   = 0.40;
+  const CUP_OVERLAP = 0.10;
   const CUP_PAD_X = 12;
 
-  // Pipe/gap tuning (base values)
   const GAP_BASE = Math.round(H * 0.34);
   const SPEED_BASE = 4.2;
   const DIST_BASE = Math.round(W * 0.62);
   const PIPE_WIDTH = Math.round(W * 0.22);
 
-  // Physics (base)
   const GRAVITY_BASE = 0.62;
   const FLAP_VY = -10.8;
 
   // ----------- Power-up settings -----------
   const GOLD_POINTS = 3;
-  const POWER_SLOW_MS = 6500;     // ✅ 6.5 seconds (your request)
+  const POWER_SLOW_MS = 6500;     // ✅ 6.5 seconds
   const POWER_SHIELD_MAX = 1;     // one free hit
 
-  // Spawn weights per new pipe
-  // (kept simple: gold common-ish, slow/shield rare)
   const SPAWN_GOLD_CHANCE   = 0.35;
   const SPAWN_SLOW_CHANCE   = 0.12;
   const SPAWN_SHIELD_CHANCE = 0.10;
 
-  // ----------- Fun systems -----------
-  const NEAR_MISS_PX = 18; // how close counts as a near miss (sparks)
-  const COMBO_BONUS_EVERY = 3; // every 3 pipes in a row gives +1 bonus point
+  const NEAR_MISS_PX = 18;
+  const COMBO_BONUS_EVERY = 3;
 
   const END_MESSAGES = [
     "Spilled… but stylish ☕😅",
@@ -372,14 +532,9 @@
   let score = 0;
   let best = Number(localStorage.getItem('baristaBest') || '0');
 
-  // combo/streak
   let combo = 0;
-
-  // power-ups
   let slowUntil = 0;
   let shield = 0;
-
-  // camera shake
   let shake = 0;
 
   bestEl.textContent = best.toString();
@@ -425,7 +580,6 @@
   function clamp(n, a, b){ return Math.max(a, Math.min(b, n)); }
 
   function resetGame() {
-    // ✅ rotate background each run
     setNextBG();
 
     state = 'idle';
@@ -444,7 +598,6 @@
     beans = [];
     particles = [];
 
-    // Start with a few pipes correctly spaced
     const startX = W + 240;
     for (let i = 0; i < 3; i++) spawnPipe(startX + i * getPipeDistance());
 
@@ -467,6 +620,9 @@
       localStorage.setItem('baristaBest', String(best));
       bestEl.textContent = String(best);
     }
+
+    // ✅ Open leaderboard on death
+    setTimeout(() => openLB(score), 180);
   }
 
   function isSlow() {
@@ -474,28 +630,22 @@
   }
 
   function getSpeed() {
-    // Difficulty ramp: speed increases slowly with score
-    const ramp = Math.min(2.0, score * 0.04); // up to +2.0
+    const ramp = Math.min(2.0, score * 0.04);
     const base = SPEED_BASE + ramp;
-
-    // Slow-time power reduces speed
     return isSlow() ? base * 0.55 : base;
   }
 
   function getGapSize() {
-    // Difficulty ramp: gap shrinks slightly with score (but never too small)
-    const shrink = Math.min(Math.round(H * 0.08), score * 2); // up to ~96px
+    const shrink = Math.min(Math.round(H * 0.08), score * 2);
     const base = GAP_BASE - shrink;
     return Math.max(Math.round(H * 0.24), base);
   }
 
   function getGravity() {
-    // Slow-time also slightly reduces gravity for nicer feel
     return isSlow() ? GRAVITY_BASE * 0.60 : GRAVITY_BASE;
   }
 
   function getPipeDistance() {
-    // Keep your spacing feel, slight increase later so it doesn't get impossible
     const add = Math.min(Math.round(W * 0.12), score * 2);
     return DIST_BASE + add;
   }
@@ -529,7 +679,6 @@
       nearMissed: false
     });
 
-    // Spawn bean(s) near the gap — only one per pipe max
     const r = Math.random();
     let type = null;
     if (r < SPAWN_SHIELD_CHANCE) type = 'shield';
@@ -603,9 +752,7 @@
 
     if (!img || !img.complete || !img.naturalWidth) return;
 
-    // 🔧 Target height relative to player size
-    // This keeps beans feeling "character-sized"
-    const targetH = player.h * 0.9;   // tweak 0.8–1.1 if needed
+    const targetH = player.h * 0.9;
     const aspect  = img.naturalWidth / img.naturalHeight;
     const targetW = targetH * aspect;
 
@@ -619,7 +766,6 @@
   }
 
   function render(ts) {
-    // camera shake
     const sx = (shake > 0) ? (Math.random()*2-1) * shake : 0;
     const sy = (shake > 0) ? (Math.random()*2-1) * shake : 0;
     if (shake > 0) shake *= 0.86;
@@ -627,23 +773,19 @@
     ctx.save();
     ctx.translate(sx, sy);
 
-    // BG
     if (imgBG.complete) ctx.drawImage(imgBG, 0, 0, W, H);
     else {
       ctx.fillStyle = '#2a6fff';
       ctx.fillRect(0,0,W,H);
     }
 
-    // Pipes
     for (const p of pipes) drawPipe(p);
 
-    // Beans
     for (const b of beans) {
       if (!b.alive) continue;
       drawBean(b);
     }
 
-    // Player
     const ps = getPlayerSize();
     player.w = ps.w;
     player.h = ps.h;
@@ -657,7 +799,6 @@
       ctx.fill();
     }
 
-    // Particles (near-miss sparks)
     if (particles.length) {
       ctx.save();
       ctx.globalAlpha = 0.9;
@@ -668,28 +809,23 @@
       ctx.restore();
     }
 
-    // 🛡️ SHIELD GLOW (visual feedback)
     if (shield > 0) {
       ctx.save();
-
       ctx.globalAlpha = 0.85;
       ctx.strokeStyle = 'rgba(120, 255, 180, 0.9)';
       ctx.lineWidth = 6;
-
       ctx.beginPath();
       ctx.arc(
         player.x,
         player.y,
-        Math.max(player.w, player.h) * 0.75, // size of glow
+        Math.max(player.w, player.h) * 0.75,
         0,
         Math.PI * 2
       );
       ctx.stroke();
-
       ctx.restore();
     }
 
-    // small status (combo + powerups) inside canvas only (no UI changes)
     ctx.save();
     ctx.textAlign = 'left';
     ctx.fillStyle = 'rgba(0,0,0,.35)';
@@ -708,7 +844,6 @@
     }
     ctx.restore();
 
-    // Overlay text when idle/dead
     ctx.save();
     ctx.textAlign = 'center';
     ctx.fillStyle = 'rgba(0,0,0,.35)';
@@ -727,7 +862,7 @@
     }
     ctx.restore();
 
-    ctx.restore(); // shake translate
+    ctx.restore();
     ctx.restore();
   }
 
@@ -741,27 +876,21 @@
     const gravity = getGravity();
 
     if (state === 'playing') {
-      // physics
       player.vy += gravity;
       player.y += player.vy;
 
-      // floor/ceiling
       if (player.y + player.h/2 > H - 6) { player.y = H - 6 - player.h/2; sfxHit(); shake = 8; die(); }
       if (player.y - player.h/2 < 0)      { player.y = player.h/2; player.vy = 0; }
 
-      // move pipes
       for (const p of pipes) p.x -= speed;
 
-      // spawn new pipes (keeps spacing perfect)
       const rightMost = pipes.reduce((m,p)=>Math.max(m,p.x), -Infinity);
       if (rightMost < W + 240) {
         spawnPipe(rightMost + getPipeDistance());
       }
 
-      // remove offscreen
       pipes = pipes.filter(p => p.x + p.w > -200);
 
-      // update particles
       if (particles.length) {
         for (const p of particles) {
           p.x += p.vx;
@@ -773,21 +902,17 @@
         particles = particles.filter(p => p.life > 0);
       }
 
-      // ✅ Player hitbox (slightly bigger now)
       const hitW = player.w * HITBOX_SCALE;
       const hitH = player.h * HITBOX_SCALE;
       const hitX = player.x - hitW/2;
       const hitY = player.y - hitH/2;
 
-      // scoring + collision + near-miss
       for (const p of pipes) {
-        // score when passing pipe
         if (!p.scored && (p.x + p.w) < player.x) {
           p.scored = true;
           combo += 1;
 
           score += 1;
-          // combo bonus every N in a row
           if (combo > 0 && combo % COMBO_BONUS_EVERY === 0) {
             score += 1;
             sfxScore();
@@ -798,7 +923,6 @@
           scoreEl.textContent = String(score);
         }
 
-        // collision rects for pipe blocks
         const topRect = { x: p.x, y: 0, w: p.w, h: p.gapTop };
         const botRect = { x: p.x, y: p.gapBottom, w: p.w, h: H - p.gapBottom };
 
@@ -806,13 +930,12 @@
         const hitBot = rectsOverlap(hitX, hitY, hitW, hitH, botRect.x, botRect.y, botRect.w, botRect.h);
 
         if (hitTop || hitBot) {
-          // Shield absorbs ONE hit
           if (shield > 0) {
             shield -= 1;
             shake = 6;
             sfxHit();
             spawnSparks(player.x + 20, player.y, 14);
-            combo = 0; // reset combo on shield hit
+            combo = 0;
           } else {
             shake = 10;
             sfxHit();
@@ -821,23 +944,19 @@
           break;
         }
 
-        // Near miss spark:
-        // If player is within NEAR_MISS_PX of the gap edge while inside x-range of pipe.
-        // (A fun “whoa!” moment.)
         if (!p.nearMissed) {
           const inX = (player.x + hitW/2) > p.x && (player.x - hitW/2) < (p.x + p.w);
           if (inX) {
             const topEdge = p.gapTop;
             const botEdge = p.gapBottom;
 
-            const distToTop = Math.abs((hitY) - topEdge);           // top of hitbox to top edge
-            const distToBot = Math.abs((hitY + hitH) - botEdge);    // bottom of hitbox to bottom edge
+            const distToTop = Math.abs((hitY) - topEdge);
+            const distToBot = Math.abs((hitY + hitH) - botEdge);
 
             if (distToTop < NEAR_MISS_PX || distToBot < NEAR_MISS_PX) {
               p.nearMissed = true;
               shake = Math.max(shake, 2.5);
               spawnSparks(player.x + 20, player.y, 10);
-              // tiny bonus? kept subtle:
               score += 1;
               scoreEl.textContent = String(score);
               beep(920, 0.04, 'triangle', 0.04);
@@ -846,7 +965,6 @@
         }
       }
 
-      // beans movement + collection
       for (const b of beans) {
         if (!b.alive) continue;
         b.x -= speed;
@@ -859,7 +977,7 @@
             score += GOLD_POINTS;
             sfxGold();
           } else if (b.type === 'slow') {
-            slowUntil = performance.now() + POWER_SLOW_MS; // ✅ 6.5 seconds
+            slowUntil = performance.now() + POWER_SLOW_MS;
             sfxPower();
           } else if (b.type === 'shield') {
             shield = Math.min(POWER_SHIELD_MAX, shield + 1);
@@ -871,7 +989,7 @@
       }
       beans = beans.filter(b => b.x > -200 && b.alive);
 
-    } // end playing
+    }
 
     render(ts);
     requestAnimationFrame(tick);
@@ -896,18 +1014,8 @@
   // Buttons
   btnStart.addEventListener('click', () => startGame());
   btnRestart.addEventListener('click', () => { resetGame(); startGame(); });
-  btnArcade.addEventListener('click', () => {
-    window.location.href = '../index.html';
-  });
+  btnArcade.addEventListener('click', () => { window.location.href = '../index.html'; });
 
-  // Leaderboard modal (placeholder)
-  function openLB(){ lbBackdrop.style.display = 'flex'; lbBackdrop.setAttribute('aria-hidden','false'); }
-  function closeLB(){ lbBackdrop.style.display = 'none'; lbBackdrop.setAttribute('aria-hidden','true'); }
-  btnLeaderboard.addEventListener('click', openLB);
-  lbClose.addEventListener('click', closeLB);
-  lbBackdrop.addEventListener('click', (e) => { if (e.target === lbBackdrop) closeLB(); });
-
-  // Reset combo when you die (happens automatically on new run)
   // Reset combo when you restart:
   btnRestart.addEventListener('click', () => { combo = 0; });
 

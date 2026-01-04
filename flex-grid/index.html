@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Little Ollie Flex Grid</title>
+
+  <style>
+    *{ box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
+    :root{
+      --bg1:#6de0ff; --bg2:#4c6fff;
+      --panel: rgba(0,0,0,.18);
+      --panel2: rgba(0,0,0,.22);
+      --stroke: rgba(255,255,255,.16);
+      --shadow: 0 14px 34px rgba(0,0,0,.35);
+
+      --btnYellow:#ffdd55;
+      --btnYellow2:#ffd22e;
+      --btnText:#222;
+
+      --muted: rgba(255,255,255,.85);
+      --loBlueLine: rgba(109,224,255,0.70);
+    }
+
+    html,body{ height:100%; margin:0; }
+    body{
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: radial-gradient(circle at top, var(--bg1), var(--bg2));
+      color:#fff;
+      display:flex;
+      justify-content:center;
+      align-items:flex-start;
+      padding: 14px 12px 22px;
+      overscroll-behavior:none;
+    }
+
+    .wrap{ width:min(1120px, 98vw); }
+
+    .heroHeader{ width:100%; margin:0 0 12px; }
+    .heroHeader img{
+      width:100%;
+      height:auto;
+      display:block;
+      border-radius: 14px;
+      filter: drop-shadow(0 16px 30px rgba(0,0,0,.35));
+    }
+
+    .panel{
+      width:100%;
+      background: linear-gradient(180deg, var(--panel2), var(--panel));
+      border: 1px solid var(--stroke);
+      box-shadow: var(--shadow);
+      border-radius: 18px;
+      padding: 14px;
+      margin: 12px 0;
+      backdrop-filter: blur(8px);
+    }
+
+    .lbl{
+      display:block;
+      font-weight: 850;
+      font-size: 12px;
+      letter-spacing:.3px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin: 2px 0 6px;
+    }
+
+    .row{ margin-bottom: 12px; }
+    .row.two{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    @media (max-width: 520px){
+      .row.two{ grid-template-columns: 1fr; }
+    }
+
+    .input{
+      width:100%;
+      border-radius: 14px;
+      padding: 12px 12px;
+      border: 1px solid rgba(255,255,255,.18);
+      background: rgba(76,111,255,.20);
+      color:#fff;
+      outline:none;
+      font-size: 14px;
+    }
+    .input::placeholder{ color: rgba(255,255,255,.70); }
+
+    select.input{
+      appearance:none;
+      background-color: rgba(76,111,255,.20);
+      background-image:
+        linear-gradient(45deg, transparent 50%, rgba(255,255,255,.85) 50%),
+        linear-gradient(135deg, rgba(255,255,255,.85) 50%, transparent 50%);
+      background-position:
+        calc(100% - 18px) calc(1em + 2px),
+        calc(100% - 13px) calc(1em + 2px);
+      background-size: 5px 5px, 5px 5px;
+      background-repeat:no-repeat;
+      padding-right: 32px;
+    }
+    select.input option{
+      background: #4c6fff;
+      color: #fff;
+    }
+
+    .btn{
+      border:0;
+      border-radius: 14px;
+      padding: 12px 14px;
+      font-weight: 950;
+      letter-spacing: .2px;
+      background: linear-gradient(180deg, var(--btnYellow), var(--btnYellow2));
+      color: var(--btnText);
+      cursor:pointer;
+      box-shadow: 0 10px 18px rgba(0,0,0,.25);
+      transition: transform .06s ease, opacity .15s ease;
+      user-select:none;
+      white-space: nowrap;
+    }
+    .btn:active{ transform: translateY(1px) scale(.99); }
+    .btn:disabled{ opacity:.55; cursor:not-allowed; transform:none; }
+
+    .actions{
+      display:flex;
+      gap:10px;
+      flex-wrap: wrap;
+      align-items:center;
+    }
+
+    .status{
+      margin-top: 10px;
+      color: rgba(255,255,255,.95);
+      font-size: 14px;
+      white-space: pre-wrap;
+    }
+
+    /* Multi-wallet UI */
+    .walletTools{
+      display:flex;
+      gap:10px;
+      flex-wrap: wrap;
+      align-items:center;
+      margin-top: 8px;
+    }
+    .walletList{
+      margin-top: 10px;
+      background: rgba(76,111,255,.14);
+      border: 1px solid rgba(255,255,255,.14);
+      border-radius: 14px;
+      padding: 10px;
+    }
+    .walletChip{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding: 10px 10px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.04);
+      margin-bottom: 8px;
+    }
+    .walletChip:last-child{ margin-bottom:0; }
+    .walletAddr{
+      font-weight: 900;
+      font-size: 13px;
+      overflow:hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 100%;
+    }
+    .walletMeta{
+      font-size: 12px;
+      opacity: .9;
+    }
+    .chipBtns{ display:flex; gap:8px; flex:0 0 auto; }
+    .btnSmall{
+      border:0;
+      border-radius: 12px;
+      padding: 8px 10px;
+      font-weight: 950;
+      background: linear-gradient(180deg, var(--btnYellow), var(--btnYellow2));
+      color: var(--btnText);
+      cursor:pointer;
+      box-shadow: 0 10px 18px rgba(0,0,0,.18);
+      white-space: nowrap;
+    }
+
+    /* Collections */
+    .collectionsTop{
+      display:flex;
+      gap:10px;
+      align-items:end;
+      flex-wrap: wrap;
+    }
+    .collectionsTop .searchWrap{
+      flex: 1 1 320px;
+      min-width: 220px;
+    }
+    .collectionsTop .miniBtns{
+      display:flex;
+      gap:10px;
+      flex: 0 0 auto;
+    }
+
+    .collectionList{
+      margin-top: 10px;
+      background: rgba(76,111,255,.14);
+      border: 1px solid rgba(255,255,255,.14);
+      border-radius: 14px;
+      padding: 10px;
+      max-height: 280px;
+      overflow:auto;
+    }
+    .collectionItem{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      padding: 10px 10px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.04);
+      margin-bottom: 8px;
+    }
+    .collectionItem:last-child{ margin-bottom: 0; }
+    .collectionItem input[type="checkbox"]{
+      width:20px; height:20px;
+      accent-color: var(--btnYellow);
+      cursor:pointer;
+      flex: 0 0 auto;
+    }
+    .collectionName{ font-weight: 900; line-height: 1.15; }
+    .collectionCount{ font-size: 12px; opacity: .88; margin-top: 2px; }
+    .hint{ font-size: 12px; opacity:.9; margin-top: 6px; }
+
+    /* Stage */
+    .stageWrap{ margin-top: 12px; }
+    .stage{
+      position:relative;
+      background: rgba(0,0,0,.18);
+      border: 1px solid rgba(255,255,255,.16);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .stageHeader{
+      padding: 10px 12px;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:10px;
+      border-bottom: 1px solid rgba(255,255,255,.14);
+      background: rgba(0,0,0,.12);
+    }
+    .stageTitle{ font-weight: 950; letter-spacing: .2px; }
+    .stageMeta{ font-size: 12px; opacity:.95; text-align:right; }
+
+    /* Grid */
+    .gridWrap{
+      position: relative;
+    }
+    .grid{
+      display:grid;
+      gap:0 !important;
+      background: rgba(0,0,0,.08);
+    }
+    .tile{
+      position:relative;
+      width:100%;
+      aspect-ratio: 1/1;
+      overflow:hidden;
+      border-radius: 0 !important;
+      background: rgba(0,0,0,.10);
+    }
+    .tile img{
+      width:100%;
+      height:100%;
+      object-fit: cover;
+      display:block;
+      border-radius: 0 !important;
+      user-select:none;
+      -webkit-user-drag:none;
+    }
+    .fillerText{
+      width:100%; height:100%;
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      font-weight: 950;
+      letter-spacing:.2px;
+      color: rgba(255,255,255,0.92);
+      background: rgba(0,0,0,0.22);
+      font-size: 22px;
+    }
+
+    /* Tiny LO-blue outline around grid area */
+    .gridOutline{
+      position:absolute;
+      left: 6px;
+      right: 6px;
+      bottom: 6px;
+      top: 52px;
+      border: 1px solid var(--loBlueLine);
+      pointer-events:none;
+      border-radius: 0;
+      mix-blend-mode: screen;
+    }
+
+    /* Powered By overlay INSIDE grid, top-left tile corner */
+    .watermarkGrid{
+      position:absolute;
+      left:0;
+      top:0;
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: .15px;
+      color: rgba(255,255,255,0.95);
+      text-shadow: 0 2px 8px rgba(0,0,0,.55);
+      pointer-events:none;
+      padding: 4px 7px;
+      background: rgba(0,0,0,.22);
+      border: 1px solid rgba(255,255,255,.14);
+      border-radius: 0;
+      backdrop-filter: blur(6px);
+      z-index: 5;
+    }
+
+    /* Drag visuals */
+    .tile.dragging{ opacity:.55; }
+    .tile.dropTarget{ outline: 2px solid rgba(255,221,85,0.95); outline-offset:-2px; }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+
+    <div class="heroHeader">
+      <img src="./header.png" alt="Little Ollie Header" />
+    </div>
+
+    <section class="panel">
+      <div class="row two">
+        <div>
+          <label class="lbl">Add wallet</label>
+          <input id="walletInput" class="input" placeholder="Paste wallet address (0x...) then add" autocomplete="off" />
+          <div class="walletTools">
+            <button id="addWalletBtn" class="btn">➕ Add wallet</button>
+            <button id="clearWalletsBtn" class="btn">🧹 Clear wallets</button>
+          </div>
+          <div class="hint">Add multiple wallets, then load them all together.</div>
+        </div>
+
+        <div>
+          <label class="lbl">Chain</label>
+          <select id="chainSelect" class="input">
+            <option value="eth" selected>Ethereum</option>
+            <option value="base">Base</option>
+            <option value="polygon">Polygon</option>
+            <option value="apechain">ApeChain</option>
+            <option value="solana">Solana (coming soon)</option>
+          </select>
+
+          <div style="height:10px"></div>
+
+          <label class="lbl">Grid size</label>
+          <select id="gridSize" class="input">
+            <option value="auto" selected>Auto (fit selected NFTs)</option>
+            <option value="9">3×3 (9)</option>
+            <option value="16">4×4 (16)</option>
+            <option value="25">5×5 (25)</option>
+            <option value="49">7×7 (49)</option>
+            <option value="100">10×10 (100)</option>
+          </select>
+
+          <div style="height:10px"></div>
+
+          <label class="lbl">Fill style</label>
+          <select id="mixMode" class="input">
+            <option value="mix" selected>Mix evenly</option>
+            <option value="order">Fill in order</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="walletList" class="walletList" style="display:none;"></div>
+
+      <div class="row actions" style="margin-top:12px;">
+        <button id="loadBtn" class="btn" disabled>🔍 Load wallet(s)</button>
+        <button id="buildBtn" class="btn" disabled>🧩 Build grid</button>
+        <button id="exportBtn" class="btn" disabled>📸 Export PNG</button>
+      </div>
+
+      <div id="status" class="status"></div>
+    </section>
+
+    <section class="panel" id="controlsPanel" style="display:none;">
+      <div class="row">
+        <label class="lbl">Collections</label>
+
+        <div class="collectionsTop">
+          <div class="searchWrap">
+            <input id="collectionSearch" class="input" placeholder="Search collections..." autocomplete="off" />
+            <div class="hint">Select collections to include. (Starts unchecked)</div>
+          </div>
+
+          <div class="miniBtns">
+            <button class="btn" type="button" id="selectAllBtn">✅ Select all</button>
+            <button class="btn" type="button" id="selectNoneBtn">🚫 Select none</button>
+          </div>
+        </div>
+
+        <div id="collectionsList" class="collectionList"></div>
+      </div>
+    </section>
+
+    <section class="stageWrap">
+      <div id="stage" class="stage">
+        <div class="stageHeader">
+          <div id="stageTitle" class="stageTitle">Your Flex Grid</div>
+          <div id="stageMeta" class="stageMeta"></div>
+        </div>
+
+        <div class="gridWrap">
+          <div id="grid" class="grid"></div>
+          <div id="wmGrid" class="watermarkGrid" style="display:none;">⚡ Powered by Little Ollie Studio</div>
+        </div>
+
+        <div class="gridOutline"></div>
+      </div>
+    </section>
+
+  </div>
+
+  <script>
+    (function(){
+      const $ = (id)=>document.getElementById(id);
+      const list = $("collectionsList");
+      const search = $("collectionSearch");
+
+      if (search && list){
+        search.addEventListener("input", () => {
+          const q = search.value.trim().toLowerCase();
+          const items = Array.from(list.children);
+          items.forEach(el => {
+            const txt = (el.innerText || "").toLowerCase();
+            el.style.display = (!q || txt.includes(q)) ? "" : "none";
+          });
+        });
+      }
+    })();
+  </script>
+
+  <script src="./app.js"></script>
+</body>
+</html>

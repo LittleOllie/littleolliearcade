@@ -348,20 +348,21 @@
           <input id="walletInput" class="input" placeholder="Paste wallet address (0x...) then add" autocomplete="off" />
           <div class="walletTools">
             <button id="addWalletBtn" class="btn">➕ Add wallet</button>
-            <button id="clearWalletsBtn" class="btn">🧹 Clear wallets</button>
           </div>
+      <div id="walletList" class="walletList" style="display:none;"></div>
           <div class="hint">Add multiple wallets, then load them all together.</div>
         </div>
 
         <div>
           <label class="lbl">Chain</label>
-          <select id="chainSelect" class="input">
-            <option value="eth" selected>Ethereum</option>
-            <option value="base">Base</option>
-            <option value="polygon">Polygon</option>
-            <option value="apechain">ApeChain</option>
-            <option value="solana">Solana (coming soon)</option>
-          </select>
+<select id="chainSelect" class="input">
+  <option value="eth" selected>Ethereum</option>
+  <option value="base">Base</option>
+  <option value="polygon">Polygon</option>
+  <option value="apechain">ApeChain (Coming Soon)</option>
+  <option value="solana">Solana (Coming Soon)</option>
+</select>
+
 
           <div style="height:10px"></div>
 
@@ -385,7 +386,6 @@
         </div>
       </div>
 
-      <div id="walletList" class="walletList" style="display:none;"></div>
 
       <div class="row actions" style="margin-top:12px;">
         <button id="loadBtn" class="btn" disabled>🔍 Load wallet(s)</button>

@@ -725,14 +725,15 @@ function roundRect(ctx, x, y, w, h, r){
   ctx.arcTo(x, y, x+w, y, rr);
   ctx.closePath();
 }
-
 // ---------- EVENTS ----------
 $("addWalletBtn").addEventListener("click", addWallet);
-$("clearWalletsBtn").addEventListener("click", clearWallets);
+
+const clearWalletsBtn = $("clearWalletsBtn");
+if (clearWalletsBtn) clearWalletsBtn.addEventListener("click", clearWallets);
 
 // allow Enter key in wallet input to add
 $("walletInput").addEventListener("keydown", (e) => {
-  if(e.key === "Enter") addWallet();
+  if (e.key === "Enter") addWallet();
 });
 
 $("loadBtn").addEventListener("click", loadWallets);

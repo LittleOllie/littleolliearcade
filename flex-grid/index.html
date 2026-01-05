@@ -259,9 +259,7 @@
     .stageMeta{ font-size: 12px; opacity:.95; text-align:right; }
 
     /* Grid */
-    .gridWrap{
-      position: relative;
-    }
+    .gridWrap{ position: relative; }
     .grid{
       display:grid;
       gap:0 !important;
@@ -294,19 +292,6 @@
       color: rgba(255,255,255,0.92);
       background: rgba(0,0,0,0.22);
       font-size: 22px;
-    }
-
-    /* Tiny LO-blue outline around grid area */
-    .gridOutline{
-      position:absolute;
-      left: 6px;
-      right: 6px;
-      bottom: 6px;
-      top: 52px;
-      border: 1px solid var(--loBlueLine);
-      pointer-events:none;
-      border-radius: 0;
-      mix-blend-mode: screen;
     }
 
     /* Powered By overlay INSIDE grid, top-left tile corner */
@@ -343,26 +328,31 @@
 
     <section class="panel">
       <div class="row two">
+
+        <!-- LEFT: Wallets -->
         <div>
           <label class="lbl">Add wallet</label>
           <input id="walletInput" class="input" placeholder="Paste wallet address (0x...) then add" autocomplete="off" />
           <div class="walletTools">
             <button id="addWalletBtn" class="btn">➕ Add wallet</button>
           </div>
-      <div id="walletList" class="walletList" style="display:none;"></div>
+
+          <!-- snug list under Add Wallet button -->
+          <div id="walletList" class="walletList" style="display:none;"></div>
+
           <div class="hint">Add multiple wallets, then load them all together.</div>
         </div>
 
+        <!-- RIGHT: Controls -->
         <div>
           <label class="lbl">Chain</label>
-<select id="chainSelect" class="input">
-  <option value="eth" selected>Ethereum</option>
-  <option value="base">Base</option>
-  <option value="polygon">Polygon</option>
-  <option value="apechain">ApeChain (Coming Soon)</option>
-  <option value="solana">Solana (Coming Soon)</option>
-</select>
-
+          <select id="chainSelect" class="input">
+            <option value="eth" selected>Ethereum</option>
+            <option value="base">Base</option>
+            <option value="polygon">Polygon (Coming Soon)</option>
+            <option value="apechain">ApeChain (Coming Soon)</option>
+            <option value="solana">Solana (Coming Soon)</option>
+          </select>
 
           <div style="height:10px"></div>
 
@@ -374,7 +364,27 @@
             <option value="25">5×5 (25)</option>
             <option value="49">7×7 (49)</option>
             <option value="100">10×10 (100)</option>
+            <option value="custom">Custom N×N…</option>
           </select>
+
+<div id="customGridWrap" style="display:none; margin-top:10px;">
+  <label class="lbl">Custom grid</label>
+
+  <div class="row two" style="margin:0;">
+    <div>
+      <label class="lbl" style="margin-top:0;">Columns</label>
+      <input id="customCols" class="input" type="number" min="2" max="50" value="6" placeholder="Cols (e.g. 8)" />
+    </div>
+
+    <div>
+      <label class="lbl" style="margin-top:0;">Rows</label>
+      <input id="customRows" class="input" type="number" min="2" max="50" value="6" placeholder="Rows (e.g. 5)" />
+    </div>
+  </div>
+
+  <div class="hint">Builds a Rows × Columns grid. Export will match this shape.</div>
+</div>
+
 
           <div style="height:10px"></div>
 
@@ -384,8 +394,8 @@
             <option value="order">Fill in order</option>
           </select>
         </div>
-      </div>
 
+      </div>
 
       <div class="row actions" style="margin-top:12px;">
         <button id="loadBtn" class="btn" disabled>🔍 Load wallet(s)</button>
@@ -428,7 +438,7 @@
           <div id="wmGrid" class="watermarkGrid" style="display:none;">⚡ Powered by Little Ollie Studio</div>
         </div>
 
-        <div class="gridOutline"></div>
+        <!-- removed gridOutline to remove faint inner square -->
       </div>
     </section>
 

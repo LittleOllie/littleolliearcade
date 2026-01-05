@@ -3,8 +3,9 @@
    - Collections merged by contract address
    - De-dupe NFTs by contract+tokenId
    - Powered By overlay sits on top of first tile (grid top-left)
-   - Export: square only; shows "Exporting... may take a moment"
+   - Export: tight crop to grid only + tiny LO-blue border + keeps watermark
    - Export placeholders are TEXT (no local logo.png) to avoid file:// CORS.
+   - Custom grid supports ROWS x COLS (not forced square)
 */
 
 const $ = (id) => document.getElementById(id);
@@ -12,7 +13,7 @@ const $ = (id) => document.getElementById(id);
 const state = {
   collections: [],
   selectedKeys: new Set(),
-  wallets: [], // multiple wallets
+  wallets: [],
 };
 
 // NOTE: For production, do NOT keep keys in frontend JS.
@@ -28,20 +29,29 @@ const ALCHEMY_HOST = {
 // Cloudflare Worker proxy:
 const IMG_PROXY = "https://loflexgrid.littleollienft.workers.dev/img?url=";
 
-function setStatus(msg){ $("status").textContent = msg || ""; }
-function showControlsPanel(show){ $("controlsPanel").style.display = show ? "" : "none"; }
-
+// ---------- UI helpers ----------
+function setStatus(msg){
+  const el = $("status");
+  if(el) el.textContent = msg || "";
+}
+function showControlsPanel(show){
+  const el = $("controlsPanel");
+  if(el) el.style.display = show ? "" : "none";
+}
 function enableButtons(){
+  const loadBtn = $("loadBtn");
+  const buildBtn = $("buildBtn");
+  const exportBtn = $("exportBtn");
+
   const hasWallets = state.wallets.length > 0;
-  $("loadBtn").disabled = !hasWallets;
-  $("buildBtn").disabled = state.selectedKeys.size === 0;
-  $("exportBtn").disabled = true; // only after build
+  if(loadBtn) loadBtn.disabled = !hasWallets;
+  if(buildBtn) buildBtn.disabled = state.selectedKeys.size === 0;
+  if(exportBtn) exportBtn.disabled = true; // enable after buildGrid()
 }
-
 function setGridColumns(cols){
-  $("grid").style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+  const grid = $("grid");
+  if(grid) grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
 }
-
 function safeText(s){ return (s || "").toString(); }
 
 // ---------- URL HELPERS ----------
@@ -63,19 +73,18 @@ function normalizeImageUrl(url){
 
   return url;
 }
-
 function exportSafeUrl(src){
   const direct = normalizeImageUrl(src);
   return IMG_PROXY + encodeURIComponent(direct);
 }
 
 // ---------- WALLET LIST UI ----------
-function normalizeWallet(w){
-  return (w || "").trim();
-}
+function normalizeWallet(w){ return (w || "").trim(); }
 
 function addWallet(){
-  const w = normalizeWallet($("walletInput").value);
+  const input = $("walletInput");
+  const w = normalizeWallet(input ? input.value : "");
+
   if(!w){
     setStatus("Paste a wallet address first.");
     return;
@@ -88,8 +97,10 @@ function addWallet(){
     setStatus("That wallet is already added.");
     return;
   }
+
   state.wallets.push(w);
-  $("walletInput").value = "";
+  if(input) input.value = "";
+
   renderWalletList();
   enableButtons();
   setStatus(`Wallet added ✅ (${state.wallets.length} total)`);
@@ -111,6 +122,8 @@ function clearWallets(){
 
 function renderWalletList(){
   const wrap = $("walletList");
+  if(!wrap) return;
+
   if(!state.wallets.length){
     wrap.style.display = "none";
     wrap.innerHTML = "";
@@ -158,6 +171,8 @@ function renderWalletList(){
 // ---------- COLLECTION LIST ----------
 function renderCollectionsList(){
   const wrap = $("collectionsList");
+  if(!wrap) return;
+
   wrap.innerHTML = "";
 
   state.collections.forEach((c) => {
@@ -171,8 +186,10 @@ function renderCollectionsList(){
       if(checkbox.checked) state.selectedKeys.add(c.key);
       else state.selectedKeys.delete(c.key);
 
-      $("buildBtn").disabled = state.selectedKeys.size === 0;
-      $("exportBtn").disabled = true;
+      const buildBtn = $("buildBtn");
+      const exportBtn = $("exportBtn");
+      if(buildBtn) buildBtn.disabled = state.selectedKeys.size === 0;
+      if(exportBtn) exportBtn.disabled = true;
     });
 
     const label = document.createElement("div");
@@ -201,8 +218,10 @@ function setAllCollections(checked){
     state.collections.forEach(c => state.selectedKeys.add(c.key));
   }
   renderCollectionsList();
-  $("buildBtn").disabled = state.selectedKeys.size === 0;
-  $("exportBtn").disabled = true;
+  const buildBtn = $("buildBtn");
+  const exportBtn = $("exportBtn");
+  if(buildBtn) buildBtn.disabled = state.selectedKeys.size === 0;
+  if(exportBtn) exportBtn.disabled = true;
 }
 
 function getSelectedCollections(){
@@ -238,9 +257,25 @@ function closestSquareDims(n){
   return { rows: side, cols: side };
 }
 
+function clampInt(v, min, max, fallback){
+  const n = Number(v);
+  if(!Number.isFinite(n)) return fallback;
+  return Math.max(min, Math.min(max, Math.round(n)));
+}
+
+// UPDATED: "custom" uses #customRows and #customCols (non-square)
 function getGridChoice(){
   const v = $("gridSize")?.value || "auto";
+
+  if(v === "custom"){
+    const cols = clampInt($("customCols")?.value, 1, 50, 6);
+    const rows = clampInt($("customRows")?.value, 1, 50, 6);
+    const cap = rows * cols;
+    return { mode:"fixed", cap, rows, cols };
+  }
+
   if(v === "auto") return { mode:"auto" };
+
   const cap = Math.max(1, Number(v));
   const side = Math.round(Math.sqrt(cap));
   return { mode:"fixed", cap, rows: side, cols: side };
@@ -249,17 +284,19 @@ function getGridChoice(){
 // ---------- BUILD GRID ----------
 function buildGrid(){
   const chosen = getSelectedCollections();
+  const exportBtn = $("exportBtn");
+
   if(!chosen.length){
     setStatus("Select at least one collection.");
-    $("exportBtn").disabled = true;
+    if(exportBtn) exportBtn.disabled = true;
     return;
   }
 
-  const mixMode = $("mixMode").value;
+  const mixMode = $("mixMode")?.value || "mix";
   let items = (mixMode === "mix") ? mixEvenly(chosen) : flattenItems(chosen);
 
-  // cap for UX/export speed
-  const HARD_CAP = 100;
+  // cap for UX/export speed (still safe)
+  const HARD_CAP = 400;
   if(items.length > HARD_CAP) items = items.slice(0, HARD_CAP);
 
   const choice = getGridChoice();
@@ -282,28 +319,37 @@ function buildGrid(){
   setGridColumns(cols);
 
   const grid = $("grid");
+  if(!grid) return;
   grid.innerHTML = "";
 
-  $("stageTitle").textContent = "Little Ollie Flex Grid";
-  $("stageMeta").textContent =
-    `${state.wallets.length} wallet(s) • ${chosen.length} collection(s) • ${usedItems.length} NFT(s) • grid ${rows}×${cols}`;
+  const stageTitle = $("stageTitle");
+  const stageMeta = $("stageMeta");
+  if(stageTitle) stageTitle.textContent = "Little Ollie Flex Grid";
+  if(stageMeta){
+    stageMeta.textContent =
+      `${state.wallets.length} wallet(s) • ${chosen.length} collection(s) • ${usedItems.length} NFT(s) • grid ${rows}×${cols}`;
+  }
 
+  // Fill with NFT tiles
   for(let i=0; i<usedItems.length; i++){
     grid.appendChild(makeNFTTile(usedItems[i]));
   }
 
+  // Fill remaining with LO ⚡ tiles
   const remaining = totalSlots - usedItems.length;
   for(let j=0; j<remaining; j++){
     grid.appendChild(makeFillerTile());
   }
 
-  // show watermark on top of first tile (grid corner)
+  // watermark visible
   const wm = $("wmGrid");
-  wm.style.display = "";
-  wm.style.left = "0";
-  wm.style.top = "0";
+  if(wm){
+    wm.style.display = "";
+    wm.style.left = "0";
+    wm.style.top = "0";
+  }
 
-  $("exportBtn").disabled = false;
+  if(exportBtn) exportBtn.disabled = false;
   setStatus("Grid built ✅ (drag tiles to reorder on desktop)");
   enableDragDrop();
 }
@@ -404,7 +450,7 @@ function enableDragDrop(){
 
 // ---------- WALLET LOAD (MULTI) ----------
 async function loadWallets(){
-  const chain = $("chainSelect").value;
+  const chain = $("chainSelect")?.value || "eth";
 
   if(chain === "solana"){
     setStatus("Solana coming soon. For now use ETH, Base, or Polygon.");
@@ -432,7 +478,6 @@ async function loadWallets(){
   try{
     setStatus(`Loading NFTs… (${state.wallets.length} wallet(s))`);
 
-    // Load each wallet sequentially (safer for rate limits)
     const allNfts = [];
     for(let i=0; i<state.wallets.length; i++){
       const w = state.wallets[i];
@@ -441,25 +486,25 @@ async function loadWallets(){
       allNfts.push(...(nfts || []));
     }
 
-    // De-dupe by contract+tokenId across wallets
     const deduped = dedupeNFTs(allNfts);
-
-    // Group + merge collections
     const grouped = groupByCollection(deduped);
 
     state.collections = grouped;
-
-    // Start unchecked
-    state.selectedKeys = new Set();
+    state.selectedKeys = new Set(); // start unchecked
 
     renderCollectionsList();
     showControlsPanel(true);
 
-    $("buildBtn").disabled = true;
-    $("exportBtn").disabled = true;
+    const buildBtn = $("buildBtn");
+    const exportBtn = $("exportBtn");
+    if(buildBtn) buildBtn.disabled = true;
+    if(exportBtn) exportBtn.disabled = true;
 
-    $("stageTitle").textContent = "Wallets loaded";
-    $("stageMeta").textContent = "Select collections, then 🧩 Build grid.";
+    const stageTitle = $("stageTitle");
+    const stageMeta = $("stageMeta");
+    if(stageTitle) stageTitle.textContent = "Wallets loaded";
+    if(stageMeta) stageMeta.textContent = "Select collections, then 🧩 Build grid.";
+
     setStatus(`Loaded ${state.wallets.length} wallet(s) ✅ Found ${grouped.length} collections`);
   }catch(err){
     console.error(err);
@@ -551,18 +596,15 @@ async function exportPNG(){
     const cols = getComputedGridCols(gridEl);
     const rows = Math.ceil(tiles.length / cols);
 
-    // Use current rendered tile size so export matches what you see
+    // Match rendered tile size
     const firstTile = tiles[0];
     const rect = firstTile.getBoundingClientRect();
     let tileSize = Math.round(rect.width);
-    if(!tileSize || tileSize < 10) tileSize = 140; // fallback
+    if(!tileSize || tileSize < 10) tileSize = 140;
 
-    // High-res export scale
-    const scale = 2;
-
-    // Tiny border + tiny padding
-    const borderPx = 2;   // thinnest practical visible line
-    const pad = 2;        // minimal padding so border doesn't clip
+    const scale = 2;          // high-res export
+    const borderPx = 2;       // thin outer border
+    const pad = 2;            // tiny padding so border doesn't clip
 
     const outW = Math.round((cols * tileSize + pad * 2) * scale);
     const outH = Math.round((rows * tileSize + pad * 2) * scale);
@@ -572,7 +614,6 @@ async function exportPNG(){
     canvas.height = outH;
     const ctx = canvas.getContext("2d");
 
-    // Transparent background (tight crop)
     ctx.clearRect(0, 0, outW, outH);
 
     // Draw tiles
@@ -597,9 +638,9 @@ async function exportPNG(){
       }
     }
 
-    // Watermark (top-left, inside the exported grid area)
+    // Watermark top-left (keep it)
     const wmText = "⚡ Powered by Little Ollie Studio";
-    const fontPx = Math.max(18, Math.round(tileSize * 0.16)) * scale;
+    const fontPx = Math.max(16, Math.round(tileSize * 0.14)) * scale;
 
     ctx.font = `900 ${fontPx}px system-ui, -apple-system, Segoe UI, Roboto, Arial`;
     ctx.textBaseline = "middle";
@@ -616,6 +657,7 @@ async function exportPNG(){
 
     ctx.fillStyle = "rgba(0,0,0,0.22)";
     ctx.fillRect(boxX, boxY, boxW, boxH);
+
     ctx.strokeStyle = "rgba(255,255,255,0.12)";
     ctx.lineWidth = 2 * scale;
     ctx.strokeRect(boxX, boxY, boxW, boxH);
@@ -623,7 +665,7 @@ async function exportPNG(){
     ctx.fillStyle = "rgba(255,255,255,0.95)";
     ctx.fillText(wmText, boxX + boxPadX, boxY + boxH/2);
 
-    // Tiny LO-blue outline around the exported image
+    // Outer LO-blue border ONLY (no inner border)
     ctx.strokeStyle = "rgba(109,224,255,0.70)";
     ctx.lineWidth = borderPx * scale;
     ctx.strokeRect(1, 1, outW - 2, outH - 2);
@@ -649,6 +691,7 @@ async function exportPNG(){
 }
 
 function getComputedGridCols(gridEl){
+  if(!gridEl) return 1;
   const cs = window.getComputedStyle(gridEl);
   const tmpl = cs.gridTemplateColumns || "";
 
@@ -715,22 +758,56 @@ function roundRect(ctx, x, y, w, h, r){
 }
 
 // ---------- EVENTS ----------
-$("addWalletBtn").addEventListener("click", addWallet);
+(function bindEvents(){
+  // Add wallet
+  const addBtn = $("addWalletBtn");
+  if(addBtn) addBtn.addEventListener("click", addWallet);
 
-const clearWalletsBtn = $("clearWalletsBtn");
-if (clearWalletsBtn) clearWalletsBtn.addEventListener("click", clearWallets);
+  // Clear wallets (optional, safe if not present)
+  const clearBtn = $("clearWalletsBtn");
+  if(clearBtn) clearBtn.addEventListener("click", clearWallets);
 
-// allow Enter key in wallet input to add
-$("walletInput").addEventListener("keydown", (e) => {
-  if (e.key === "Enter") addWallet();
-});
+  // Enter key add
+  const walletInput = $("walletInput");
+  if(walletInput){
+    walletInput.addEventListener("keydown", (e) => {
+      if(e.key === "Enter") addWallet();
+    });
+  }
 
-$("loadBtn").addEventListener("click", loadWallets);
-$("buildBtn").addEventListener("click", buildGrid);
-$("exportBtn").addEventListener("click", exportPNG);
+  // Toggle custom grid inputs
+  const gridSizeEl = $("gridSize");
+  if(gridSizeEl){
+    gridSizeEl.addEventListener("change", () => {
+      const wrap = $("customGridWrap");
+      if(wrap) wrap.style.display = (gridSizeEl.value === "custom") ? "" : "none";
 
-$("selectAllBtn").addEventListener("click", () => setAllCollections(true));
-$("selectNoneBtn").addEventListener("click", () => setAllCollections(false));
+      const exportBtn = $("exportBtn");
+      if(exportBtn) exportBtn.disabled = true; // require rebuild
+    });
+  }
 
-enableButtons();
-setStatus("Ready ✅ ➕ Add wallet(s) → 🔍 Load wallet(s) → select collections → 🧩 Build → 📸 Export");
+  // Any change to custom rows/cols requires rebuild before export
+  const customRows = $("customRows");
+  const customCols = $("customCols");
+  if(customRows) customRows.addEventListener("input", () => { const e = $("exportBtn"); if(e) e.disabled = true; });
+  if(customCols) customCols.addEventListener("input", () => { const e = $("exportBtn"); if(e) e.disabled = true; });
+
+  // Main actions
+  const loadBtn = $("loadBtn");
+  const buildBtn = $("buildBtn");
+  const exportBtn = $("exportBtn");
+
+  if(loadBtn) loadBtn.addEventListener("click", loadWallets);
+  if(buildBtn) buildBtn.addEventListener("click", buildGrid);
+  if(exportBtn) exportBtn.addEventListener("click", exportPNG);
+
+  // Collection helpers
+  const selectAllBtn = $("selectAllBtn");
+  const selectNoneBtn = $("selectNoneBtn");
+  if(selectAllBtn) selectAllBtn.addEventListener("click", () => setAllCollections(true));
+  if(selectNoneBtn) selectNoneBtn.addEventListener("click", () => setAllCollections(false));
+
+  enableButtons();
+  setStatus("Ready ✅ ➕ Add wallet(s) → 🔍 Load wallet(s) → select collections → 🧩 Build → 📸 Export");
+})();

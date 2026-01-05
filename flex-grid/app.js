@@ -536,32 +536,10 @@ function groupByCollection(nfts){
   return [...map.values()].sort((a,b)=> b.count - a.count);
 }
 
-// ---------- EXPORT (safe for file://) ----------
+// ---------- EXPORT (tight crop to grid) ----------
 async function exportPNG(){
   try{
     setStatus("Exporting… may take a moment");
-
-    const dims = { w: 1400, h: 1400 };
-
-    const canvas = document.createElement("canvas");
-    canvas.width = dims.w;
-    canvas.height = dims.h;
-    const ctx = canvas.getContext("2d");
-
-    // Background
-    const g = ctx.createRadialGradient(dims.w*0.5, dims.h*0.15, dims.w*0.1, dims.w*0.5, dims.h*0.15, dims.w*0.9);
-    g.addColorStop(0, "#6de0ff");
-    g.addColorStop(1, "#4c6fff");
-    ctx.fillStyle = g;
-    ctx.fillRect(0,0,dims.w,dims.h);
-
-    const pad = Math.round(dims.w * 0.04);
-    const headerH = Math.round(dims.h * 0.10);
-
-    const gridX = pad;
-    const gridY = pad + headerH * 0.35;
-    const gridW = dims.w - pad*2;
-    const gridH = dims.h - gridY - pad;
 
     const tiles = Array.from(document.querySelectorAll("#grid .tile"));
     if(!tiles.length){
@@ -569,76 +547,86 @@ async function exportPNG(){
       return;
     }
 
-    const cols = getComputedGridCols($("grid"));
+    const gridEl = $("grid");
+    const cols = getComputedGridCols(gridEl);
     const rows = Math.ceil(tiles.length / cols);
 
-    const gap = 0;
-    const tileSize = Math.floor((gridW - gap*(cols-1)) / cols);
-    const totalGridH = tileSize*rows + gap*(rows-1);
+    // Use current rendered tile size so export matches what you see
+    const firstTile = tiles[0];
+    const rect = firstTile.getBoundingClientRect();
+    let tileSize = Math.round(rect.width);
+    if(!tileSize || tileSize < 10) tileSize = 140; // fallback
 
-    const startY = gridY + Math.max(0, Math.floor((gridH - totalGridH)/2));
-    const startX = gridX;
+    // High-res export scale
+    const scale = 2;
 
-    // Header strip
-    ctx.fillStyle = "rgba(0,0,0,0.22)";
-    roundRect(ctx, pad, pad, dims.w - pad*2, Math.round(headerH), 18);
-    ctx.fill();
+    // Tiny border + tiny padding
+    const borderPx = 2;   // thinnest practical visible line
+    const pad = 2;        // minimal padding so border doesn't clip
 
-    ctx.fillStyle = "rgba(255,255,255,0.95)";
-    ctx.font = `900 ${Math.round(dims.w*0.03)}px system-ui, -apple-system, Segoe UI, Roboto, Arial`;
-    ctx.fillText("Little Ollie Flex Grid", pad + Math.round(dims.w*0.02), pad + Math.round(headerH*0.62));
+    const outW = Math.round((cols * tileSize + pad * 2) * scale);
+    const outH = Math.round((rows * tileSize + pad * 2) * scale);
 
-    const meta = $("stageMeta")?.textContent || "";
-    if(meta){
-      ctx.fillStyle = "rgba(255,255,255,0.85)";
-      ctx.font = `600 ${Math.round(dims.w*0.018)}px system-ui, -apple-system, Segoe UI, Roboto, Arial`;
-      ctx.fillText(meta, pad + Math.round(dims.w*0.02), pad + Math.round(headerH*0.88));
-    }
+    const canvas = document.createElement("canvas");
+    canvas.width = outW;
+    canvas.height = outH;
+    const ctx = canvas.getContext("2d");
+
+    // Transparent background (tight crop)
+    ctx.clearRect(0, 0, outW, outH);
 
     // Draw tiles
     for(let i=0; i<tiles.length; i++){
       const r = Math.floor(i / cols);
       const c = i % cols;
-      const x = startX + c*(tileSize + gap);
-      const y = startY + r*(tileSize + gap);
+
+      const x = Math.round((pad + c * tileSize) * scale);
+      const y = Math.round((pad + r * tileSize) * scale);
+      const size = Math.round(tileSize * scale);
 
       const src = tiles[i].dataset?.src || "";
       if(src && src.length > 5){
         try{
           const img = await loadImage(exportSafeUrl(src));
-          drawCover(ctx, img, x, y, tileSize, tileSize);
+          drawCover(ctx, img, x, y, size, size);
         }catch(e){
-          drawPlaceholder(ctx, x, y, tileSize, "LO ⚡");
+          drawPlaceholder(ctx, x, y, size, "LO ⚡");
         }
       }else{
-        drawPlaceholder(ctx, x, y, tileSize, "LO ⚡");
+        drawPlaceholder(ctx, x, y, size, "LO ⚡");
       }
     }
 
-    // Tiny blue outline
-    ctx.strokeStyle = "rgba(109,224,255,0.70)";
-    ctx.lineWidth = 2;
-    ctx.strokeRect(startX, startY, tileSize*cols, tileSize*rows);
-
-    // Powered By placed on top of first tile (harder to crop)
+    // Watermark (top-left, inside the exported grid area)
     const wmText = "⚡ Powered by Little Ollie Studio";
-    ctx.font = `900 ${Math.round(dims.w*0.015)}px system-ui, -apple-system, Segoe UI, Roboto, Arial`;
+    const fontPx = Math.max(18, Math.round(tileSize * 0.16)) * scale;
+
+    ctx.font = `900 ${fontPx}px system-ui, -apple-system, Segoe UI, Roboto, Arial`;
+    ctx.textBaseline = "middle";
+
     const tw = ctx.measureText(wmText).width;
 
-    const boxPadX = Math.round(dims.w*0.010);
-    const boxPadY = Math.round(dims.h*0.006);
-    const boxW = Math.round(tw + boxPadX*2);
-    const boxH = Math.round(boxPadY*2 + Math.round(dims.w*0.015));
+    const boxPadX = Math.round(tileSize * 0.10) * scale;
+    const boxPadY = Math.round(tileSize * 0.06) * scale;
+    const boxW = Math.round(tw + boxPadX * 2);
+    const boxH = Math.round(fontPx + boxPadY * 2);
+
+    const boxX = Math.round(pad * scale);
+    const boxY = Math.round(pad * scale);
 
     ctx.fillStyle = "rgba(0,0,0,0.22)";
-    ctx.fillRect(startX, startY, boxW, boxH);
+    ctx.fillRect(boxX, boxY, boxW, boxH);
     ctx.strokeStyle = "rgba(255,255,255,0.12)";
-    ctx.lineWidth = 2;
-    ctx.strokeRect(startX, startY, boxW, boxH);
+    ctx.lineWidth = 2 * scale;
+    ctx.strokeRect(boxX, boxY, boxW, boxH);
 
     ctx.fillStyle = "rgba(255,255,255,0.95)";
-    ctx.textBaseline = "middle";
-    ctx.fillText(wmText, startX + boxPadX, startY + boxH/2);
+    ctx.fillText(wmText, boxX + boxPadX, boxY + boxH/2);
+
+    // Tiny LO-blue outline around the exported image
+    ctx.strokeStyle = "rgba(109,224,255,0.70)";
+    ctx.lineWidth = borderPx * scale;
+    ctx.strokeRect(1, 1, outW - 2, outH - 2);
 
     // Download
     canvas.toBlob((blob) => {
@@ -725,6 +713,7 @@ function roundRect(ctx, x, y, w, h, r){
   ctx.arcTo(x, y, x+w, y, rr);
   ctx.closePath();
 }
+
 // ---------- EVENTS ----------
 $("addWalletBtn").addEventListener("click", addWallet);
 

@@ -138,12 +138,12 @@ function buildIpfsGatewayUrls(ipfsPath){
 function normalizeImageUrl(url){
   if(!url) return "";
 
-  // If it’s already the proxy, return as-is
   if(isAlreadyProxied(url)) return url;
 
   const ipfsPath = getIpfsPath(url);
   if(ipfsPath){
-    return (buildIpfsGatewayUrls(ipfsPath)[0] || "");
+    // ✅ canonical form so Worker can pick gateways
+    return "ipfs://" + ipfsPath;
   }
 
   try{
@@ -153,6 +153,7 @@ function normalizeImageUrl(url){
     return String(url);
   }
 }
+
 
 // For GRID rendering (always proxy, but never twice)
 function gridSafeUrl(directUrl){

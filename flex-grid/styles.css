@@ -209,4 +209,29 @@ h1{ margin:0; font-size: 22px; }
 @media (max-width: 560px){
   #exportPreset{ width:100%; }
 }
+/* === LO Flex Grid: image loading states === */
+
+.tile.loading {
+  background: rgba(255,255,255,0.05);
+}
+
+.tile.pending {
+  background: rgba(255,255,255,0.08);
+  position: relative;
+}
+
+.tile.pending::after {
+  content: "⏳ loading…";
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  opacity: 0.75;
+}
+
+.tile.missing {
+  background: rgba(0,0,0,0.25);
+}
 

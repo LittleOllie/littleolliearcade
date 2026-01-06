@@ -580,8 +580,7 @@ function groupByCollection(nfts){
 
   return [...map.values()].sort((a,b)=> b.count - a.count);
 }
-
-// ---------- EXPORT (tight crop to grid) — PNG + watermark = 1 tile ----------
+// ---------- EXPORT (tight crop to grid) — PNG + watermark = 1 tile (clipped) ----------
 async function exportPNG(){
   try{
     setStatus("Exporting… may take a moment");
@@ -599,11 +598,11 @@ async function exportPNG(){
     // Match rendered tile size
     const rect = tiles[0].getBoundingClientRect();
     let tileSize = Math.round(rect.width);
-    if(!tileSize || tileSize < 10) tileSize = 140;
+    if(!tileSize || tileSize < 10) tileSize = 140; // fallback
 
     const scale = 2;      // hi-res export
     const pad = 2;        // minimal padding
-    const borderPx = 2;   // thin LO blue outline
+    const borderPx = 2;   // thin LO-blue outline
 
     const outW = Math.round((cols * tileSize + pad * 2) * scale);
     const outH = Math.round((rows * tileSize + pad * 2) * scale);
@@ -613,7 +612,7 @@ async function exportPNG(){
     canvas.height = outH;
     const ctx = canvas.getContext("2d");
 
-    // Transparent background (PNG)
+    // Transparent background
     ctx.clearRect(0, 0, outW, outH);
 
     // Draw tiles
@@ -630,7 +629,7 @@ async function exportPNG(){
         try{
           const img = await loadImage(exportSafeUrl(src));
           drawCover(ctx, img, x, y, size, size);
-        }catch{
+        }catch(e){
           drawPlaceholder(ctx, x, y, size, "LO ⚡");
         }
       }else{
@@ -638,28 +637,48 @@ async function exportPNG(){
       }
     }
 
-    // ---------- WATERMARK (exactly 1 tile wide) ----------
-    const wmText = "⚡ Powered by Little Ollie Studio";
-
+    // ---------- WATERMARK (EXACTLY 1 tile wide, cannot overflow) ----------
     const boxX = Math.round(pad * scale);
     const boxY = Math.round(pad * scale);
-    const boxW = Math.round(tileSize * scale); // ✅ exactly 1 NFT wide
+    const boxW = Math.round(tileSize * scale); // ✅ exactly 1 tile wide
+
+    const wmSingle = "⚡ Powered by Little Ollie Studio";
+    const wm1 = "⚡ Powered by";
+    const wm2 = "Little Ollie Studio";
 
     const boxPadX = Math.round(tileSize * 0.10) * scale;
-    const boxPadY = Math.round(tileSize * 0.06) * scale;
+    const boxPadY = Math.round(tileSize * 0.08) * scale;
     const maxTextW = Math.max(10, boxW - boxPadX * 2);
 
-    let fontPx = Math.max(14, Math.round(tileSize * 0.16)) * scale;
+    // try single-line first
+    let useTwoLines = false;
+    let fontPx = Math.max(10, Math.round(tileSize * 0.14)) * scale;
 
-    // Shrink font until it fits inside 1 tile
-    while(fontPx > 10){
+    while(fontPx > 8 * scale){
       ctx.font = `900 ${fontPx}px system-ui, -apple-system, Segoe UI, Roboto, Arial`;
-      if(ctx.measureText(wmText).width <= maxTextW) break;
+      if(ctx.measureText(wmSingle).width <= maxTextW) break;
       fontPx -= 1;
     }
 
-    const boxH = Math.round(fontPx + boxPadY * 2);
+    // if still too wide, switch to 2 lines (better than tiny text)
+    ctx.font = `900 ${fontPx}px system-ui, -apple-system, Segoe UI, Roboto, Arial`;
+    if(ctx.measureText(wmSingle).width > maxTextW){
+      useTwoLines = true;
+      fontPx = Math.max(10, Math.round(tileSize * 0.13)) * scale;
 
+      while(fontPx > 8 * scale){
+        ctx.font = `900 ${fontPx}px system-ui, -apple-system, Segoe UI, Roboto, Arial`;
+        const w = Math.max(ctx.measureText(wm1).width, ctx.measureText(wm2).width);
+        if(w <= maxTextW) break;
+        fontPx -= 1;
+      }
+    }
+
+    const lineGap = Math.round(fontPx * 0.25);
+    const textH = useTwoLines ? (fontPx * 2 + lineGap) : fontPx;
+    const boxH = Math.round(textH + boxPadY * 2);
+
+    // box
     ctx.fillStyle = "rgba(0,0,0,0.22)";
     ctx.fillRect(boxX, boxY, boxW, boxH);
 
@@ -667,9 +686,28 @@ async function exportPNG(){
     ctx.lineWidth = 2 * scale;
     ctx.strokeRect(boxX, boxY, boxW, boxH);
 
+    // CLIP: text can NEVER draw outside 1 tile width
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(boxX, boxY, boxW, boxH);
+    ctx.clip();
+
     ctx.fillStyle = "rgba(255,255,255,0.95)";
-    ctx.textBaseline = "middle";
-    ctx.fillText(wmText, boxX + boxPadX, boxY + boxH / 2);
+    ctx.textBaseline = "alphabetic";
+
+    if(!useTwoLines){
+      // single line
+      const y = boxY + Math.round((boxH + fontPx) / 2) - Math.round(fontPx * 0.15);
+      ctx.fillText(wmSingle, boxX + boxPadX, y);
+    }else{
+      // two lines
+      const y1 = boxY + boxPadY + fontPx;
+      const y2 = y1 + fontPx + lineGap;
+      ctx.fillText(wm1, boxX + boxPadX, y1);
+      ctx.fillText(wm2, boxX + boxPadX, y2);
+    }
+
+    ctx.restore();
 
     // ---------- OUTLINE ----------
     ctx.strokeStyle = "rgba(109,224,255,0.70)";
@@ -697,73 +735,6 @@ async function exportPNG(){
     console.error(err);
     setStatus("Export failed (unexpected). Check console for details.");
   }
-}
-
-function getComputedGridCols(gridEl){
-  if(!gridEl) return 1;
-  const cs = window.getComputedStyle(gridEl);
-  const tmpl = cs.gridTemplateColumns || "";
-
-  const m = tmpl.match(/repeat\((\d+),/);
-  if(m) return Math.max(1, parseInt(m[1], 10));
-
-  const parts = tmpl.split(" ").filter(Boolean);
-  return Math.max(1, parts.length);
-}
-
-function loadImage(src){
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.referrerPolicy = "no-referrer";
-    img.onload = () => resolve(img);
-    img.onerror = reject;
-    img.src = src;
-  });
-}
-
-function drawPlaceholder(ctx, x, y, size, label){
-  ctx.fillStyle = "rgba(0,0,0,0.22)";
-  ctx.fillRect(x, y, size, size);
-
-  ctx.fillStyle = "rgba(255,255,255,0.92)";
-  ctx.font = `900 ${Math.round(size*0.18)}px system-ui, -apple-system, Segoe UI, Roboto, Arial`;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText(label, x + size/2, y + size/2);
-
-  ctx.textAlign = "left";
-  ctx.textBaseline = "alphabetic";
-}
-
-function drawCover(ctx, img, x, y, w, h){
-  const iw = img.naturalWidth || img.width;
-  const ih = img.naturalHeight || img.height;
-  const ir = iw/ih;
-  const tr = w/h;
-
-  let sx=0, sy=0, sw=iw, sh=ih;
-  if(ir > tr){
-    sh = ih;
-    sw = ih * tr;
-    sx = (iw - sw)/2;
-  }else{
-    sw = iw;
-    sh = iw / tr;
-    sy = (ih - sh)/2;
-  }
-  ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h);
-}
-
-function roundRect(ctx, x, y, w, h, r){
-  const rr = Math.min(r, w/2, h/2);
-  ctx.beginPath();
-  ctx.moveTo(x+rr, y);
-  ctx.arcTo(x+w, y, x+w, y+h, rr);
-  ctx.arcTo(x+w, y+h, x, y+h, rr);
-  ctx.arcTo(x, y+h, x, y, rr);
-  ctx.arcTo(x, y, x+w, y, rr);
-  ctx.closePath();
 }
 
 // ---------- EVENTS ----------

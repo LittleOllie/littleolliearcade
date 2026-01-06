@@ -6,6 +6,7 @@
    - Export: tight crop to grid only + tiny LO-blue border + keeps watermark
    - Export placeholders are TEXT (no local logo.png) to avoid file:// CORS.
    - Custom grid supports ROWS x COLS (not forced square)
+   - IPFS gateway fallback (fixes “some load, some don’t” + ERR_NAME_NOT_RESOLVED)
 */
 
 const $ = (id) => document.getElementById(id);
@@ -28,6 +29,16 @@ const ALCHEMY_HOST = {
 
 // Cloudflare Worker proxy:
 const IMG_PROXY = "https://loflexgrid.littleollienft.workers.dev/img?url=";
+
+// IPFS gateways (fallback order)
+const IPFS_GWS = [
+  "https://cloudflare-ipfs.com/ipfs/",
+  "https://nftstorage.link/ipfs/",
+  "https://w3s.link/ipfs/",
+  "https://dweb.link/ipfs/",
+  "https://gateway.pinata.cloud/ipfs/",
+  "https://ipfs.io/ipfs/",
+];
 
 // ---------- UI helpers ----------
 function setStatus(msg){
@@ -54,25 +65,59 @@ function setGridColumns(cols){
 }
 function safeText(s){ return (s || "").toString(); }
 
-// ---------- URL HELPERS ----------
+// ---------- IPFS + URL HELPERS ----------
+function getIpfsPath(url){
+  if(!url) return "";
+  const s = String(url).trim();
+
+  // ipfs://CID/path or ipfs://ipfs/CID/path
+  if(s.startsWith("ipfs://")){
+    let p = s.slice("ipfs://".length);
+    p = p.replace(/^ipfs\//, "");
+    return p;
+  }
+
+  // https://<gateway>/ipfs/CID/path
+  try{
+    const u = new URL(s);
+    const idx = u.pathname.indexOf("/ipfs/");
+    if(idx !== -1){
+      return u.pathname.slice(idx + "/ipfs/".length).replace(/^\/+/, "");
+    }
+  }catch(e){}
+
+  return "";
+}
+
+function buildIpfsGatewayUrls(ipfsPath){
+  const p = (ipfsPath || "").replace(/^\/+/, "");
+  if(!p) return [];
+  return IPFS_GWS.map((gw) => gw + p);
+}
+
 function normalizeImageUrl(url){
   if(!url) return "";
 
-  if(url.startsWith("ipfs://")){
-    const path = url.replace("ipfs://","").replace(/^ipfs\//,"");
-    return `https://cloudflare-ipfs.com/ipfs/${path}`;
+  const ipfsPath = getIpfsPath(url);
+  if(ipfsPath){
+    // pick first gateway for initial load; we’ll fallback on error
+    return buildIpfsGatewayUrls(ipfsPath)[0] || "";
   }
 
+  // If someone uses ipfs.io, swap to a generally faster gateway (optional)
   try{
-    const u = new URL(url);
+    const u = new URL(String(url));
     if(u.hostname === "ipfs.io"){
       u.hostname = "cloudflare-ipfs.com";
       return u.toString();
     }
-  }catch(e){}
-
-  return url;
+    return u.toString();
+  }catch(e){
+    return String(url);
+  }
 }
+
+// Export wants CORS-safe URLs (via your Worker)
 function exportSafeUrl(src){
   const direct = normalizeImageUrl(src);
   return IMG_PROXY + encodeURIComponent(direct);
@@ -263,7 +308,7 @@ function clampInt(v, min, max, fallback){
   return Math.max(min, Math.min(max, Math.round(n)));
 }
 
-// UPDATED: "custom" uses #customRows and #customCols (non-square)
+// Custom mode uses #customRows and #customCols (non-square)
 function getGridChoice(){
   const v = $("gridSize")?.value || "auto";
 
@@ -330,18 +375,15 @@ function buildGrid(){
       `${state.wallets.length} wallet(s) • ${chosen.length} collection(s) • ${usedItems.length} NFT(s) • grid ${rows}×${cols}`;
   }
 
-  // Fill with NFT tiles
   for(let i=0; i<usedItems.length; i++){
     grid.appendChild(makeNFTTile(usedItems[i]));
   }
 
-  // Fill remaining with LO ⚡ tiles
   const remaining = totalSlots - usedItems.length;
   for(let j=0; j<remaining; j++){
     grid.appendChild(makeFillerTile());
   }
 
-  // watermark visible
   const wm = $("wmGrid");
   if(wm){
     wm.style.display = "";
@@ -359,16 +401,41 @@ function makeNFTTile(it){
   tile.className = "tile";
   tile.draggable = true;
 
-  const src = normalizeImageUrl(it.image || "");
+  const raw = (it?.image || "");
+  const ipfsPath = getIpfsPath(raw);
+  const src = normalizeImageUrl(raw);
+
+  tile.dataset.ipfsPath = ipfsPath || "";
+  tile.dataset.gwIndex = "0";
+
   tile.dataset.src = (src && src.length > 5) ? src : "";
   tile.dataset.kind = (tile.dataset.src ? "nft" : "empty");
 
   const img = document.createElement("img");
   img.loading = "lazy";
   img.alt = safeText(it.name || "NFT");
+
+  // IMPORTANT: initial render uses direct (so it loads fast if gateway works)
   img.src = tile.dataset.src || "";
 
   img.onerror = () => {
+    // If it was IPFS, try next gateway(s) before giving up
+    const ip = tile.dataset.ipfsPath || "";
+    if(ip){
+      const urls = buildIpfsGatewayUrls(ip);
+      let idx = parseInt(tile.dataset.gwIndex || "0", 10);
+      idx = Number.isFinite(idx) ? idx : 0;
+      idx++;
+
+      if(idx < urls.length){
+        tile.dataset.gwIndex = String(idx);
+        tile.dataset.src = urls[idx];
+        img.src = urls[idx];
+        return;
+      }
+    }
+
+    // final fallback: placeholder
     try{ img.remove(); }catch(e){}
     tile.dataset.src = "";
     tile.dataset.kind = "empty";
@@ -490,7 +557,7 @@ async function loadWallets(){
     const grouped = groupByCollection(deduped);
 
     state.collections = grouped;
-    state.selectedKeys = new Set(); // start unchecked
+    state.selectedKeys = new Set();
 
     renderCollectionsList();
     showControlsPanel(true);
@@ -563,6 +630,7 @@ function groupByCollection(nfts){
 
     const tokenId = nft?.tokenId || "";
     const name = nft?.name || (tokenId ? `#${tokenId}` : "NFT");
+
     const image =
       nft?.image?.cachedUrl ||
       nft?.image?.pngUrl ||
@@ -580,6 +648,7 @@ function groupByCollection(nfts){
 
   return [...map.values()].sort((a,b)=> b.count - a.count);
 }
+
 // ---------- EXPORT (tight crop to grid) — PNG + watermark = 1 tile (clipped) ----------
 async function exportPNG(){
   try{
@@ -600,9 +669,9 @@ async function exportPNG(){
     let tileSize = Math.round(rect.width);
     if(!tileSize || tileSize < 10) tileSize = 140; // fallback
 
-    const scale = 2;      // hi-res export
-    const pad = 2;        // minimal padding
-    const borderPx = 2;   // thin LO-blue outline
+    const scale = 2;
+    const pad = 2;
+    const borderPx = 2;
 
     const outW = Math.round((cols * tileSize + pad * 2) * scale);
     const outH = Math.round((rows * tileSize + pad * 2) * scale);
@@ -612,7 +681,6 @@ async function exportPNG(){
     canvas.height = outH;
     const ctx = canvas.getContext("2d");
 
-    // Transparent background
     ctx.clearRect(0, 0, outW, outH);
 
     // Draw tiles
@@ -625,22 +693,24 @@ async function exportPNG(){
       const size = Math.round(tileSize * scale);
 
       const src = tiles[i].dataset?.src || "";
-      if(src && src.length > 5){
-        try{
-          const img = await loadImage(exportSafeUrl(src));
+      const ip = tiles[i].dataset?.ipfsPath || "";
+
+      try{
+        if(src && src.length > 5){
+          const img = await loadImageForExport(src, ip);
           drawCover(ctx, img, x, y, size, size);
-        }catch(e){
+        }else{
           drawPlaceholder(ctx, x, y, size, "LO ⚡");
         }
-      }else{
+      }catch(e){
         drawPlaceholder(ctx, x, y, size, "LO ⚡");
       }
     }
 
-    // ---------- WATERMARK (EXACTLY 1 tile wide, cannot overflow) ----------
+    // Watermark (exactly 1 tile wide, clipped)
     const boxX = Math.round(pad * scale);
     const boxY = Math.round(pad * scale);
-    const boxW = Math.round(tileSize * scale); // ✅ exactly 1 tile wide
+    const boxW = Math.round(tileSize * scale);
 
     const wmSingle = "⚡ Powered by Little Ollie Studio";
     const wm1 = "⚡ Powered by";
@@ -650,7 +720,6 @@ async function exportPNG(){
     const boxPadY = Math.round(tileSize * 0.08) * scale;
     const maxTextW = Math.max(10, boxW - boxPadX * 2);
 
-    // try single-line first
     let useTwoLines = false;
     let fontPx = Math.max(10, Math.round(tileSize * 0.14)) * scale;
 
@@ -660,7 +729,6 @@ async function exportPNG(){
       fontPx -= 1;
     }
 
-    // if still too wide, switch to 2 lines (better than tiny text)
     ctx.font = `900 ${fontPx}px system-ui, -apple-system, Segoe UI, Roboto, Arial`;
     if(ctx.measureText(wmSingle).width > maxTextW){
       useTwoLines = true;
@@ -678,7 +746,6 @@ async function exportPNG(){
     const textH = useTwoLines ? (fontPx * 2 + lineGap) : fontPx;
     const boxH = Math.round(textH + boxPadY * 2);
 
-    // box
     ctx.fillStyle = "rgba(0,0,0,0.22)";
     ctx.fillRect(boxX, boxY, boxW, boxH);
 
@@ -686,7 +753,6 @@ async function exportPNG(){
     ctx.lineWidth = 2 * scale;
     ctx.strokeRect(boxX, boxY, boxW, boxH);
 
-    // CLIP: text can NEVER draw outside 1 tile width
     ctx.save();
     ctx.beginPath();
     ctx.rect(boxX, boxY, boxW, boxH);
@@ -696,11 +762,9 @@ async function exportPNG(){
     ctx.textBaseline = "alphabetic";
 
     if(!useTwoLines){
-      // single line
       const y = boxY + Math.round((boxH + fontPx) / 2) - Math.round(fontPx * 0.15);
       ctx.fillText(wmSingle, boxX + boxPadX, y);
     }else{
-      // two lines
       const y1 = boxY + boxPadY + fontPx;
       const y2 = y1 + fontPx + lineGap;
       ctx.fillText(wm1, boxX + boxPadX, y1);
@@ -709,12 +773,11 @@ async function exportPNG(){
 
     ctx.restore();
 
-    // ---------- OUTLINE ----------
+    // Outline
     ctx.strokeStyle = "rgba(109,224,255,0.70)";
     ctx.lineWidth = borderPx * scale;
     ctx.strokeRect(1, 1, outW - 2, outH - 2);
 
-    // Download PNG
     canvas.toBlob((blob) => {
       if(!blob){
         setStatus("Export failed: could not create PNG.");
@@ -737,17 +800,92 @@ async function exportPNG(){
   }
 }
 
+// ---------- EXPORT IMAGE LOADER (proxy + ipfs fallback) ----------
+async function loadImageForExport(src, ipfsPath){
+  // 1) try proxy of current src
+  try{
+    return await loadImage(exportSafeUrl(src));
+  }catch(e){}
+
+  // 2) if IPFS, try other gateways via proxy
+  if(ipfsPath){
+    const urls = buildIpfsGatewayUrls(ipfsPath);
+    for(const u of urls){
+      try{
+        return await loadImage(IMG_PROXY + encodeURIComponent(u));
+      }catch(e){}
+    }
+  }
+
+  // 3) final: try direct (sometimes works)
+  return await loadImage(src);
+}
+
+// ---------- CANVAS / DRAW HELPERS ----------
+function getComputedGridCols(gridEl){
+  if(!gridEl) return 1;
+  const cs = window.getComputedStyle(gridEl);
+  const tmpl = cs.gridTemplateColumns || "";
+
+  const m = tmpl.match(/repeat\((\d+),/);
+  if(m) return Math.max(1, parseInt(m[1], 10));
+
+  const parts = tmpl.split(" ").filter(Boolean);
+  return Math.max(1, parts.length);
+}
+
+function loadImage(src){
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.referrerPolicy = "no-referrer";
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+
+function drawPlaceholder(ctx, x, y, size, label){
+  ctx.fillStyle = "rgba(0,0,0,0.22)";
+  ctx.fillRect(x, y, size, size);
+
+  ctx.fillStyle = "rgba(255,255,255,0.92)";
+  ctx.font = `900 ${Math.round(size*0.18)}px system-ui, -apple-system, Segoe UI, Roboto, Arial`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(label, x + size/2, y + size/2);
+
+  ctx.textAlign = "left";
+  ctx.textBaseline = "alphabetic";
+}
+
+function drawCover(ctx, img, x, y, w, h){
+  const iw = img.naturalWidth || img.width;
+  const ih = img.naturalHeight || img.height;
+  const ir = iw/ih;
+  const tr = w/h;
+
+  let sx=0, sy=0, sw=iw, sh=ih;
+  if(ir > tr){
+    sh = ih;
+    sw = ih * tr;
+    sx = (iw - sw)/2;
+  }else{
+    sw = iw;
+    sh = iw / tr;
+    sy = (ih - sh)/2;
+  }
+  ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h);
+}
+
 // ---------- EVENTS ----------
 (function bindEvents(){
-  // Add wallet
   const addBtn = $("addWalletBtn");
   if(addBtn) addBtn.addEventListener("click", addWallet);
 
-  // Clear wallets (optional, safe if not present)
   const clearBtn = $("clearWalletsBtn");
   if(clearBtn) clearBtn.addEventListener("click", clearWallets);
 
-  // Enter key add
   const walletInput = $("walletInput");
   if(walletInput){
     walletInput.addEventListener("keydown", (e) => {
@@ -755,25 +893,23 @@ async function exportPNG(){
     });
   }
 
-  // Toggle custom grid inputs
   const gridSizeEl = $("gridSize");
   if(gridSizeEl){
     gridSizeEl.addEventListener("change", () => {
       const wrap = $("customGridWrap");
       if(wrap) wrap.style.display = (gridSizeEl.value === "custom") ? "" : "none";
-
       const exportBtn = $("exportBtn");
-      if(exportBtn) exportBtn.disabled = true; // require rebuild
+      if(exportBtn) exportBtn.disabled = true;
     });
   }
 
-  // Any change to custom rows/cols requires rebuild before export
+  // These MUST exist in your HTML when using custom mode:
+  // <input id="customRows" ...> and <input id="customCols" ...>
   const customRows = $("customRows");
   const customCols = $("customCols");
   if(customRows) customRows.addEventListener("input", () => { const e = $("exportBtn"); if(e) e.disabled = true; });
   if(customCols) customCols.addEventListener("input", () => { const e = $("exportBtn"); if(e) e.disabled = true; });
 
-  // Main actions
   const loadBtn = $("loadBtn");
   const buildBtn = $("buildBtn");
   const exportBtn = $("exportBtn");
@@ -782,7 +918,6 @@ async function exportPNG(){
   if(buildBtn) buildBtn.addEventListener("click", buildGrid);
   if(exportBtn) exportBtn.addEventListener("click", exportPNG);
 
-  // Collection helpers
   const selectAllBtn = $("selectAllBtn");
   const selectNoneBtn = $("selectNoneBtn");
   if(selectAllBtn) selectAllBtn.addEventListener("click", () => setAllCollections(true));

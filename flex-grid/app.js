@@ -37,6 +37,45 @@ const IPFS_GWS = [
   "https://cloudflare-ipfs.com/ipfs/",
 ];
 
+// ---------- Image load limiter (prevents Worker/IPFS stampede) ----------
+function createLimiter(max = 6) {
+  let active = 0;
+  const queue = [];
+
+  const next = () => {
+    if (active >= max || queue.length === 0) return;
+    active++;
+
+    const { fn, resolve, reject } = queue.shift();
+    fn()
+      .then(resolve)
+      .catch(reject)
+      .finally(() => {
+        active--;
+        next();
+      });
+  };
+
+  return (fn) =>
+    new Promise((resolve, reject) => {
+      queue.push({ fn, resolve, reject });
+      next();
+    });
+}
+
+// 4–6 is the sweet spot. Start at 4 if you still see 502s.
+const gridImgLimit = createLimiter(6);
+
+// Load an <img> with concurrency limiting
+function setImgSrcLimited(imgEl, src) {
+  return gridImgLimit(() => new Promise((resolve, reject) => {
+    // IMPORTANT: set handlers before setting src
+    imgEl.onload = () => resolve(true);
+    imgEl.onerror = () => reject(new Error("Image failed: " + src));
+    imgEl.src = src;
+  }));
+}
+
 // ---------- UI helpers ----------
 function setStatus(msg){
   const el = $("status");
@@ -433,7 +472,7 @@ async function tryAlchemyImageFallback(tile, img){
 
     const direct = normalizeImageUrl(image);
     tile.dataset.src = direct;
-    img.src = gridSafeUrl(direct);
+setImgSrcLimited(img, gridSafeUrl(direct)).catch(async () => { ...same onerror logic... })
     return true;
   }catch(e){
     return false;
@@ -455,7 +494,7 @@ function setImgWithFallback(tile, img, rawUrl){
   if(!ipfsPath){
     const direct = normalizeImageUrl(rawUrl);
     tile.dataset.src = direct;
-    img.src = gridSafeUrl(direct);
+setImgSrcLimited(img, gridSafeUrl(direct)).catch(async () => { ...same onerror logic... })
 
     img.onerror = async () => {
       const ok = await tryAlchemyImageFallback(tile, img);
@@ -479,29 +518,6 @@ function setImgWithFallback(tile, img, rawUrl){
   img.onerror = async () => {
     const ip = tile.dataset.ipfsPath || "";
     if(ip){
-      const list = buildIpfsGatewayUrls(ip);
-      let idx = parseInt(tile.dataset.gwIndex || "0", 10);
-      idx = Number.isFinite(idx) ? idx : 0;
-      idx++;
-
-      if(idx < list.length){
-        tile.dataset.gwIndex = String(idx);
-        tile.dataset.src = list[idx];
-        img.src = gridSafeUrl(list[idx]);
-        return;
-      }
-    }
-
-    const ok = await tryAlchemyImageFallback(tile, img);
-    if(ok) return;
-
-    try{ img.remove(); }catch(e){}
-    tile.dataset.src = "";
-    tile.dataset.kind = "missing";
-    tile.appendChild(makeMissingInner());
-  };
-}
-
 function makeNFTTile(it){
   const tile = document.createElement("div");
   tile.className = "tile";
@@ -519,6 +535,8 @@ function makeNFTTile(it){
   img.loading = "lazy";
   img.alt = safeText(it.name || "NFT");
   img.referrerPolicy = "no-referrer";
+img.crossOrigin = "anonymous";
+
 
   if(raw){
     setImgWithFallback(tile, img, raw);

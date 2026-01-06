@@ -7,6 +7,7 @@
    - Export placeholders are TEXT (no local logo.png) to avoid file:// CORS.
    - Custom grid supports ROWS x COLS (not forced square)
    - IPFS gateway fallback (fixes “some load, some don’t” + ERR_NAME_NOT_RESOLVED)
+   - GRID loads via Worker proxy + Alchemy metadata fallback per token (best chance to load “missing” ones)
 */
 
 const $ = (id) => document.getElementById(id);
@@ -15,6 +16,8 @@ const state = {
   collections: [],
   selectedKeys: new Set(),
   wallets: [],
+  chain: "eth",
+  host: "eth-mainnet.g.alchemy.com",
 };
 
 // NOTE: For production, do NOT keep keys in frontend JS.
@@ -27,7 +30,7 @@ const ALCHEMY_HOST = {
   apechain: null,
 };
 
-// Cloudflare Worker proxy:
+// Cloudflare Worker proxy (your worker must return image bytes with CORS headers)
 const IMG_PROXY = "https://loflexgrid.littleollienft.workers.dev/img?url=";
 
 // IPFS gateways (fallback order)
@@ -45,12 +48,10 @@ function setStatus(msg){
   const el = $("status");
   if(el) el.textContent = msg || "";
 }
-
 function showControlsPanel(show){
   const el = $("controlsPanel");
   if(el) el.style.display = show ? "" : "none";
 }
-
 function enableButtons(){
   const loadBtn = $("loadBtn");
   const buildBtn = $("buildBtn");
@@ -61,12 +62,10 @@ function enableButtons(){
   if(buildBtn) buildBtn.disabled = state.selectedKeys.size === 0;
   if(exportBtn) exportBtn.disabled = true; // enabled after buildGrid()
 }
-
 function setGridColumns(cols){
   const grid = $("grid");
   if(grid) grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
 }
-
 function safeText(s){ return (s || "").toString(); }
 
 // ---------- IPFS + URL HELPERS ----------
@@ -99,16 +98,20 @@ function buildIpfsGatewayUrls(ipfsPath){
   return IPFS_GWS.map((gw) => gw + p);
 }
 
+// For export (CORS-safe URLs via Worker)
+function exportSafeUrl(src){
+  const direct = normalizeImageUrl(src);
+  return IMG_PROXY + encodeURIComponent(direct);
+}
+
 function normalizeImageUrl(url){
   if(!url) return "";
 
   const ipfsPath = getIpfsPath(url);
   if(ipfsPath){
-    // initial render uses first gateway; fallback tries the rest
     return (buildIpfsGatewayUrls(ipfsPath)[0] || "");
   }
 
-  // Leave normal https URLs alone (don’t hard-force cloudflare-ipfs)
   try{
     const u = new URL(String(url));
     return u.toString();
@@ -117,11 +120,10 @@ function normalizeImageUrl(url){
   }
 }
 
-// Export wants CORS-safe URLs (via your Worker)
-function exportSafeUrl(src){
-  // IMPORTANT: proxy the DIRECT url (not only cloudflare-ipfs)
-  const direct = normalizeImageUrl(src);
-  return IMG_PROXY + encodeURIComponent(direct);
+// IMPORTANT: For GRID rendering, we proxy URLs too (fixes DNS / ERR_NAME_NOT_RESOLVED)
+function gridSafeUrl(directUrl){
+  if(!directUrl) return "";
+  return IMG_PROXY + encodeURIComponent(directUrl);
 }
 
 // ---------- WALLET LIST UI ----------
@@ -309,7 +311,6 @@ function clampInt(v, min, max, fallback){
   return Math.max(min, Math.min(max, Math.round(n)));
 }
 
-// Custom mode uses #customRows and #customCols (non-square)
 function getGridChoice(){
   const v = $("gridSize")?.value || "auto";
 
@@ -341,7 +342,6 @@ function buildGrid(){
   const mixMode = $("mixMode")?.value || "mix";
   let items = (mixMode === "mix") ? mixEvenly(chosen) : flattenItems(chosen);
 
-  // cap for UX/export speed
   const HARD_CAP = 400;
   if(items.length > HARD_CAP) items = items.slice(0, HARD_CAP);
 
@@ -398,32 +398,90 @@ function buildGrid(){
 }
 
 // ---------- IMAGE FALLBACK (GRID RENDER) ----------
+function makeMissingInner(){
+  const d = document.createElement("div");
+  d.className = "fillerText";
+  d.textContent = "Missing";
+  d.style.fontSize = "16px";
+  d.style.opacity = "0.92";
+  return d;
+}
+
+async function tryAlchemyImageFallback(tile, img){
+  // Only if we know contract+tokenId
+  const contract = tile.dataset.contract || "";
+  const tokenId = tile.dataset.tokenId || "";
+  if(!contract || !tokenId) return false;
+
+  // Avoid repeated retries
+  if(tile.dataset.alchemyTried === "1") return false;
+  tile.dataset.alchemyTried = "1";
+
+  try{
+    const meta = await fetchAlchemyNFTMetadata({ contract, tokenId, host: state.host });
+
+    const image =
+      meta?.image?.cachedUrl ||
+      meta?.image?.pngUrl ||
+      meta?.image?.thumbnailUrl ||
+      meta?.image?.originalUrl ||
+      meta?.rawMetadata?.image ||
+      "";
+
+    if(!image) return false;
+
+    // If the rawMetadata image is ipfs://..., normalize it
+    const direct = normalizeImageUrl(image);
+    tile.dataset.src = direct;
+
+    // Use proxy for grid display
+    img.src = gridSafeUrl(direct);
+    return true;
+  }catch(e){
+    return false;
+  }
+}
+
 function setImgWithFallback(tile, img, rawUrl){
   const ipfsPath = getIpfsPath(rawUrl);
   tile.dataset.ipfsPath = ipfsPath || "";
   tile.dataset.gwIndex = "0";
+  tile.dataset.alchemyTried = "0";
 
   if(!rawUrl){
     img.src = "";
     return;
   }
 
-  // 1) non-ipfs -> just use it
+  // Non-IPFS URL: try direct via proxy (more reliable)
   if(!ipfsPath){
     const direct = normalizeImageUrl(rawUrl);
     tile.dataset.src = direct;
-    img.src = direct;
+    img.src = gridSafeUrl(direct);
+
+    img.onerror = async () => {
+      // Try Alchemy metadata if possible
+      const ok = await tryAlchemyImageFallback(tile, img);
+      if(ok) return;
+
+      // Show "Missing" if truly dead
+      try{ img.remove(); }catch(e){}
+      tile.dataset.src = "";
+      tile.dataset.kind = "missing";
+      tile.appendChild(makeMissingInner());
+    };
+
     return;
   }
 
-  // 2) ipfs -> start with first gateway
+  // IPFS path: start with first gateway, but ALWAYS via proxy
   const urls = buildIpfsGatewayUrls(ipfsPath);
-  const first = urls[0] || "";
-  tile.dataset.src = first;
-  img.src = first;
+  const firstDirect = urls[0] || "";
+  tile.dataset.src = firstDirect;
+  img.src = gridSafeUrl(firstDirect);
 
-  img.onerror = () => {
-    // try next gateway
+  img.onerror = async () => {
+    // Try next gateway(s)
     const ip = tile.dataset.ipfsPath || "";
     if(ip){
       const list = buildIpfsGatewayUrls(ip);
@@ -434,16 +492,20 @@ function setImgWithFallback(tile, img, rawUrl){
       if(idx < list.length){
         tile.dataset.gwIndex = String(idx);
         tile.dataset.src = list[idx];
-        img.src = list[idx];
+        img.src = gridSafeUrl(list[idx]);
         return;
       }
     }
 
-    // final: placeholder
+    // No gateway worked -> try Alchemy metadata per token
+    const ok = await tryAlchemyImageFallback(tile, img);
+    if(ok) return;
+
+    // Truly missing
     try{ img.remove(); }catch(e){}
     tile.dataset.src = "";
-    tile.dataset.kind = "empty";
-    tile.appendChild(makeFillerInner());
+    tile.dataset.kind = "missing";
+    tile.appendChild(makeMissingInner());
   };
 }
 
@@ -452,12 +514,19 @@ function makeNFTTile(it){
   tile.className = "tile";
   tile.draggable = true;
 
+  // Store these so Alchemy fallback can re-query the token
+  const contract = (it?.contract || it?.contractAddress || it?.sourceKey || "").toLowerCase();
+  const tokenId = (it?.tokenId || "").toString();
+  tile.dataset.contract = contract;
+  tile.dataset.tokenId = tokenId;
+
   const raw = (it?.image || "");
   tile.dataset.kind = raw ? "nft" : "empty";
 
   const img = document.createElement("img");
   img.loading = "lazy";
   img.alt = safeText(it.name || "NFT");
+  img.referrerPolicy = "no-referrer";
 
   if(raw){
     setImgWithFallback(tile, img, raw);
@@ -562,6 +631,10 @@ async function loadWallets(){
     return;
   }
 
+  // store current chain/host so the per-token fallback knows where to call
+  state.chain = chain;
+  state.host = host;
+
   try{
     setStatus(`Loading NFTs… (${state.wallets.length} wallet(s))`);
 
@@ -641,6 +714,19 @@ async function fetchAlchemyNFTs({wallet, host}){
   return all;
 }
 
+// Per-token metadata fallback (only used after image failures)
+async function fetchAlchemyNFTMetadata({contract, tokenId, host}){
+  // v3 endpoint: getNFTMetadata
+  const url = new URL(`https://${host}/nft/v3/${ALCHEMY_KEY}/getNFTMetadata`);
+  url.searchParams.set("contractAddress", contract);
+  url.searchParams.set("tokenId", tokenId);
+  url.searchParams.set("refreshCache", "false");
+
+  const res = await fetch(url.toString());
+  if(!res.ok) throw new Error(`Alchemy metadata error (${res.status})`);
+  return await res.json();
+}
+
 function groupByCollection(nfts){
   const map = new Map();
 
@@ -648,7 +734,7 @@ function groupByCollection(nfts){
     const contract = (nft?.contract?.address || "unknown").toLowerCase();
     const colName = nft?.contract?.name || nft?.collection?.name || "Unknown Collection";
 
-    const tokenId = nft?.tokenId || "";
+    const tokenId = (nft?.tokenId || "").toString();
     const name = nft?.name || (tokenId ? `#${tokenId}` : "NFT");
 
     const image =
@@ -656,6 +742,7 @@ function groupByCollection(nfts){
       nft?.image?.pngUrl ||
       nft?.image?.thumbnailUrl ||
       nft?.image?.originalUrl ||
+      nft?.rawMetadata?.image ||
       "";
 
     if(!map.has(contract)){
@@ -663,7 +750,8 @@ function groupByCollection(nfts){
     }
     const entry = map.get(contract);
     entry.count++;
-    entry.items.push({ name, tokenId, image, sourceKey: contract });
+    // store contract+tokenId on each item so grid can retry via Alchemy
+    entry.items.push({ name, tokenId, contract, image, sourceKey: contract });
   }
 
   return [...map.values()].sort((a,b)=> b.count - a.count);
@@ -684,7 +772,6 @@ async function exportPNG(){
     const cols = getComputedGridCols(gridEl);
     const rows = Math.ceil(tiles.length / cols);
 
-    // Match rendered tile size
     const rect = tiles[0].getBoundingClientRect();
     let tileSize = Math.round(rect.width);
     if(!tileSize || tileSize < 10) tileSize = 140;
@@ -703,7 +790,6 @@ async function exportPNG(){
 
     ctx.clearRect(0, 0, outW, outH);
 
-    // Draw tiles
     for(let i = 0; i < tiles.length; i++){
       const r = Math.floor(i / cols);
       const c = i % cols;
@@ -712,18 +798,17 @@ async function exportPNG(){
       const y = Math.round((pad + r * tileSize) * scale);
       const size = Math.round(tileSize * scale);
 
-      const src = tiles[i].dataset?.src || "";
-      const ip = tiles[i].dataset?.ipfsPath || "";
+      const srcDirect = tiles[i].dataset?.src || "";
 
       try{
-        if(src && src.length > 5){
-          const img = await loadImageForExport(src, ip);
+        if(srcDirect && srcDirect.length > 5){
+          const img = await loadImage(exportSafeUrl(srcDirect));
           drawCover(ctx, img, x, y, size, size);
         }else{
-          drawPlaceholder(ctx, x, y, size, "LO ⚡");
+          drawPlaceholder(ctx, x, y, size, " ");
         }
       }catch(e){
-        drawPlaceholder(ctx, x, y, size, "LO ⚡");
+        drawPlaceholder(ctx, x, y, size, " ");
       }
     }
 
@@ -820,27 +905,6 @@ async function exportPNG(){
   }
 }
 
-// ---------- EXPORT IMAGE LOADER (proxy + ipfs fallback) ----------
-async function loadImageForExport(src, ipfsPath){
-  // 1) try proxy of current src
-  try{
-    return await loadImage(exportSafeUrl(src));
-  }catch(e){}
-
-  // 2) if IPFS, try other gateways via proxy
-  if(ipfsPath){
-    const urls = buildIpfsGatewayUrls(ipfsPath);
-    for(const u of urls){
-      try{
-        return await loadImage(IMG_PROXY + encodeURIComponent(u));
-      }catch(e){}
-    }
-  }
-
-  // 3) final: try direct
-  return await loadImage(src);
-}
-
 // ---------- CANVAS / DRAW HELPERS ----------
 function getComputedGridCols(gridEl){
   if(!gridEl) return 1;
@@ -866,17 +930,18 @@ function loadImage(src){
 }
 
 function drawPlaceholder(ctx, x, y, size, label){
-  ctx.fillStyle = "rgba(0,0,0,0.22)";
+  ctx.fillStyle = "rgba(0,0,0,0.18)";
   ctx.fillRect(x, y, size, size);
-
-  ctx.fillStyle = "rgba(255,255,255,0.92)";
-  ctx.font = `900 ${Math.round(size*0.18)}px system-ui, -apple-system, Segoe UI, Roboto, Arial`;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText(label, x + size/2, y + size/2);
-
-  ctx.textAlign = "left";
-  ctx.textBaseline = "alphabetic";
+  // keep empty (no LO) so missing items don’t look “fake loaded”
+  if(label && label.trim()){
+    ctx.fillStyle = "rgba(255,255,255,0.90)";
+    ctx.font = `900 ${Math.round(size*0.16)}px system-ui, -apple-system, Segoe UI, Roboto, Arial`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(label, x + size/2, y + size/2);
+    ctx.textAlign = "left";
+    ctx.textBaseline = "alphabetic";
+  }
 }
 
 function drawCover(ctx, img, x, y, w, h){

@@ -495,34 +495,62 @@ function setImgWithFallback(tile, img, rawUrl){
     return;
   }
 
+  const markMissing = () => {
+    try{ img.remove(); }catch(e){}
+    tile.dataset.src = "";
+    tile.dataset.kind = "missing";
+    tile.appendChild(makeMissingInner());
+  };
+
   // Non-IPFS
   if(!ipfsPath){
     const direct = normalizeImageUrl(rawUrl);
     tile.dataset.src = direct;
-setImgSrcLimited(img, gridSafeUrl(direct)).catch(async () => { ...same onerror logic... })
 
+    // Limited load (prevents Worker stampede)
+    setImgSrcLimited(img, gridSafeUrl(direct)).catch(async () => {
+      const ok = await tryAlchemyImageFallback(tile, img);
+      if(ok) return;
+      markMissing();
+    });
+
+    // Safety net (in case browser triggers onerror later)
     img.onerror = async () => {
       const ok = await tryAlchemyImageFallback(tile, img);
       if(ok) return;
-
-      try{ img.remove(); }catch(e){}
-      tile.dataset.src = "";
-      tile.dataset.kind = "missing";
-      tile.appendChild(makeMissingInner());
+      markMissing();
     };
 
     return;
   }
 
   // IPFS -> try gateways (all via proxy)
-  const urls = buildIpfsGatewayUrls(ipfsPath);
-  const firstDirect = urls[0] || "";
-  tile.dataset.src = firstDirect;
-  img.src = gridSafeUrl(firstDirect);
+  const list = buildIpfsGatewayUrls(ipfsPath);
+  let idx = 0;
+
+  tile.dataset.gwIndex = "0";
+  tile.dataset.src = list[0] || "";
+  img.src = gridSafeUrl(tile.dataset.src);
 
   img.onerror = async () => {
-    const ip = tile.dataset.ipfsPath || "";
-    if(ip){
+    idx = parseInt(tile.dataset.gwIndex || "0", 10);
+    idx = Number.isFinite(idx) ? idx : 0;
+    idx++;
+
+    if(idx < list.length){
+      tile.dataset.gwIndex = String(idx);
+      tile.dataset.src = list[idx];
+      img.src = gridSafeUrl(list[idx]);
+      return;
+    }
+
+    const ok = await tryAlchemyImageFallback(tile, img);
+    if(ok) return;
+
+    markMissing();
+  };
+}
+
 function makeNFTTile(it){
   const tile = document.createElement("div");
   tile.className = "tile";

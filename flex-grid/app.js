@@ -581,7 +581,7 @@ function groupByCollection(nfts){
   return [...map.values()].sort((a,b)=> b.count - a.count);
 }
 
-// ---------- EXPORT (tight crop to grid) ----------
+// ---------- EXPORT (tight crop to grid) — PNG + watermark = 1 tile ----------
 async function exportPNG(){
   try{
     setStatus("Exporting… may take a moment");
@@ -597,14 +597,13 @@ async function exportPNG(){
     const rows = Math.ceil(tiles.length / cols);
 
     // Match rendered tile size
-    const firstTile = tiles[0];
-    const rect = firstTile.getBoundingClientRect();
+    const rect = tiles[0].getBoundingClientRect();
     let tileSize = Math.round(rect.width);
     if(!tileSize || tileSize < 10) tileSize = 140;
 
-    const scale = 2;          // high-res export
-    const borderPx = 2;       // thin outer border
-    const pad = 2;            // tiny padding so border doesn't clip
+    const scale = 2;      // hi-res export
+    const pad = 2;        // minimal padding
+    const borderPx = 2;   // thin LO blue outline
 
     const outW = Math.round((cols * tileSize + pad * 2) * scale);
     const outH = Math.round((rows * tileSize + pad * 2) * scale);
@@ -614,10 +613,11 @@ async function exportPNG(){
     canvas.height = outH;
     const ctx = canvas.getContext("2d");
 
+    // Transparent background (PNG)
     ctx.clearRect(0, 0, outW, outH);
 
     // Draw tiles
-    for(let i=0; i<tiles.length; i++){
+    for(let i = 0; i < tiles.length; i++){
       const r = Math.floor(i / cols);
       const c = i % cols;
 
@@ -630,7 +630,7 @@ async function exportPNG(){
         try{
           const img = await loadImage(exportSafeUrl(src));
           drawCover(ctx, img, x, y, size, size);
-        }catch(e){
+        }catch{
           drawPlaceholder(ctx, x, y, size, "LO ⚡");
         }
       }else{
@@ -638,22 +638,27 @@ async function exportPNG(){
       }
     }
 
-    // Watermark top-left (keep it)
+    // ---------- WATERMARK (exactly 1 tile wide) ----------
     const wmText = "⚡ Powered by Little Ollie Studio";
-    const fontPx = Math.max(16, Math.round(tileSize * 0.14)) * scale;
-
-    ctx.font = `900 ${fontPx}px system-ui, -apple-system, Segoe UI, Roboto, Arial`;
-    ctx.textBaseline = "middle";
-
-    const tw = ctx.measureText(wmText).width;
-
-    const boxPadX = Math.round(tileSize * 0.10) * scale;
-    const boxPadY = Math.round(tileSize * 0.06) * scale;
-    const boxW = Math.round(tw + boxPadX * 2);
-    const boxH = Math.round(fontPx + boxPadY * 2);
 
     const boxX = Math.round(pad * scale);
     const boxY = Math.round(pad * scale);
+    const boxW = Math.round(tileSize * scale); // ✅ exactly 1 NFT wide
+
+    const boxPadX = Math.round(tileSize * 0.10) * scale;
+    const boxPadY = Math.round(tileSize * 0.06) * scale;
+    const maxTextW = Math.max(10, boxW - boxPadX * 2);
+
+    let fontPx = Math.max(14, Math.round(tileSize * 0.16)) * scale;
+
+    // Shrink font until it fits inside 1 tile
+    while(fontPx > 10){
+      ctx.font = `900 ${fontPx}px system-ui, -apple-system, Segoe UI, Roboto, Arial`;
+      if(ctx.measureText(wmText).width <= maxTextW) break;
+      fontPx -= 1;
+    }
+
+    const boxH = Math.round(fontPx + boxPadY * 2);
 
     ctx.fillStyle = "rgba(0,0,0,0.22)";
     ctx.fillRect(boxX, boxY, boxW, boxH);
@@ -663,16 +668,20 @@ async function exportPNG(){
     ctx.strokeRect(boxX, boxY, boxW, boxH);
 
     ctx.fillStyle = "rgba(255,255,255,0.95)";
-    ctx.fillText(wmText, boxX + boxPadX, boxY + boxH/2);
+    ctx.textBaseline = "middle";
+    ctx.fillText(wmText, boxX + boxPadX, boxY + boxH / 2);
 
-    // Outer LO-blue border ONLY (no inner border)
+    // ---------- OUTLINE ----------
     ctx.strokeStyle = "rgba(109,224,255,0.70)";
     ctx.lineWidth = borderPx * scale;
     ctx.strokeRect(1, 1, outW - 2, outH - 2);
 
-    // Download
+    // Download PNG
     canvas.toBlob((blob) => {
-      if (!blob) { setStatus("Export failed: could not create PNG."); return; }
+      if(!blob){
+        setStatus("Export failed: could not create PNG.");
+        return;
+      }
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;

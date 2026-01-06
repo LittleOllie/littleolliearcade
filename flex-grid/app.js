@@ -524,31 +524,24 @@ function setImgWithFallback(tile, img, rawUrl){
     return;
   }
 
-  // IPFS -> try gateways (all via proxy)
-  const list = buildIpfsGatewayUrls(ipfsPath);
-  let idx = 0;
+   // IPFS (delegate gateway fallback to Worker)
+  const ipfsDirect = "ipfs://" + ipfsPath;
+  tile.dataset.src = ipfsDirect;
 
-  tile.dataset.gwIndex = "0";
-  tile.dataset.src = list[0] || "";
-  img.src = gridSafeUrl(tile.dataset.src);
-
-  img.onerror = async () => {
-    idx = parseInt(tile.dataset.gwIndex || "0", 10);
-    idx = Number.isFinite(idx) ? idx : 0;
-    idx++;
-
-    if(idx < list.length){
-      tile.dataset.gwIndex = String(idx);
-      tile.dataset.src = list[idx];
-      img.src = gridSafeUrl(list[idx]);
-      return;
-    }
-
+  // Limited load (prevents Worker stampede)
+  setImgSrcLimited(img, gridSafeUrl(ipfsDirect)).catch(async () => {
     const ok = await tryAlchemyImageFallback(tile, img);
     if(ok) return;
+    markMissing();
+  });
 
+  // Safety net
+  img.onerror = async () => {
+    const ok = await tryAlchemyImageFallback(tile, img);
+    if(ok) return;
     markMissing();
   };
+
 }
 
 function makeNFTTile(it){

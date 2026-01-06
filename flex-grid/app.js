@@ -368,12 +368,18 @@ function makeNFTTile(it){
   img.alt = safeText(it.name || "NFT");
   img.src = tile.dataset.src || "";
 
-  img.onerror = () => {
-    try{ img.remove(); }catch(e){}
-    tile.dataset.src = "";
-    tile.dataset.kind = "empty";
-    tile.appendChild(makeFillerInner());
-  };
+img.onerror = () => {
+  console.warn(
+    "NFT image failed:",
+    it?.name || "(no name)",
+    tile.dataset.src
+  );
+  try{ img.remove(); }catch(e){}
+  tile.dataset.src = "";
+  tile.dataset.kind = "empty";
+  tile.appendChild(makeFillerInner());
+};
+
 
   if(tile.dataset.src){
     tile.appendChild(img);

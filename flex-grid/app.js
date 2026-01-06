@@ -4,6 +4,7 @@ console.log("✅ app.js loaded");
    - GRID loads via Worker proxy + IPFS gateway fallback
    - Guards against DOUBLE-PROXY (very common cause of “Missing” tiles)
    - Alchemy metadata fallback per token after image failures
+   - IMPORTANT: With tight CSP, we MUST proxy ALL images (including Alchemy CDN)
 */
 
 const $ = (id) => document.getElementById(id);
@@ -65,173 +66,170 @@ function createLimiter(max = 3) {
     });
 }
 
-// 4–6 is the sweet spot. Start at 4 if you still see 502s.
+// 4–6 is the sweet spot. Start at 3/4 if you still see 502s.
 const gridImgLimit = createLimiter(3);
 
 // Load an <img> with concurrency limiting
 function setImgSrcLimited(imgEl, src) {
-  return gridImgLimit(() => new Promise((resolve, reject) => {
-    // IMPORTANT: set handlers before setting src
-    imgEl.onload = () => resolve(true);
-    imgEl.onerror = () => reject(new Error("Image failed: " + src));
-    imgEl.src = src;
-  }));
+  return gridImgLimit(
+    () =>
+      new Promise((resolve, reject) => {
+        // IMPORTANT: set handlers before setting src
+        imgEl.onload = () => resolve(true);
+        imgEl.onerror = () => reject(new Error("Image failed: " + src));
+        imgEl.src = src;
+      })
+  );
 }
 
 // ---------- UI helpers ----------
-function setStatus(msg){
+function setStatus(msg) {
   const el = $("status");
-  if(el) el.textContent = msg || "";
+  if (el) el.textContent = msg || "";
 }
-function showControlsPanel(show){
+function showControlsPanel(show) {
   const el = $("controlsPanel");
-  if(el) el.style.display = show ? "" : "none";
+  if (el) el.style.display = show ? "" : "none";
 }
-function enableButtons(){
+function enableButtons() {
   const loadBtn = $("loadBtn");
   const buildBtn = $("buildBtn");
   const exportBtn = $("exportBtn");
 
   const hasWallets = state.wallets.length > 0;
-  if(loadBtn) loadBtn.disabled = !hasWallets;
-  if(buildBtn) buildBtn.disabled = state.selectedKeys.size === 0;
-  if(exportBtn) exportBtn.disabled = true; // enabled after buildGrid()
+  if (loadBtn) loadBtn.disabled = !hasWallets;
+  if (buildBtn) buildBtn.disabled = state.selectedKeys.size === 0;
+  if (exportBtn) exportBtn.disabled = true; // enabled after buildGrid()
 }
-function setGridColumns(cols){
+function setGridColumns(cols) {
   const grid = $("grid");
-  if(grid) grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+  if (grid) grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
 }
-function safeText(s){ return (s || "").toString(); }
+function safeText(s) {
+  return (s || "").toString();
+}
 
 // ---------- URL helpers ----------
-function isAlreadyProxied(url){
+function isAlreadyProxied(url) {
   return typeof url === "string" && url.startsWith(IMG_PROXY);
 }
 
-function getIpfsPath(url){
-  if(!url) return "";
+function getIpfsPath(url) {
+  if (!url) return "";
   const s = String(url).trim();
 
-  if(s.startsWith("ipfs://")){
+  if (s.startsWith("ipfs://")) {
     let p = s.slice("ipfs://".length);
     p = p.replace(/^ipfs\//, "");
     return p.replace(/^\/+/, "");
   }
 
-  try{
+  try {
     const u = new URL(s);
     const idx = u.pathname.indexOf("/ipfs/");
-    if(idx !== -1){
+    if (idx !== -1) {
       return u.pathname.slice(idx + "/ipfs/".length).replace(/^\/+/, "");
     }
-  }catch(e){}
+  } catch (e) {}
 
   return "";
 }
 
-function buildIpfsGatewayUrls(ipfsPath){
+function buildIpfsGatewayUrls(ipfsPath) {
   const p = (ipfsPath || "").replace(/^\/+/, "");
-  if(!p) return [];
+  if (!p) return [];
   return IPFS_GWS.map((gw) => gw + p);
 }
 
-function normalizeImageUrl(url){
-  if(!url) return "";
+function normalizeImageUrl(url) {
+  if (!url) return "";
 
-  if(isAlreadyProxied(url)) return url;
+  if (isAlreadyProxied(url)) return url;
 
   const ipfsPath = getIpfsPath(url);
-  if(ipfsPath){
+  if (ipfsPath) {
     // ✅ canonical form so Worker can pick gateways
     return "ipfs://" + ipfsPath;
   }
 
-  try{
+  try {
     const u = new URL(String(url));
     return u.toString();
-  }catch(e){
+  } catch (e) {
     return String(url);
   }
 }
 
-
-// For GRID rendering (always proxy, but never twice)
-function gridSafeUrl(directUrl){
-  if(!directUrl) return "";
-  if(isAlreadyProxied(directUrl)) return directUrl;
-
-  // ✅ Don’t proxy Alchemy CDN (more reliable direct)
-  if(/^https:\/\/nft-cdn\.alchemy\.com\//i.test(directUrl)){
-    return directUrl;
-  }
-
-  return IMG_PROXY + encodeURIComponent(directUrl);
-}
-
-
-// For EXPORT rendering (always proxy, but never twice)
-function exportSafeUrl(src){
-  if(!src) return "";
-  if(isAlreadyProxied(src)) return src;
+// ✅ Proxy EVERYTHING (grid + export), but never twice
+function safeProxyUrl(src) {
+  if (!src) return "";
+  if (isAlreadyProxied(src)) return src;
 
   const direct = normalizeImageUrl(src);
+  if (isAlreadyProxied(direct)) return direct;
 
-  if(/^https:\/\/nft-cdn\.alchemy\.com\//i.test(direct)){
-    return direct;
-  }
-
-  if(isAlreadyProxied(direct)) return direct;
   return IMG_PROXY + encodeURIComponent(direct);
 }
 
+// For GRID rendering (always proxy, but never twice)
+function gridSafeUrl(directUrl) {
+  return safeProxyUrl(directUrl);
+}
+
+// For EXPORT rendering (always proxy, but never twice)
+function exportSafeUrl(src) {
+  return safeProxyUrl(src);
+}
 
 // ---------- Wallet list ----------
-function normalizeWallet(w){ return (w || "").trim(); }
+function normalizeWallet(w) {
+  return (w || "").trim();
+}
 
-function addWallet(){
+function addWallet() {
   const input = $("walletInput");
   const w = normalizeWallet(input ? input.value : "");
 
-  if(!w){
+  if (!w) {
     setStatus("Paste a wallet address first.");
     return;
   }
-  if(!/^0x[a-fA-F0-9]{40}$/.test(w)){
+  if (!/^0x[a-fA-F0-9]{40}$/.test(w)) {
     setStatus("That doesn’t look like a valid 0x wallet address.");
     return;
   }
-  if(state.wallets.includes(w)){
+  if (state.wallets.includes(w)) {
     setStatus("That wallet is already added.");
     return;
   }
 
   state.wallets.push(w);
-  if(input) input.value = "";
+  if (input) input.value = "";
 
   renderWalletList();
   enableButtons();
   setStatus(`Wallet added ✅ (${state.wallets.length} total)`);
 }
 
-function removeWallet(w){
-  state.wallets = state.wallets.filter(x => x !== w);
+function removeWallet(w) {
+  state.wallets = state.wallets.filter((x) => x !== w);
   renderWalletList();
   enableButtons();
   setStatus(`Wallet removed ✅ (${state.wallets.length} remaining)`);
 }
 
-function clearWallets(){
+function clearWallets() {
   state.wallets = [];
   renderWalletList();
   enableButtons();
   setStatus("Wallets cleared ✅");
 }
 
-function renderWalletList(){
+function renderWalletList() {
   const wrap = $("walletList");
-  if(!wrap) return;
+  if (!wrap) return;
 
-  if(!state.wallets.length){
+  if (!state.wallets.length) {
     wrap.style.display = "none";
     wrap.innerHTML = "";
     return;
@@ -276,9 +274,9 @@ function renderWalletList(){
 }
 
 // ---------- Collections ----------
-function renderCollectionsList(){
+function renderCollectionsList() {
   const wrap = $("collectionsList");
-  if(!wrap) return;
+  if (!wrap) return;
 
   wrap.innerHTML = "";
 
@@ -290,13 +288,13 @@ function renderCollectionsList(){
     checkbox.type = "checkbox";
     checkbox.checked = state.selectedKeys.has(c.key);
     checkbox.addEventListener("change", () => {
-      if(checkbox.checked) state.selectedKeys.add(c.key);
+      if (checkbox.checked) state.selectedKeys.add(c.key);
       else state.selectedKeys.delete(c.key);
 
       const buildBtn = $("buildBtn");
       const exportBtn = $("exportBtn");
-      if(buildBtn) buildBtn.disabled = state.selectedKeys.size === 0;
-      if(exportBtn) exportBtn.disabled = true;
+      if (buildBtn) buildBtn.disabled = state.selectedKeys.size === 0;
+      if (exportBtn) exportBtn.disabled = true;
     });
 
     const label = document.createElement("div");
@@ -319,101 +317,101 @@ function renderCollectionsList(){
   });
 }
 
-function setAllCollections(checked){
+function setAllCollections(checked) {
   state.selectedKeys.clear();
-  if(checked){
-    state.collections.forEach(c => state.selectedKeys.add(c.key));
+  if (checked) {
+    state.collections.forEach((c) => state.selectedKeys.add(c.key));
   }
   renderCollectionsList();
   const buildBtn = $("buildBtn");
   const exportBtn = $("exportBtn");
-  if(buildBtn) buildBtn.disabled = state.selectedKeys.size === 0;
-  if(exportBtn) exportBtn.disabled = true;
+  if (buildBtn) buildBtn.disabled = state.selectedKeys.size === 0;
+  if (exportBtn) exportBtn.disabled = true;
 }
 
-function getSelectedCollections(){
-  return state.collections.filter(c => state.selectedKeys.has(c.key));
+function getSelectedCollections() {
+  return state.collections.filter((c) => state.selectedKeys.has(c.key));
 }
 
 // ---------- Grid helpers ----------
-function flattenItems(chosen){
+function flattenItems(chosen) {
   const all = [];
-  chosen.forEach(c => c.items.forEach(it => all.push({...it, sourceKey: c.key})));
+  chosen.forEach((c) => c.items.forEach((it) => all.push({ ...it, sourceKey: c.key })));
   return all;
 }
 
-function mixEvenly(chosen){
-  const queues = chosen.map(c => ({ key: c.key, items: [...c.items] }));
+function mixEvenly(chosen) {
+  const queues = chosen.map((c) => ({ key: c.key, items: [...c.items] }));
   const out = [];
   let alive = true;
 
-  while(alive){
+  while (alive) {
     alive = false;
-    for(const q of queues){
-      if(q.items.length){
+    for (const q of queues) {
+      if (q.items.length) {
         alive = true;
-        out.push({...q.items.shift(), sourceKey: q.key});
+        out.push({ ...q.items.shift(), sourceKey: q.key });
       }
     }
   }
   return out;
 }
 
-function closestSquareDims(n){
+function closestSquareDims(n) {
   const side = Math.max(1, Math.ceil(Math.sqrt(n)));
   return { rows: side, cols: side };
 }
 
-function clampInt(v, min, max, fallback){
+function clampInt(v, min, max, fallback) {
   const n = Number(v);
-  if(!Number.isFinite(n)) return fallback;
+  if (!Number.isFinite(n)) return fallback;
   return Math.max(min, Math.min(max, Math.round(n)));
 }
 
-function getGridChoice(){
+function getGridChoice() {
   const v = $("gridSize")?.value || "auto";
 
-  if(v === "custom"){
+  if (v === "custom") {
     const cols = clampInt($("customCols")?.value, 2, 50, 6);
     const rows = clampInt($("customRows")?.value, 2, 50, 6);
     const cap = rows * cols;
-    return { mode:"fixed", cap, rows, cols };
+    return { mode: "fixed", cap, rows, cols };
   }
 
-  if(v === "auto") return { mode:"auto" };
+  if (v === "auto") return { mode: "auto" };
 
   const cap = Math.max(1, Number(v));
   const side = Math.round(Math.sqrt(cap));
-  return { mode:"fixed", cap, rows: side, cols: side };
+  return { mode: "fixed", cap, rows: side, cols: side };
 }
 
 // ---------- Build grid ----------
-function buildGrid(){
+function buildGrid() {
   const chosen = getSelectedCollections();
   const exportBtn = $("exportBtn");
 
-  if(!chosen.length){
+  if (!chosen.length) {
     setStatus("Select at least one collection.");
-    if(exportBtn) exportBtn.disabled = true;
+    if (exportBtn) exportBtn.disabled = true;
     return;
   }
 
   const mixMode = $("mixMode")?.value || "mix";
-  let items = (mixMode === "mix") ? mixEvenly(chosen) : flattenItems(chosen);
+  let items = mixMode === "mix" ? mixEvenly(chosen) : flattenItems(chosen);
 
   const HARD_CAP = 400;
-  if(items.length > HARD_CAP) items = items.slice(0, HARD_CAP);
+  if (items.length > HARD_CAP) items = items.slice(0, HARD_CAP);
 
   const choice = getGridChoice();
 
   let rows, cols, totalSlots, usedItems;
 
-  if(choice.mode === "fixed"){
+  if (choice.mode === "fixed") {
     rows = choice.rows;
     cols = choice.cols;
     totalSlots = choice.cap;
     usedItems = items.slice(0, totalSlots);
-  }else{
+  } else {
     const dims = closestSquareDims(items.length);
     rows = dims.rows;
     cols = dims.cols;
@@ -424,40 +422,39 @@ function buildGrid(){
   setGridColumns(cols);
 
   const grid = $("grid");
-  if(!grid) return;
+  if (!grid) return;
   grid.innerHTML = "";
 
   const stageTitle = $("stageTitle");
   const stageMeta = $("stageMeta");
-  if(stageTitle) stageTitle.textContent = "Little Ollie Flex Grid";
-  if(stageMeta){
-    stageMeta.textContent =
-      `${state.wallets.length} wallet(s) • ${chosen.length} collection(s) • ${usedItems.length} NFT(s) • grid ${rows}×${cols}`;
+  if (stageTitle) stageTitle.textContent = "Little Ollie Flex Grid";
+  if (stageMeta) {
+    stageMeta.textContent = `${state.wallets.length} wallet(s) • ${chosen.length} collection(s) • ${usedItems.length} NFT(s) • grid ${rows}×${cols}`;
   }
 
-  for(let i=0; i<usedItems.length; i++){
+  for (let i = 0; i < usedItems.length; i++) {
     grid.appendChild(makeNFTTile(usedItems[i]));
   }
 
   const remaining = totalSlots - usedItems.length;
-  for(let j=0; j<remaining; j++){
+  for (let j = 0; j < remaining; j++) {
     grid.appendChild(makeFillerTile());
   }
 
   const wm = $("wmGrid");
-  if(wm){
+  if (wm) {
     wm.style.display = "";
     wm.style.left = "0";
     wm.style.top = "0";
   }
 
-  if(exportBtn) exportBtn.disabled = false;
+  if (exportBtn) exportBtn.disabled = false;
   setStatus("Grid built ✅ (drag tiles to reorder on desktop)");
   enableDragDrop();
 }
 
 // ---------- Image loading + fallbacks ----------
-function makeMissingInner(){
+function makeMissingInner() {
   const d = document.createElement("div");
   d.className = "fillerText";
   d.textContent = "Missing";
@@ -466,15 +463,15 @@ function makeMissingInner(){
   return d;
 }
 
-async function tryAlchemyImageFallback(tile, img){
+async function tryAlchemyImageFallback(tile, img) {
   const contract = tile.dataset.contract || "";
   const tokenId = tile.dataset.tokenId || "";
-  if(!contract || !tokenId) return false;
+  if (!contract || !tokenId) return false;
 
-  if(tile.dataset.alchemyTried === "1") return false;
+  if (tile.dataset.alchemyTried === "1") return false;
   tile.dataset.alchemyTried = "1";
 
-  try{
+  try {
     const meta = await fetchAlchemyNFTMetadata({ contract, tokenId, host: state.host });
 
     const image =
@@ -485,81 +482,77 @@ async function tryAlchemyImageFallback(tile, img){
       meta?.rawMetadata?.image ||
       "";
 
-    if(!image) return false;
+    if (!image) return false;
 
     const direct = normalizeImageUrl(image);
     tile.dataset.src = direct;
 
-    // ✅ just set it (no recursion, no extra fallbacks here)
-    img.src = gridSafeUrl(direct);
+    // ✅ Always proxy
+    setImgSrcLimited(img, gridSafeUrl(direct)).catch(() => false);
     return true;
-  }catch(e){
+  } catch (e) {
     return false;
   }
 }
 
-
-function setImgWithFallback(tile, img, rawUrl){
+function setImgWithFallback(tile, img, rawUrl) {
   const ipfsPath = getIpfsPath(rawUrl);
   tile.dataset.ipfsPath = ipfsPath || "";
   tile.dataset.gwIndex = "0";
   tile.dataset.alchemyTried = "0";
 
-  if(!rawUrl){
+  if (!rawUrl) {
     img.src = "";
     return;
   }
 
   const markMissing = () => {
-    try{ img.remove(); }catch(e){}
+    try {
+      img.remove();
+    } catch (e) {}
     tile.dataset.src = "";
     tile.dataset.kind = "missing";
     tile.appendChild(makeMissingInner());
   };
 
   // Non-IPFS
-  if(!ipfsPath){
+  if (!ipfsPath) {
     const direct = normalizeImageUrl(rawUrl);
     tile.dataset.src = direct;
 
-    // Limited load (prevents Worker stampede)
     setImgSrcLimited(img, gridSafeUrl(direct)).catch(async () => {
       const ok = await tryAlchemyImageFallback(tile, img);
-      if(ok) return;
+      if (ok) return;
       markMissing();
     });
 
-    // Safety net (in case browser triggers onerror later)
     img.onerror = async () => {
       const ok = await tryAlchemyImageFallback(tile, img);
-      if(ok) return;
+      if (ok) return;
       markMissing();
     };
 
     return;
   }
 
-   // IPFS (delegate gateway fallback to Worker)
+  // IPFS (delegate gateway fallback to Worker)
   const ipfsDirect = "ipfs://" + ipfsPath;
   tile.dataset.src = ipfsDirect;
 
-  // Limited load (prevents Worker stampede)
   setImgSrcLimited(img, gridSafeUrl(ipfsDirect)).catch(async () => {
     const ok = await tryAlchemyImageFallback(tile, img);
-    if(ok) return;
+    if (ok) return;
     markMissing();
   });
 
-  // Safety net
   img.onerror = async () => {
     const ok = await tryAlchemyImageFallback(tile, img);
-    if(ok) return;
+    if (ok) return;
     markMissing();
   };
-
 }
 
-function makeNFTTile(it){
+function makeNFTTile(it) {
   const tile = document.createElement("div");
   tile.className = "tile";
   tile.draggable = true;
@@ -569,20 +562,19 @@ function makeNFTTile(it){
   tile.dataset.contract = contract;
   tile.dataset.tokenId = tokenId;
 
-  const raw = (it?.image || "");
+  const raw = it?.image || "";
   tile.dataset.kind = raw ? "nft" : "empty";
 
   const img = document.createElement("img");
   img.loading = "lazy";
   img.alt = safeText(it.name || "NFT");
   img.referrerPolicy = "no-referrer";
-img.crossOrigin = "anonymous";
+  img.crossOrigin = "anonymous";
 
-
-  if(raw){
+  if (raw) {
     setImgWithFallback(tile, img, raw);
     tile.appendChild(img);
-  }else{
+  } else {
     tile.dataset.src = "";
     tile.dataset.kind = "empty";
     tile.appendChild(makeFillerInner());
@@ -591,14 +583,14 @@ img.crossOrigin = "anonymous";
   return tile;
 }
 
-function makeFillerInner(){
+function makeFillerInner() {
   const d = document.createElement("div");
   d.className = "fillerText";
   d.textContent = "LO ⚡";
   return d;
 }
 
-function makeFillerTile(){
+function makeFillerTile() {
   const tile = document.createElement("div");
   tile.className = "tile";
   tile.draggable = true;
@@ -609,9 +601,9 @@ function makeFillerTile(){
 }
 
 // ---------- Drag & drop ----------
-function enableDragDrop(){
+function enableDragDrop() {
   const grid = $("grid");
-  if(!grid) return;
+  if (!grid) return;
 
   const tiles = Array.from(grid.querySelectorAll(".tile"));
   let dragEl = null;
@@ -626,13 +618,13 @@ function enableDragDrop(){
 
     t.addEventListener("dragend", () => {
       t.classList.remove("dragging");
-      tiles.forEach(x => x.classList.remove("dropTarget"));
+      tiles.forEach((x) => x.classList.remove("dropTarget"));
       dragEl = null;
     });
 
     t.addEventListener("dragover", (e) => {
       e.preventDefault();
-      if(!dragEl || dragEl === t) return;
+      if (!dragEl || dragEl === t) return;
       t.classList.add("dropTarget");
       e.dataTransfer.dropEffect = "move";
     });
@@ -641,7 +633,7 @@ function enableDragDrop(){
 
     t.addEventListener("drop", (e) => {
       e.preventDefault();
-      if(!dragEl || dragEl === t) return;
+      if (!dragEl || dragEl === t) return;
 
       const a = dragEl;
       const b = t;
@@ -650,34 +642,34 @@ function enableDragDrop(){
       grid.insertBefore(a, b);
       grid.insertBefore(b, aNext);
 
-      tiles.forEach(x => x.classList.remove("dropTarget"));
+      tiles.forEach((x) => x.classList.remove("dropTarget"));
     });
   });
 }
 
 // ---------- Wallet load ----------
-async function loadWallets(){
+async function loadWallets() {
   const chain = $("chainSelect")?.value || "eth";
 
-  if(chain === "solana"){
+  if (chain === "solana") {
     setStatus("Solana coming soon. For now use ETH or Base.");
     return;
   }
-  if(chain === "apechain"){
+  if (chain === "apechain") {
     setStatus("ApeChain coming soon. For now use ETH or Base.");
     return;
   }
-  if(!state.wallets.length){
+  if (!state.wallets.length) {
     setStatus("Add at least one wallet first.");
     return;
   }
-  if(!ALCHEMY_KEY || ALCHEMY_KEY.includes("PASTE_")){
+  if (!ALCHEMY_KEY || ALCHEMY_KEY.includes("PASTE_")) {
     setStatus("Alchemy key not set yet. Paste your Alchemy key into app.js");
     return;
   }
 
   const host = ALCHEMY_HOST[chain];
-  if(!host){
+  if (!host) {
     setStatus("Chain not configured.");
     return;
   }
@@ -685,14 +677,14 @@ async function loadWallets(){
   state.chain = chain;
   state.host = host;
 
-  try{
+  try {
     setStatus(`Loading NFTs… (${state.wallets.length} wallet(s))`);
 
     const allNfts = [];
-    for(let i=0; i<state.wallets.length; i++){
+    for (let i = 0; i < state.wallets.length; i++) {
       const w = state.wallets[i];
-      setStatus(`Loading NFTs… wallet ${i+1}/${state.wallets.length}`);
-      const nfts = await fetchAlchemyNFTs({wallet: w, host});
+      setStatus(`Loading NFTs… wallet ${i + 1}/${state.wallets.length}`);
+      const nfts = await fetchAlchemyNFTs({ wallet: w, host });
       allNfts.push(...(nfts || []));
     }
 
@@ -707,78 +699,78 @@ async function loadWallets(){
 
     const buildBtn = $("buildBtn");
     const exportBtn = $("exportBtn");
-    if(buildBtn) buildBtn.disabled = true;
-    if(exportBtn) exportBtn.disabled = true;
+    if (buildBtn) buildBtn.disabled = true;
+    if (exportBtn) exportBtn.disabled = true;
 
     const stageTitle = $("stageTitle");
     const stageMeta = $("stageMeta");
-    if(stageTitle) stageTitle.textContent = "Wallets loaded";
-    if(stageMeta) stageMeta.textContent = "Select collections, then 🧩 Build grid.";
+    if (stageTitle) stageTitle.textContent = "Wallets loaded";
+    if (stageMeta) stageMeta.textContent = "Select collections, then 🧩 Build grid.";
 
     setStatus(`Loaded ${state.wallets.length} wallet(s) ✅ Found ${grouped.length} collections`);
-  }catch(err){
+  } catch (err) {
     console.error(err);
     setStatus(err?.message || "Error loading NFTs.");
   }
 }
 
-function dedupeNFTs(nfts){
+function dedupeNFTs(nfts) {
   const seen = new Set();
   const out = [];
-  for(const nft of nfts){
+  for (const nft of nfts) {
     const contract = (nft?.contract?.address || "").toLowerCase();
     const tokenId = (nft?.tokenId || "").toString();
     const key = `${contract}:${tokenId}`;
-    if(!contract || !tokenId) continue;
+    if (!contract || !tokenId) continue;
 
-    if(seen.has(key)) continue;
+    if (seen.has(key)) continue;
     seen.add(key);
     out.push(nft);
   }
   return out;
 }
 
-async function fetchAlchemyNFTs({wallet, host}){
+async function fetchAlchemyNFTs({ wallet, host }) {
   const baseUrl = `https://${host}/nft/v3/${ALCHEMY_KEY}/getNFTsForOwner`;
 
   let pageKey = null;
   let all = [];
   const hardCap = 800;
 
-  while(all.length < hardCap){
+  while (all.length < hardCap) {
     const url = new URL(baseUrl);
     url.searchParams.set("owner", wallet);
     url.searchParams.set("withMetadata", "true");
     url.searchParams.set("pageSize", "100");
-    if(pageKey) url.searchParams.set("pageKey", pageKey);
+    if (pageKey) url.searchParams.set("pageKey", pageKey);
 
     const res = await fetch(url.toString());
-    if(!res.ok) throw new Error(`Alchemy error (${res.status})`);
+    if (!res.ok) throw new Error(`Alchemy error (${res.status})`);
     const json = await res.json();
 
     all.push(...(json.ownedNfts || []));
-    if(!json.pageKey) break;
+    if (!json.pageKey) break;
     pageKey = json.pageKey;
   }
 
   return all;
 }
 
-async function fetchAlchemyNFTMetadata({contract, tokenId, host}){
+async function fetchAlchemyNFTMetadata({ contract, tokenId, host }) {
   const url = new URL(`https://${host}/nft/v3/${ALCHEMY_KEY}/getNFTMetadata`);
   url.searchParams.set("contractAddress", contract);
   url.searchParams.set("tokenId", tokenId);
   url.searchParams.set("refreshCache", "false");
 
   const res = await fetch(url.toString());
-  if(!res.ok) throw new Error(`Alchemy metadata error (${res.status})`);
+  if (!res.ok) throw new Error(`Alchemy metadata error (${res.status})`);
   return await res.json();
 }
 
-function groupByCollection(nfts){
+function groupByCollection(nfts) {
   const map = new Map();
 
-  for(const nft of nfts){
+  for (const nft of nfts) {
     const contract = (nft?.contract?.address || "unknown").toLowerCase();
     const colName = nft?.contract?.name || nft?.collection?.name || "Unknown Collection";
 
@@ -793,7 +785,7 @@ function groupByCollection(nfts){
       nft?.rawMetadata?.image ||
       "";
 
-    if(!map.has(contract)){
+    if (!map.has(contract)) {
       map.set(contract, { key: contract, name: colName, count: 0, items: [] });
     }
     const entry = map.get(contract);
@@ -801,16 +793,16 @@ function groupByCollection(nfts){
     entry.items.push({ name, tokenId, contract, image, sourceKey: contract });
   }
 
-  return [...map.values()].sort((a,b)=> b.count - a.count);
+  return [...map.values()].sort((a, b) => b.count - a.count);
 }
 
 // ---------- Export ----------
-async function exportPNG(){
-  try{
+async function exportPNG() {
+  try {
     setStatus("Exporting… may take a moment");
 
     const tiles = Array.from(document.querySelectorAll("#grid .tile"));
-    if(!tiles.length){
+    if (!tiles.length) {
       setStatus("Nothing to export. Build grid first.");
       return;
     }
@@ -821,7 +813,7 @@ async function exportPNG(){
 
     const rect = tiles[0].getBoundingClientRect();
     let tileSize = Math.round(rect.width);
-    if(!tileSize || tileSize < 10) tileSize = 140;
+    if (!tileSize || tileSize < 10) tileSize = 140;
 
     const scale = 2;
     const pad = 2;
@@ -837,7 +829,7 @@ async function exportPNG(){
 
     ctx.clearRect(0, 0, outW, outH);
 
-    for(let i = 0; i < tiles.length; i++){
+    for (let i = 0; i < tiles.length; i++) {
       const r = Math.floor(i / cols);
       const c = i % cols;
 
@@ -847,14 +839,14 @@ async function exportPNG(){
 
       const srcDirect = tiles[i].dataset?.src || "";
 
-      try{
-        if(srcDirect && srcDirect.length > 5){
+      try {
+        if (srcDirect && srcDirect.length > 5) {
           const img = await loadImage(exportSafeUrl(srcDirect));
           drawCover(ctx, img, x, y, size, size);
-        }else{
+        } else {
           drawPlaceholder(ctx, x, y, size, " ");
         }
-      }catch(e){
+      } catch (e) {
         drawPlaceholder(ctx, x, y, size, " ");
       }
     }
@@ -874,27 +866,27 @@ async function exportPNG(){
     let useTwoLines = false;
     let fontPx = Math.max(10, Math.round(tileSize * 0.14)) * scale;
 
-    while(fontPx > 8 * scale){
+    while (fontPx > 8 * scale) {
       ctx.font = `900 ${fontPx}px system-ui, -apple-system, Segoe UI, Roboto, Arial`;
-      if(ctx.measureText(wmSingle).width <= maxTextW) break;
+      if (ctx.measureText(wmSingle).width <= maxTextW) break;
       fontPx -= 1;
     }
 
     ctx.font = `900 ${fontPx}px system-ui, -apple-system, Segoe UI, Roboto, Arial`;
-    if(ctx.measureText(wmSingle).width > maxTextW){
+    if (ctx.measureText(wmSingle).width > maxTextW) {
       useTwoLines = true;
       fontPx = Math.max(10, Math.round(tileSize * 0.13)) * scale;
 
-      while(fontPx > 8 * scale){
+      while (fontPx > 8 * scale) {
         ctx.font = `900 ${fontPx}px system-ui, -apple-system, Segoe UI, Roboto, Arial`;
         const w = Math.max(ctx.measureText(wm1).width, ctx.measureText(wm2).width);
-        if(w <= maxTextW) break;
+        if (w <= maxTextW) break;
         fontPx -= 1;
       }
     }
 
     const lineGap = Math.round(fontPx * 0.25);
-    const textH = useTwoLines ? (fontPx * 2 + lineGap) : fontPx;
+    const textH = useTwoLines ? fontPx * 2 + lineGap : fontPx;
     const boxH = Math.round(textH + boxPadY * 2);
 
     ctx.fillStyle = "rgba(0,0,0,0.22)";
@@ -912,10 +904,10 @@ async function exportPNG(){
     ctx.fillStyle = "rgba(255,255,255,0.95)";
     ctx.textBaseline = "alphabetic";
 
-    if(!useTwoLines){
+    if (!useTwoLines) {
       const y = boxY + Math.round((boxH + fontPx) / 2) - Math.round(fontPx * 0.15);
       ctx.fillText(wmSingle, boxX + boxPadX, y);
-    }else{
+    } else {
       const y1 = boxY + boxPadY + fontPx;
       const y2 = y1 + fontPx + lineGap;
       ctx.fillText(wm1, boxX + boxPadX, y1);
@@ -929,7 +921,7 @@ async function exportPNG(){
     ctx.strokeRect(1, 1, outW - 2, outH - 2);
 
     canvas.toBlob((blob) => {
-      if(!blob){
+      if (!blob) {
         setStatus("Export failed: could not create PNG.");
         return;
       }
@@ -943,27 +935,26 @@ async function exportPNG(){
       setTimeout(() => URL.revokeObjectURL(url), 1500);
       setStatus("Exported PNG ✅");
     }, "image/png");
-
-  }catch(err){
+  } catch (err) {
     console.error(err);
     setStatus("Export failed (unexpected). Check console for details.");
   }
 }
 
 // ---------- Canvas helpers ----------
-function getComputedGridCols(gridEl){
-  if(!gridEl) return 1;
+function getComputedGridCols(gridEl) {
+  if (!gridEl) return 1;
   const cs = window.getComputedStyle(gridEl);
   const tmpl = cs.gridTemplateColumns || "";
 
   const m = tmpl.match(/repeat\((\d+),/);
-  if(m) return Math.max(1, parseInt(m[1], 10));
+  if (m) return Math.max(1, parseInt(m[1], 10));
 
   const parts = tmpl.split(" ").filter(Boolean);
   return Math.max(1, parts.length);
 }
 
-function loadImage(src){
+function loadImage(src) {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.crossOrigin = "anonymous";
@@ -974,83 +965,94 @@ function loadImage(src){
   });
 }
 
-function drawPlaceholder(ctx, x, y, size, label){
+function drawPlaceholder(ctx, x, y, size, label) {
   ctx.fillStyle = "rgba(0,0,0,0.18)";
   ctx.fillRect(x, y, size, size);
 
-  if(label && label.trim()){
+  if (label && label.trim()) {
     ctx.fillStyle = "rgba(255,255,255,0.90)";
-    ctx.font = `900 ${Math.round(size*0.16)}px system-ui, -apple-system, Segoe UI, Roboto, Arial`;
+    ctx.font = `900 ${Math.round(size * 0.16)}px system-ui, -apple-system, Segoe UI, Roboto, Arial`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(label, x + size/2, y + size/2);
+    ctx.fillText(label, x + size / 2, y + size / 2);
     ctx.textAlign = "left";
     ctx.textBaseline = "alphabetic";
   }
 }
 
-function drawCover(ctx, img, x, y, w, h){
+function drawCover(ctx, img, x, y, w, h) {
   const iw = img.naturalWidth || img.width;
   const ih = img.naturalHeight || img.height;
-  const ir = iw/ih;
-  const tr = w/h;
+  const ir = iw / ih;
+  const tr = w / h;
 
-  let sx=0, sy=0, sw=iw, sh=ih;
-  if(ir > tr){
+  let sx = 0,
+    sy = 0,
+    sw = iw,
+    sh = ih;
+  if (ir > tr) {
     sh = ih;
     sw = ih * tr;
-    sx = (iw - sw)/2;
-  }else{
+    sx = (iw - sw) / 2;
+  } else {
     sw = iw;
     sh = iw / tr;
-    sy = (ih - sh)/2;
+    sy = (ih - sh) / 2;
   }
   ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h);
 }
 
 // ---------- Events ----------
-(function bindEvents(){
+(function bindEvents() {
   const addBtn = $("addWalletBtn");
-  if(addBtn) addBtn.addEventListener("click", addWallet);
+  if (addBtn) addBtn.addEventListener("click", addWallet);
 
   // Optional: only if you add a clear button in HTML
   const clearBtn = $("clearWalletsBtn");
-  if(clearBtn) clearBtn.addEventListener("click", clearWallets);
+  if (clearBtn) clearBtn.addEventListener("click", clearWallets);
 
   const walletInput = $("walletInput");
-  if(walletInput){
+  if (walletInput) {
     walletInput.addEventListener("keydown", (e) => {
-      if(e.key === "Enter") addWallet();
+      if (e.key === "Enter") addWallet();
     });
   }
 
   const gridSizeEl = $("gridSize");
-  if(gridSizeEl){
+  if (gridSizeEl) {
     gridSizeEl.addEventListener("change", () => {
       const wrap = $("customGridWrap");
-      if(wrap) wrap.style.display = (gridSizeEl.value === "custom") ? "" : "none";
+      if (wrap) wrap.style.display = gridSizeEl.value === "custom" ? "" : "none";
       const exportBtn = $("exportBtn");
-      if(exportBtn) exportBtn.disabled = true;
+      if (exportBtn) exportBtn.disabled = true;
     });
   }
 
   const customRows = $("customRows");
   const customCols = $("customCols");
-  if(customRows) customRows.addEventListener("input", () => { const e = $("exportBtn"); if(e) e.disabled = true; });
-  if(customCols) customCols.addEventListener("input", () => { const e = $("exportBtn"); if(e) e.disabled = true; });
+  if (customRows)
+    customRows.addEventListener("input", () => {
+      const e = $("exportBtn");
+      if (e) e.disabled = true;
+    });
+  if (customCols)
+    customCols.addEventListener("input", () => {
+      const e = $("exportBtn");
+      if (e) e.disabled = true;
+    });
 
   const loadBtn = $("loadBtn");
   const buildBtn = $("buildBtn");
   const exportBtn = $("exportBtn");
 
-  if(loadBtn) loadBtn.addEventListener("click", loadWallets);
-  if(buildBtn) buildBtn.addEventListener("click", buildGrid);
-  if(exportBtn) exportBtn.addEventListener("click", exportPNG);
+  if (loadBtn) loadBtn.addEventListener("click", loadWallets);
+  if (buildBtn) buildBtn.addEventListener("click", buildGrid);
+  if (exportBtn) exportBtn.addEventListener("click", exportPNG);
 
   const selectAllBtn = $("selectAllBtn");
   const selectNoneBtn = $("selectNoneBtn");
-  if(selectAllBtn) selectAllBtn.addEventListener("click", () => setAllCollections(true));
-  if(selectNoneBtn) selectNoneBtn.addEventListener("click", () => setAllCollections(false));
+  if (selectAllBtn) selectAllBtn.addEventListener("click", () => setAllCollections(true));
+  if (selectNoneBtn) selectNoneBtn.addEventListener("click", () => setAllCollections(false));
 
   enableButtons();
   setStatus("Ready ✅ ➕ Add wallet(s) → 🔍 Load wallet(s) → select collections → 🧩 Build → 📸 Export");

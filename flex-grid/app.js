@@ -496,6 +496,7 @@ async function tryAlchemyImageFallback(tile, img) {
 }
 
 function setImgWithFallback(tile, img, rawUrl) {
+console.log("⏳ setImgWithFallback called", rawUrl);
   const ipfsPath = getIpfsPath(rawUrl);
   tile.dataset.ipfsPath = ipfsPath || "";
   tile.dataset.gwIndex = "0";

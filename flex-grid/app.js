@@ -159,17 +159,31 @@ function normalizeImageUrl(url){
 function gridSafeUrl(directUrl){
   if(!directUrl) return "";
   if(isAlreadyProxied(directUrl)) return directUrl;
+
+  // ✅ Don’t proxy Alchemy CDN (more reliable direct)
+  if(/^https:\/\/nft-cdn\.alchemy\.com\//i.test(directUrl)){
+    return directUrl;
+  }
+
   return IMG_PROXY + encodeURIComponent(directUrl);
 }
+
 
 // For EXPORT rendering (always proxy, but never twice)
 function exportSafeUrl(src){
   if(!src) return "";
   if(isAlreadyProxied(src)) return src;
+
   const direct = normalizeImageUrl(src);
+
+  if(/^https:\/\/nft-cdn\.alchemy\.com\//i.test(direct)){
+    return direct;
+  }
+
   if(isAlreadyProxied(direct)) return direct;
   return IMG_PROXY + encodeURIComponent(direct);
 }
+
 
 // ---------- Wallet list ----------
 function normalizeWallet(w){ return (w || "").trim(); }

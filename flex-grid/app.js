@@ -32,12 +32,12 @@ const IMG_PROXY = "https://loflexgrid.littleollienft.workers.dev/img?url=";
 
 // IPFS gateways (fallback order)
 const IPFS_GWS = [
-  "https://cloudflare-ipfs.com/ipfs/",
   "https://nftstorage.link/ipfs/",
   "https://w3s.link/ipfs/",
   "https://dweb.link/ipfs/",
   "https://gateway.pinata.cloud/ipfs/",
   "https://ipfs.io/ipfs/",
+  "https://cloudflare-ipfs.com/ipfs/",
 ];
 
 // ---------- UI helpers ----------
@@ -45,10 +45,12 @@ function setStatus(msg){
   const el = $("status");
   if(el) el.textContent = msg || "";
 }
+
 function showControlsPanel(show){
   const el = $("controlsPanel");
   if(el) el.style.display = show ? "" : "none";
 }
+
 function enableButtons(){
   const loadBtn = $("loadBtn");
   const buildBtn = $("buildBtn");
@@ -57,12 +59,14 @@ function enableButtons(){
   const hasWallets = state.wallets.length > 0;
   if(loadBtn) loadBtn.disabled = !hasWallets;
   if(buildBtn) buildBtn.disabled = state.selectedKeys.size === 0;
-  if(exportBtn) exportBtn.disabled = true; // enable after buildGrid()
+  if(exportBtn) exportBtn.disabled = true; // enabled after buildGrid()
 }
+
 function setGridColumns(cols){
   const grid = $("grid");
   if(grid) grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
 }
+
 function safeText(s){ return (s || "").toString(); }
 
 // ---------- IPFS + URL HELPERS ----------
@@ -74,7 +78,7 @@ function getIpfsPath(url){
   if(s.startsWith("ipfs://")){
     let p = s.slice("ipfs://".length);
     p = p.replace(/^ipfs\//, "");
-    return p;
+    return p.replace(/^\/+/, "");
   }
 
   // https://<gateway>/ipfs/CID/path
@@ -100,17 +104,13 @@ function normalizeImageUrl(url){
 
   const ipfsPath = getIpfsPath(url);
   if(ipfsPath){
-    // pick first gateway for initial load; we’ll fallback on error
-    return buildIpfsGatewayUrls(ipfsPath)[0] || "";
+    // initial render uses first gateway; fallback tries the rest
+    return (buildIpfsGatewayUrls(ipfsPath)[0] || "");
   }
 
-  // If someone uses ipfs.io, swap to a generally faster gateway (optional)
+  // Leave normal https URLs alone (don’t hard-force cloudflare-ipfs)
   try{
     const u = new URL(String(url));
-    if(u.hostname === "ipfs.io"){
-      u.hostname = "cloudflare-ipfs.com";
-      return u.toString();
-    }
     return u.toString();
   }catch(e){
     return String(url);
@@ -119,6 +119,7 @@ function normalizeImageUrl(url){
 
 // Export wants CORS-safe URLs (via your Worker)
 function exportSafeUrl(src){
+  // IMPORTANT: proxy the DIRECT url (not only cloudflare-ipfs)
   const direct = normalizeImageUrl(src);
   return IMG_PROXY + encodeURIComponent(direct);
 }
@@ -313,8 +314,8 @@ function getGridChoice(){
   const v = $("gridSize")?.value || "auto";
 
   if(v === "custom"){
-    const cols = clampInt($("customCols")?.value, 1, 50, 6);
-    const rows = clampInt($("customRows")?.value, 1, 50, 6);
+    const cols = clampInt($("customCols")?.value, 2, 50, 6);
+    const rows = clampInt($("customRows")?.value, 2, 50, 6);
     const cap = rows * cols;
     return { mode:"fixed", cap, rows, cols };
   }
@@ -340,7 +341,7 @@ function buildGrid(){
   const mixMode = $("mixMode")?.value || "mix";
   let items = (mixMode === "mix") ? mixEvenly(chosen) : flattenItems(chosen);
 
-  // cap for UX/export speed (still safe)
+  // cap for UX/export speed
   const HARD_CAP = 400;
   if(items.length > HARD_CAP) items = items.slice(0, HARD_CAP);
 
@@ -396,55 +397,74 @@ function buildGrid(){
   enableDragDrop();
 }
 
+// ---------- IMAGE FALLBACK (GRID RENDER) ----------
+function setImgWithFallback(tile, img, rawUrl){
+  const ipfsPath = getIpfsPath(rawUrl);
+  tile.dataset.ipfsPath = ipfsPath || "";
+  tile.dataset.gwIndex = "0";
+
+  if(!rawUrl){
+    img.src = "";
+    return;
+  }
+
+  // 1) non-ipfs -> just use it
+  if(!ipfsPath){
+    const direct = normalizeImageUrl(rawUrl);
+    tile.dataset.src = direct;
+    img.src = direct;
+    return;
+  }
+
+  // 2) ipfs -> start with first gateway
+  const urls = buildIpfsGatewayUrls(ipfsPath);
+  const first = urls[0] || "";
+  tile.dataset.src = first;
+  img.src = first;
+
+  img.onerror = () => {
+    // try next gateway
+    const ip = tile.dataset.ipfsPath || "";
+    if(ip){
+      const list = buildIpfsGatewayUrls(ip);
+      let idx = parseInt(tile.dataset.gwIndex || "0", 10);
+      idx = Number.isFinite(idx) ? idx : 0;
+      idx++;
+
+      if(idx < list.length){
+        tile.dataset.gwIndex = String(idx);
+        tile.dataset.src = list[idx];
+        img.src = list[idx];
+        return;
+      }
+    }
+
+    // final: placeholder
+    try{ img.remove(); }catch(e){}
+    tile.dataset.src = "";
+    tile.dataset.kind = "empty";
+    tile.appendChild(makeFillerInner());
+  };
+}
+
 function makeNFTTile(it){
   const tile = document.createElement("div");
   tile.className = "tile";
   tile.draggable = true;
 
   const raw = (it?.image || "");
-  const ipfsPath = getIpfsPath(raw);
-  const src = normalizeImageUrl(raw);
-
-  tile.dataset.ipfsPath = ipfsPath || "";
-  tile.dataset.gwIndex = "0";
-
-  tile.dataset.src = (src && src.length > 5) ? src : "";
-  tile.dataset.kind = (tile.dataset.src ? "nft" : "empty");
+  tile.dataset.kind = raw ? "nft" : "empty";
 
   const img = document.createElement("img");
   img.loading = "lazy";
   img.alt = safeText(it.name || "NFT");
 
-  // IMPORTANT: initial render uses direct (so it loads fast if gateway works)
-  img.src = tile.dataset.src || "";
-
-  img.onerror = () => {
-    // If it was IPFS, try next gateway(s) before giving up
-    const ip = tile.dataset.ipfsPath || "";
-    if(ip){
-      const urls = buildIpfsGatewayUrls(ip);
-      let idx = parseInt(tile.dataset.gwIndex || "0", 10);
-      idx = Number.isFinite(idx) ? idx : 0;
-      idx++;
-
-      if(idx < urls.length){
-        tile.dataset.gwIndex = String(idx);
-        tile.dataset.src = urls[idx];
-        img.src = urls[idx];
-        return;
-      }
-    }
-
-    // final fallback: placeholder
-    try{ img.remove(); }catch(e){}
-    tile.dataset.src = "";
-    tile.dataset.kind = "empty";
-    tile.appendChild(makeFillerInner());
-  };
-
-  if(tile.dataset.src){
+  if(raw){
+    setImgWithFallback(tile, img, raw);
     tile.appendChild(img);
   }else{
+    tile.dataset.src = "";
+    tile.dataset.kind = "empty";
     tile.appendChild(makeFillerInner());
   }
 
@@ -557,7 +577,7 @@ async function loadWallets(){
     const grouped = groupByCollection(deduped);
 
     state.collections = grouped;
-    state.selectedKeys = new Set();
+    state.selectedKeys = new Set(); // start unchecked
 
     renderCollectionsList();
     showControlsPanel(true);
@@ -667,7 +687,7 @@ async function exportPNG(){
     // Match rendered tile size
     const rect = tiles[0].getBoundingClientRect();
     let tileSize = Math.round(rect.width);
-    if(!tileSize || tileSize < 10) tileSize = 140; // fallback
+    if(!tileSize || tileSize < 10) tileSize = 140;
 
     const scale = 2;
     const pad = 2;
@@ -817,7 +837,7 @@ async function loadImageForExport(src, ipfsPath){
     }
   }
 
-  // 3) final: try direct (sometimes works)
+  // 3) final: try direct
   return await loadImage(src);
 }
 
@@ -903,8 +923,6 @@ function drawCover(ctx, img, x, y, w, h){
     });
   }
 
-  // These MUST exist in your HTML when using custom mode:
-  // <input id="customRows" ...> and <input id="customCols" ...>
   const customRows = $("customRows");
   const customCols = $("customCols");
   if(customRows) customRows.addEventListener("input", () => { const e = $("exportBtn"); if(e) e.disabled = true; });

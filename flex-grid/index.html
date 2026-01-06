@@ -11,11 +11,18 @@
   img-src 'self' data: blob: https://loflexgrid.littleollienft.workers.dev;
   style-src 'self' 'unsafe-inline';
   script-src 'self' https://www.gstatic.com https://www.googleapis.com 'unsafe-inline';
-  connect-src 'self' https://loflexgrid.littleollienft.workers.dev
- https://firestore.googleapis.com https://www.googleapis.com;
+
+  connect-src 'self'
+    https://loflexgrid.littleollienft.workers.dev
+    https://eth-mainnet.g.alchemy.com
+    https://base-mainnet.g.alchemy.com
+    https://polygon-mainnet.g.alchemy.com
+    https://firestore.googleapis.com
+    https://www.googleapis.com;
 
   upgrade-insecure-requests;
 ">
+
 
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1, maximum-scale=1, user-scalable=no" />

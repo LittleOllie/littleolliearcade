@@ -66,7 +66,7 @@ function createLimiter(max = 6) {
 }
 
 // 4–6 is the sweet spot. Start at 4 if you still see 502s.
-const gridImgLimit = createLimiter(6);
+const gridImgLimit = createLimiter(4);
 
 // Load an <img> with concurrency limiting
 function setImgSrcLimited(imgEl, src) {

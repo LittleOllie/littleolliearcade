@@ -1,3 +1,5 @@
+console.log("✅ app.js loaded");
+
 /* Little Ollie Flex Grid (SAFE export for file:// + Multi-Wallet)
    - GRID loads via Worker proxy + IPFS gateway fallback
    - Guards against DOUBLE-PROXY (very common cause of “Missing” tiles)
@@ -472,12 +474,15 @@ async function tryAlchemyImageFallback(tile, img){
 
     const direct = normalizeImageUrl(image);
     tile.dataset.src = direct;
-setImgSrcLimited(img, gridSafeUrl(direct)).catch(async () => { ...same onerror logic... })
+
+    // ✅ just set it (no recursion, no extra fallbacks here)
+    img.src = gridSafeUrl(direct);
     return true;
   }catch(e){
     return false;
   }
 }
+
 
 function setImgWithFallback(tile, img, rawUrl){
   const ipfsPath = getIpfsPath(rawUrl);

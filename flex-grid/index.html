@@ -28,8 +28,6 @@
     https://loflexgrid.littleollienft.workers.dev;
 ">
 
-
-
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1, maximum-scale=1, user-scalable=no" />
   <title>Little Ollie Flex Grid</title>
@@ -288,7 +286,7 @@
     .stageMeta{ font-size: 12px; opacity:.95; text-align:right; }
 
     /* Grid */
-    .gridWrap{ position: relative; }
+    .gridWrap{ position: relative; } /* already correct */
     .grid{
       display:grid;
       gap:0 !important;
@@ -323,21 +321,31 @@
       font-size: 22px;
     }
 
-    /* Powered By overlay INSIDE grid, top-left tile corner */
+    /* ✅ Powered By overlay ONCE (top-left of the WHOLE GRID) */
     .watermarkGrid{
       position:absolute;
-      left:0;
-      top:0;
-      font-size: 10px;
+      left:8px;
+      top:8px;
+
+      /* always single-line */
+      white-space: nowrap;
+
+      /* scales down on big grids (small tiles) */
+      font-size: clamp(9px, 1.2vw, 14px);
       font-weight: 900;
       letter-spacing: .15px;
+      line-height: 1;
+
       color: rgba(255,255,255,0.95);
       text-shadow: 0 2px 8px rgba(0,0,0,.55);
       pointer-events:none;
-      padding: 4px 7px;
-      background: rgba(0,0,0,.22);
+
+      /* ✅ make the background NOT too tall */
+      padding: 2px 6px;
+
+      background: rgba(0,0,0,.28);
       border: 1px solid rgba(255,255,255,.14);
-      border-radius: 0;
+      border-radius: 8px;
       backdrop-filter: blur(6px);
       z-index: 5;
     }
@@ -462,6 +470,8 @@
 
         <div class="gridWrap">
           <div id="grid" class="grid"></div>
+
+          <!-- ✅ Keep watermark OUTSIDE tiles, ONCE, top-left of grid -->
           <div id="wmGrid" class="watermarkGrid" style="display:none;">⚡ Powered by Little Ollie Studio</div>
         </div>
 
@@ -509,4 +519,3 @@
   <script src="./app.js"></script>
 </body>
 </html>
-

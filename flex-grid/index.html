@@ -337,7 +337,6 @@
             <button id="addWalletBtn" class="btn">➕ Add wallet</button>
           </div>
 
-          <!-- snug list under Add Wallet button -->
           <div id="walletList" class="walletList" style="display:none;"></div>
 
           <div class="hint">Add multiple wallets, then load them all together.</div>
@@ -364,27 +363,26 @@
             <option value="25">5×5 (25)</option>
             <option value="49">7×7 (49)</option>
             <option value="100">10×10 (100)</option>
-            <option value="custom">Custom N×N…</option>
+            <option value="custom">Custom Rows × Cols…</option>
           </select>
 
-<div id="customGridWrap" style="display:none; margin-top:10px;">
-  <label class="lbl">Custom grid</label>
+          <div id="customGridWrap" style="display:none; margin-top:10px;">
+            <label class="lbl">Custom grid</label>
 
-  <div class="row two" style="margin:0;">
-    <div>
-      <label class="lbl" style="margin-top:0;">Columns</label>
-      <input id="customCols" class="input" type="number" min="2" max="50" value="6" placeholder="Cols (e.g. 8)" />
-    </div>
+            <div class="row two" style="margin:0;">
+              <div>
+                <label class="lbl" style="margin-top:0;">Columns</label>
+                <input id="customCols" class="input" type="number" min="1" max="50" value="6" placeholder="Cols (e.g. 8)" />
+              </div>
 
-    <div>
-      <label class="lbl" style="margin-top:0;">Rows</label>
-      <input id="customRows" class="input" type="number" min="2" max="50" value="6" placeholder="Rows (e.g. 5)" />
-    </div>
-  </div>
+              <div>
+                <label class="lbl" style="margin-top:0;">Rows</label>
+                <input id="customRows" class="input" type="number" min="1" max="50" value="6" placeholder="Rows (e.g. 5)" />
+              </div>
+            </div>
 
-  <div class="hint">Builds a Rows × Columns grid. Export will match this shape.</div>
-</div>
-
+            <div class="hint">Builds a Rows × Columns grid. Export will match this shape.</div>
+          </div>
 
           <div style="height:10px"></div>
 
@@ -444,6 +442,7 @@
 
   </div>
 
+  <!-- Collection search filter (unchanged) -->
   <script>
     (function(){
       const $ = (id)=>document.getElementById(id);
@@ -461,6 +460,21 @@
         });
       }
     })();
+  </script>
+
+  <!-- ✅ Tiny safety script: always shows/hides custom grid UI correctly -->
+  <script>
+    window.addEventListener("DOMContentLoaded", () => {
+      const gridSize = document.getElementById("gridSize");
+      const wrap = document.getElementById("customGridWrap");
+      if(!gridSize || !wrap) return;
+
+      const sync = () => {
+        wrap.style.display = (gridSize.value === "custom") ? "" : "none";
+      };
+      gridSize.addEventListener("change", sync);
+      sync();
+    });
   </script>
 
   <script src="./app.js"></script>

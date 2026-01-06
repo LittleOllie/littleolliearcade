@@ -40,7 +40,7 @@ const IPFS_GWS = [
 ];
 
 // ---------- Image load limiter (prevents Worker/IPFS stampede) ----------
-function createLimiter(max = 6) {
+function createLimiter(max = 3) {
   let active = 0;
   const queue = [];
 
@@ -66,7 +66,7 @@ function createLimiter(max = 6) {
 }
 
 // 4–6 is the sweet spot. Start at 4 if you still see 502s.
-const gridImgLimit = createLimiter(4);
+const gridImgLimit = createLimiter(3);
 
 // Load an <img> with concurrency limiting
 function setImgSrcLimited(imgEl, src) {

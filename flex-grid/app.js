@@ -1,13 +1,7 @@
 /* Little Ollie Flex Grid (SAFE export for file:// + Multi-Wallet)
-   - Multiple wallets supported (accumulates across wallets)
-   - Collections merged by contract address
-   - De-dupe NFTs by contract+tokenId
-   - Powered By overlay sits on top of first tile (grid top-left)
-   - Export: tight crop to grid only + tiny LO-blue border + keeps watermark
-   - Export placeholders are TEXT (no local logo.png) to avoid file:// CORS.
-   - Custom grid supports ROWS x COLS (not forced square)
-   - IPFS gateway fallback (fixes “some load, some don’t” + ERR_NAME_NOT_RESOLVED)
-   - GRID loads via Worker proxy + Alchemy metadata fallback per token (best chance to load “missing” ones)
+   - GRID loads via Worker proxy + IPFS gateway fallback
+   - Guards against DOUBLE-PROXY (very common cause of “Missing” tiles)
+   - Alchemy metadata fallback per token after image failures
 */
 
 const $ = (id) => document.getElementById(id);
@@ -30,7 +24,7 @@ const ALCHEMY_HOST = {
   apechain: null,
 };
 
-// Cloudflare Worker proxy (your worker must return image bytes with CORS headers)
+// Cloudflare Worker proxy
 const IMG_PROXY = "https://loflexgrid.littleollienft.workers.dev/img?url=";
 
 // IPFS gateways (fallback order)
@@ -68,19 +62,21 @@ function setGridColumns(cols){
 }
 function safeText(s){ return (s || "").toString(); }
 
-// ---------- IPFS + URL HELPERS ----------
+// ---------- URL helpers ----------
+function isAlreadyProxied(url){
+  return typeof url === "string" && url.startsWith(IMG_PROXY);
+}
+
 function getIpfsPath(url){
   if(!url) return "";
   const s = String(url).trim();
 
-  // ipfs://CID/path or ipfs://ipfs/CID/path
   if(s.startsWith("ipfs://")){
     let p = s.slice("ipfs://".length);
     p = p.replace(/^ipfs\//, "");
     return p.replace(/^\/+/, "");
   }
 
-  // https://<gateway>/ipfs/CID/path
   try{
     const u = new URL(s);
     const idx = u.pathname.indexOf("/ipfs/");
@@ -98,14 +94,11 @@ function buildIpfsGatewayUrls(ipfsPath){
   return IPFS_GWS.map((gw) => gw + p);
 }
 
-// For export (CORS-safe URLs via Worker)
-function exportSafeUrl(src){
-  const direct = normalizeImageUrl(src);
-  return IMG_PROXY + encodeURIComponent(direct);
-}
-
 function normalizeImageUrl(url){
   if(!url) return "";
+
+  // If it’s already the proxy, return as-is
+  if(isAlreadyProxied(url)) return url;
 
   const ipfsPath = getIpfsPath(url);
   if(ipfsPath){
@@ -120,13 +113,23 @@ function normalizeImageUrl(url){
   }
 }
 
-// IMPORTANT: For GRID rendering, we proxy URLs too (fixes DNS / ERR_NAME_NOT_RESOLVED)
+// For GRID rendering (always proxy, but never twice)
 function gridSafeUrl(directUrl){
   if(!directUrl) return "";
+  if(isAlreadyProxied(directUrl)) return directUrl;
   return IMG_PROXY + encodeURIComponent(directUrl);
 }
 
-// ---------- WALLET LIST UI ----------
+// For EXPORT rendering (always proxy, but never twice)
+function exportSafeUrl(src){
+  if(!src) return "";
+  if(isAlreadyProxied(src)) return src;
+  const direct = normalizeImageUrl(src);
+  if(isAlreadyProxied(direct)) return direct;
+  return IMG_PROXY + encodeURIComponent(direct);
+}
+
+// ---------- Wallet list ----------
 function normalizeWallet(w){ return (w || "").trim(); }
 
 function addWallet(){
@@ -216,7 +219,7 @@ function renderWalletList(){
   });
 }
 
-// ---------- COLLECTION LIST ----------
+// ---------- Collections ----------
 function renderCollectionsList(){
   const wrap = $("collectionsList");
   if(!wrap) return;
@@ -276,7 +279,7 @@ function getSelectedCollections(){
   return state.collections.filter(c => state.selectedKeys.has(c.key));
 }
 
-// ---------- GRID INPUTS ----------
+// ---------- Grid helpers ----------
 function flattenItems(chosen){
   const all = [];
   chosen.forEach(c => c.items.forEach(it => all.push({...it, sourceKey: c.key})));
@@ -328,7 +331,7 @@ function getGridChoice(){
   return { mode:"fixed", cap, rows: side, cols: side };
 }
 
-// ---------- BUILD GRID ----------
+// ---------- Build grid ----------
 function buildGrid(){
   const chosen = getSelectedCollections();
   const exportBtn = $("exportBtn");
@@ -397,7 +400,7 @@ function buildGrid(){
   enableDragDrop();
 }
 
-// ---------- IMAGE FALLBACK (GRID RENDER) ----------
+// ---------- Image loading + fallbacks ----------
 function makeMissingInner(){
   const d = document.createElement("div");
   d.className = "fillerText";
@@ -408,12 +411,10 @@ function makeMissingInner(){
 }
 
 async function tryAlchemyImageFallback(tile, img){
-  // Only if we know contract+tokenId
   const contract = tile.dataset.contract || "";
   const tokenId = tile.dataset.tokenId || "";
   if(!contract || !tokenId) return false;
 
-  // Avoid repeated retries
   if(tile.dataset.alchemyTried === "1") return false;
   tile.dataset.alchemyTried = "1";
 
@@ -430,11 +431,8 @@ async function tryAlchemyImageFallback(tile, img){
 
     if(!image) return false;
 
-    // If the rawMetadata image is ipfs://..., normalize it
     const direct = normalizeImageUrl(image);
     tile.dataset.src = direct;
-
-    // Use proxy for grid display
     img.src = gridSafeUrl(direct);
     return true;
   }catch(e){
@@ -453,18 +451,16 @@ function setImgWithFallback(tile, img, rawUrl){
     return;
   }
 
-  // Non-IPFS URL: try direct via proxy (more reliable)
+  // Non-IPFS
   if(!ipfsPath){
     const direct = normalizeImageUrl(rawUrl);
     tile.dataset.src = direct;
     img.src = gridSafeUrl(direct);
 
     img.onerror = async () => {
-      // Try Alchemy metadata if possible
       const ok = await tryAlchemyImageFallback(tile, img);
       if(ok) return;
 
-      // Show "Missing" if truly dead
       try{ img.remove(); }catch(e){}
       tile.dataset.src = "";
       tile.dataset.kind = "missing";
@@ -474,14 +470,13 @@ function setImgWithFallback(tile, img, rawUrl){
     return;
   }
 
-  // IPFS path: start with first gateway, but ALWAYS via proxy
+  // IPFS -> try gateways (all via proxy)
   const urls = buildIpfsGatewayUrls(ipfsPath);
   const firstDirect = urls[0] || "";
   tile.dataset.src = firstDirect;
   img.src = gridSafeUrl(firstDirect);
 
   img.onerror = async () => {
-    // Try next gateway(s)
     const ip = tile.dataset.ipfsPath || "";
     if(ip){
       const list = buildIpfsGatewayUrls(ip);
@@ -497,11 +492,9 @@ function setImgWithFallback(tile, img, rawUrl){
       }
     }
 
-    // No gateway worked -> try Alchemy metadata per token
     const ok = await tryAlchemyImageFallback(tile, img);
     if(ok) return;
 
-    // Truly missing
     try{ img.remove(); }catch(e){}
     tile.dataset.src = "";
     tile.dataset.kind = "missing";
@@ -514,7 +507,6 @@ function makeNFTTile(it){
   tile.className = "tile";
   tile.draggable = true;
 
-  // Store these so Alchemy fallback can re-query the token
   const contract = (it?.contract || it?.contractAddress || it?.sourceKey || "").toLowerCase();
   const tokenId = (it?.tokenId || "").toString();
   tile.dataset.contract = contract;
@@ -557,7 +549,7 @@ function makeFillerTile(){
   return tile;
 }
 
-// ---------- DRAG & DROP ----------
+// ---------- Drag & drop ----------
 function enableDragDrop(){
   const grid = $("grid");
   if(!grid) return;
@@ -604,16 +596,16 @@ function enableDragDrop(){
   });
 }
 
-// ---------- WALLET LOAD (MULTI) ----------
+// ---------- Wallet load ----------
 async function loadWallets(){
   const chain = $("chainSelect")?.value || "eth";
 
   if(chain === "solana"){
-    setStatus("Solana coming soon. For now use ETH, Base, or Polygon.");
+    setStatus("Solana coming soon. For now use ETH or Base.");
     return;
   }
   if(chain === "apechain"){
-    setStatus("ApeChain coming soon. For now use ETH, Base, or Polygon.");
+    setStatus("ApeChain coming soon. For now use ETH or Base.");
     return;
   }
   if(!state.wallets.length){
@@ -631,7 +623,6 @@ async function loadWallets(){
     return;
   }
 
-  // store current chain/host so the per-token fallback knows where to call
   state.chain = chain;
   state.host = host;
 
@@ -714,9 +705,7 @@ async function fetchAlchemyNFTs({wallet, host}){
   return all;
 }
 
-// Per-token metadata fallback (only used after image failures)
 async function fetchAlchemyNFTMetadata({contract, tokenId, host}){
-  // v3 endpoint: getNFTMetadata
   const url = new URL(`https://${host}/nft/v3/${ALCHEMY_KEY}/getNFTMetadata`);
   url.searchParams.set("contractAddress", contract);
   url.searchParams.set("tokenId", tokenId);
@@ -750,14 +739,13 @@ function groupByCollection(nfts){
     }
     const entry = map.get(contract);
     entry.count++;
-    // store contract+tokenId on each item so grid can retry via Alchemy
     entry.items.push({ name, tokenId, contract, image, sourceKey: contract });
   }
 
   return [...map.values()].sort((a,b)=> b.count - a.count);
 }
 
-// ---------- EXPORT (tight crop to grid) — PNG + watermark = 1 tile (clipped) ----------
+// ---------- Export ----------
 async function exportPNG(){
   try{
     setStatus("Exporting… may take a moment");
@@ -812,7 +800,6 @@ async function exportPNG(){
       }
     }
 
-    // Watermark (exactly 1 tile wide, clipped)
     const boxX = Math.round(pad * scale);
     const boxY = Math.round(pad * scale);
     const boxW = Math.round(tileSize * scale);
@@ -878,7 +865,6 @@ async function exportPNG(){
 
     ctx.restore();
 
-    // Outline
     ctx.strokeStyle = "rgba(109,224,255,0.70)";
     ctx.lineWidth = borderPx * scale;
     ctx.strokeRect(1, 1, outW - 2, outH - 2);
@@ -905,7 +891,7 @@ async function exportPNG(){
   }
 }
 
-// ---------- CANVAS / DRAW HELPERS ----------
+// ---------- Canvas helpers ----------
 function getComputedGridCols(gridEl){
   if(!gridEl) return 1;
   const cs = window.getComputedStyle(gridEl);
@@ -932,7 +918,7 @@ function loadImage(src){
 function drawPlaceholder(ctx, x, y, size, label){
   ctx.fillStyle = "rgba(0,0,0,0.18)";
   ctx.fillRect(x, y, size, size);
-  // keep empty (no LO) so missing items don’t look “fake loaded”
+
   if(label && label.trim()){
     ctx.fillStyle = "rgba(255,255,255,0.90)";
     ctx.font = `900 ${Math.round(size*0.16)}px system-ui, -apple-system, Segoe UI, Roboto, Arial`;
@@ -963,11 +949,12 @@ function drawCover(ctx, img, x, y, w, h){
   ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h);
 }
 
-// ---------- EVENTS ----------
+// ---------- Events ----------
 (function bindEvents(){
   const addBtn = $("addWalletBtn");
   if(addBtn) addBtn.addEventListener("click", addWallet);
 
+  // Optional: only if you add a clear button in HTML
   const clearBtn = $("clearWalletsBtn");
   if(clearBtn) clearBtn.addEventListener("click", clearWallets);
 

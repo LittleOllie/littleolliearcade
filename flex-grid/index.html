@@ -118,6 +118,11 @@
     }
     .input::placeholder{ color: rgba(255,255,255,.70); }
 
+    /* ✅ iPhone zoom fix: any input/select under 16px causes Safari zoom on focus */
+    @media (max-width: 900px){
+      .input{ font-size: 16px; }
+    }
+
     select.input{
       appearance:none;
       background-color: rgba(76,111,255,.20);
@@ -324,42 +329,38 @@
       font-size: 22px;
     }
 
-    /* ✅ FIXED watermark: slim, single-line, scales on big grids */
+    /* ✅ Watermark */
     .watermarkGrid{
       position:absolute;
-      left:6px;
-      top:6px;
+      left:2px;          /* tighter corner */
+      top:2px;           /* tighter corner */
       z-index: 5;
       pointer-events:none;
 
-      /* one line only + safe clipping */
       white-space: nowrap;
-      max-width: calc(100% - 12px);
       overflow: hidden;
       text-overflow: ellipsis;
 
-      /* compact look */
       font-size: 10px;
       line-height: 1;
       font-weight: 900;
       letter-spacing: .15px;
 
-      /* make background NOT tall */
       padding: 2px 5px;
       border-radius: 6px;
 
-      /* lighter background so it blocks less */
       background: rgba(0,0,0,0.18);
       color: rgba(255,255,255,0.95);
       text-shadow: 0 2px 6px rgba(0,0,0,.55);
 
-      /* IMPORTANT: remove chunky effects */
       border: 0;
       backdrop-filter: none;
 
-      /* scale set by JS */
       transform: scale(var(--wmScale));
       transform-origin: top left;
+
+      /* ✅ default, JS will override to tile width */
+      max-width: 260px;
     }
 
     /* Drag visuals */
@@ -381,9 +382,21 @@
         <!-- LEFT: Wallets -->
         <div>
           <label class="lbl">Add wallet</label>
-          <input id="walletInput" class="input" placeholder="Paste wallet address (0x...) then add" autocomplete="off" />
+
+          <!-- ✅ iPhone-safe input attributes -->
+          <input
+            id="walletInput"
+            class="input"
+            placeholder="Paste wallet address (0x...) then add"
+            autocomplete="off"
+            autocapitalize="none"
+            spellcheck="false"
+            inputmode="text"
+          />
+
           <div class="walletTools">
-            <button id="addWalletBtn" class="btn">➕ Add wallet</button>
+            <!-- ✅ button type -->
+            <button id="addWalletBtn" class="btn" type="button">➕ Add wallet</button>
           </div>
 
           <div id="walletList" class="walletList" style="display:none;"></div>
@@ -445,9 +458,10 @@
       </div>
 
       <div class="row actions" style="margin-top:12px;">
-        <button id="loadBtn" class="btn" disabled>🔍 Load wallet(s)</button>
-        <button id="buildBtn" class="btn" disabled>🧩 Build grid</button>
-        <button id="exportBtn" class="btn" disabled>📸 Export PNG</button>
+        <!-- ✅ button types -->
+        <button id="loadBtn" class="btn" type="button" disabled>🔍 Load wallet(s)</button>
+        <button id="buildBtn" class="btn" type="button" disabled>🧩 Build grid</button>
+        <button id="exportBtn" class="btn" type="button" disabled>📸 Export PNG</button>
       </div>
 
       <div id="status" class="status"></div>
@@ -459,7 +473,7 @@
 
         <div class="collectionsTop">
           <div class="searchWrap">
-            <input id="collectionSearch" class="input" placeholder="Search collections..." autocomplete="off" />
+            <input id="collectionSearch" class="input" placeholder="Search collections..." autocomplete="off" autocapitalize="none" spellcheck="false" />
             <div class="hint">Select collections to include. (Starts unchecked)</div>
           </div>
 
@@ -483,7 +497,7 @@
         <div class="gridWrap">
           <div id="grid" class="grid"></div>
 
-          <!-- ✅ Keep watermark OUTSIDE tiles, ONCE, top-left of grid -->
+          <!-- ✅ watermark -->
           <div id="wmGrid" class="watermarkGrid" style="display:none;">⚡ Powered by Little Ollie Studio</div>
         </div>
       </div>
@@ -526,44 +540,53 @@
     });
   </script>
 
-  <!-- ✅ Watermark auto-scale without touching app.js -->
+  <!-- ✅ Watermark auto-scale + lock width to 1 tile (fixes overlap into tile #2) -->
   <script>
     (function(){
       const root = document.documentElement;
       const grid = document.getElementById("grid");
+      const wm = document.getElementById("wmGrid");
 
-      if(!grid) return;
+      if(!grid || !wm) return;
 
       const computeCols = () => {
         const gtc = getComputedStyle(grid).gridTemplateColumns;
         if(!gtc) return 0;
-        // split by spaces, ignores "repeat()" being expanded by browser
         return gtc.split(" ").filter(Boolean).length;
       };
 
-      const applyScale = () => {
+      const apply = () => {
+        // scale based on column count
         const cols = computeCols();
-        if(!cols) return;
-        // 4 cols = 1.0, more cols = smaller (down to 0.55)
-        const scale = Math.max(0.55, Math.min(1, 4 / cols));
-        root.style.setProperty("--wmScale", String(scale));
+        if(cols){
+          const scale = Math.max(0.55, Math.min(1, 4 / cols));
+          root.style.setProperty("--wmScale", String(scale));
+        }
+
+        // lock watermark max-width to FIRST tile width (prevents overlapping tile #2)
+        const firstTile = grid.querySelector(".tile");
+        if(firstTile){
+          const w = firstTile.getBoundingClientRect().width || 0;
+          if(w > 0){
+            wm.style.left = "2px";
+            wm.style.top = "2px";
+            wm.style.maxWidth = Math.max(70, Math.floor(w - 4)) + "px";
+          }
+        }
       };
 
-      // watch for grid changes (when you build a new grid)
-      const mo = new MutationObserver(() => {
-        // small delay so layout finishes
-        requestAnimationFrame(applyScale);
-      });
+      // watch when tiles are added/removed
+      const mo = new MutationObserver(() => requestAnimationFrame(apply));
       mo.observe(grid, { childList:true, subtree:false });
 
-      // also apply on resize
-      window.addEventListener("resize", applyScale);
+      // also on resize/orientation
+      window.addEventListener("resize", () => requestAnimationFrame(apply));
+      window.addEventListener("orientationchange", () => requestAnimationFrame(apply));
 
-      // initial
-      requestAnimationFrame(applyScale);
+      requestAnimationFrame(apply);
     })();
   </script>
 
-<script src="./app.js?v=9"></script>
+  <script src="./app.js?v=9"></script>
 </body>
 </html>

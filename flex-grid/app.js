@@ -1,11 +1,12 @@
-alert("app.js loaded ✅");
 console.log("✅ app.js loaded");
 
 /* Little Ollie Flex Grid (SAFE export for file:// + Multi-Wallet)
    - GRID loads via Worker proxy + IPFS gateway fallback
-   - Guards against DOUBLE-PROXY (very common cause of “Missing” tiles)
+   - Guards against DOUBLE-PROXY
    - Alchemy metadata fallback per token after image failures
-   - IMPORTANT: With tight CSP, we MUST proxy ALL images (including Alchemy CDN)
+   - IMPORTANT:
+     - Grid display can fall back to DIRECT urls (for reliability) if Worker fails.
+     - Export stays PROXY-first to keep canvas untainted.
 */
 
 const $ = (id) => document.getElementById(id);
@@ -31,7 +32,7 @@ const ALCHEMY_HOST = {
 // Cloudflare Worker proxy
 const IMG_PROXY = "https://loflexgrid.littleollienft.workers.dev/img?url=";
 
-// IPFS gateways (fallback order)
+// IPFS gateways (not used directly here; Worker handles fallback)
 const IPFS_GWS = [
   "https://nftstorage.link/ipfs/",
   "https://w3s.link/ipfs/",
@@ -67,19 +68,47 @@ function createLimiter(max = 3) {
     });
 }
 
-// 4–6 is the sweet spot. Start at 3/4 if you still see 502s.
+// 3–5 is generally safe. If your Worker gets 502s, keep it low (3).
 const gridImgLimit = createLimiter(3);
 
-// Load an <img> with concurrency limiting
-function setImgSrcLimited(imgEl, src) {
+function loadImgWithLimiter(imgEl, src) {
   return gridImgLimit(
     () =>
       new Promise((resolve, reject) => {
-        imgEl.onload = () => resolve(true);
-        imgEl.onerror = () => reject(new Error("Image failed: " + src));
+        const clean = () => {
+          imgEl.onload = null;
+          imgEl.onerror = null;
+        };
+        imgEl.onload = () => {
+          clean();
+          resolve(true);
+        };
+        imgEl.onerror = () => {
+          clean();
+          reject(new Error("Image failed: " + src));
+        };
         imgEl.src = src;
       })
   );
+}
+
+// Non-limited (for direct fallback)
+function loadImgNoLimit(imgEl, src) {
+  return new Promise((resolve, reject) => {
+    const clean = () => {
+      imgEl.onload = null;
+      imgEl.onerror = null;
+    };
+    imgEl.onload = () => {
+      clean();
+      resolve(true);
+    };
+    imgEl.onerror = () => {
+      clean();
+      reject(new Error("Image failed: " + src));
+    };
+    imgEl.src = src;
+  });
 }
 
 // ---------- UI helpers ----------
@@ -87,10 +116,12 @@ function setStatus(msg) {
   const el = $("status");
   if (el) el.textContent = msg || "";
 }
+
 function showControlsPanel(show) {
   const el = $("controlsPanel");
   if (el) el.style.display = show ? "" : "none";
 }
+
 function enableButtons() {
   const loadBtn = $("loadBtn");
   const buildBtn = $("buildBtn");
@@ -98,13 +129,18 @@ function enableButtons() {
 
   const hasWallets = state.wallets.length > 0;
   if (loadBtn) loadBtn.disabled = !hasWallets;
+
   if (buildBtn) buildBtn.disabled = state.selectedKeys.size === 0;
-  if (exportBtn) exportBtn.disabled = true; // enabled after buildGrid()
+
+  // export is enabled only after buildGrid()
+  if (exportBtn) exportBtn.disabled = true;
 }
+
 function setGridColumns(cols) {
   const grid = $("grid");
   if (grid) grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
 }
+
 function safeText(s) {
   return (s || "").toString();
 }
@@ -150,7 +186,7 @@ function normalizeImageUrl(url) {
   }
 }
 
-// ✅ Proxy EVERYTHING (grid + export), but never twice
+// ✅ Proxy EVERYTHING (export must proxy), but never twice
 function safeProxyUrl(src) {
   if (!src) return "";
   if (isAlreadyProxied(src)) return src;
@@ -161,11 +197,13 @@ function safeProxyUrl(src) {
   return IMG_PROXY + encodeURIComponent(direct);
 }
 
-function gridSafeUrl(src) {
+// For GRID: proxy-first, but allow direct fallback for reliability
+function gridProxyUrl(src) {
   return safeProxyUrl(src);
 }
 
-function exportSafeUrl(src) {
+// For EXPORT: proxy only (avoid canvas taint)
+function exportProxyUrl(src) {
   return safeProxyUrl(src);
 }
 
@@ -193,20 +231,13 @@ function syncWatermarkDOMToOneTile() {
   }
 
   wm.style.display = "";
-  wm.style.position = "absolute";
-  wm.style.left = "4px"; // ✅ tighter to corner (prevents overlap)
-  wm.style.top = "4px";
-  wm.style.zIndex = "20";
-  wm.style.pointerEvents = "none";
-
   wm.style.whiteSpace = "nowrap";
   wm.style.overflow = "hidden";
   wm.style.textOverflow = "ellipsis";
 
   const tileW = firstTile.getBoundingClientRect().width || 0;
-  wm.style.maxWidth = `${Math.max(80, tileW - 8)}px`; // ✅ keep inside first tile
+  wm.style.maxWidth = `${Math.max(80, tileW - 8)}px`;
 
-  // Optional scale-down when tiles are tiny (big grids)
   const s = Math.max(0.62, Math.min(1, tileW / 260));
   wm.style.transform = `scale(${s})`;
   wm.style.transformOrigin = "top left";
@@ -214,7 +245,6 @@ function syncWatermarkDOMToOneTile() {
 
 // ---------- Wallet list ----------
 function normalizeWallet(w) {
-  // strip spaces/newlines that iPhone paste often adds
   return (w || "").trim().replace(/\s+/g, "").toLowerCase();
 }
 
@@ -222,23 +252,15 @@ function addWallet() {
   const input = $("walletInput");
   const w = normalizeWallet(input ? input.value : "");
 
-  if (!w) {
-    setStatus("Paste a wallet address first.");
-    return;
-  }
-  if (!/^0x[a-f0-9]{40}$/.test(w)) {
-    setStatus("That doesn’t look like a valid 0x wallet address.");
-    return;
-  }
-  if (state.wallets.includes(w)) {
-    setStatus("That wallet is already added.");
-    return;
-  }
+  if (!w) return setStatus("Paste a wallet address first.");
+  if (!/^0x[a-f0-9]{40}$/.test(w)) return setStatus("That doesn’t look like a valid 0x wallet address.");
+  if (state.wallets.includes(w)) return setStatus("That wallet is already added.");
 
   state.wallets.push(w);
+
   if (input) {
     input.value = "";
-    input.blur(); // ✅ helps iPhone stop “sticking” focus
+    input.blur();
   }
 
   renderWalletList();
@@ -251,13 +273,6 @@ function removeWallet(w) {
   renderWalletList();
   enableButtons();
   setStatus(`Wallet removed ✅ (${state.wallets.length} remaining)`);
-}
-
-function clearWallets() {
-  state.wallets = [];
-  renderWalletList();
-  enableButtons();
-  setStatus("Wallets cleared ✅");
 }
 
 function renderWalletList() {
@@ -322,6 +337,7 @@ function renderCollectionsList() {
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
     checkbox.checked = state.selectedKeys.has(c.key);
+
     checkbox.addEventListener("change", () => {
       if (checkbox.checked) state.selectedKeys.add(c.key);
       else state.selectedKeys.delete(c.key);
@@ -356,6 +372,7 @@ function setAllCollections(checked) {
   state.selectedKeys.clear();
   if (checked) state.collections.forEach((c) => state.selectedKeys.add(c.key));
   renderCollectionsList();
+
   const buildBtn = $("buildBtn");
   const exportBtn = $("exportBtn");
   if (buildBtn) buildBtn.disabled = state.selectedKeys.size === 0;
@@ -465,16 +482,10 @@ function buildGrid() {
     stageMeta.textContent = `${state.wallets.length} wallet(s) • ${chosen.length} collection(s) • ${usedItems.length} NFT(s) • grid ${rows}×${cols}`;
   }
 
-  for (let i = 0; i < usedItems.length; i++) {
-    grid.appendChild(makeNFTTile(usedItems[i]));
-  }
-
+  for (let i = 0; i < usedItems.length; i++) grid.appendChild(makeNFTTile(usedItems[i]));
   const remaining = totalSlots - usedItems.length;
-  for (let j = 0; j < remaining; j++) {
-    grid.appendChild(makeFillerTile());
-  }
+  for (let j = 0; j < remaining; j++) grid.appendChild(makeFillerTile());
 
-  // ✅ Watermark pinned to top-left and constrained to ONE tile width
   const wm = $("wmGrid");
   if (wm) wm.style.display = "";
   syncWatermarkDOMToOneTile();
@@ -494,87 +505,93 @@ function makeMissingInner() {
   return d;
 }
 
-async function tryAlchemyImageFallback(tile, img) {
-  const contract = tile.dataset.contract || "";
-  const tokenId = tile.dataset.tokenId || "";
-  if (!contract || !tokenId) return false;
-
-  if (tile.dataset.alchemyTried === "1") return false;
-  tile.dataset.alchemyTried = "1";
-
-  try {
-    const meta = await fetchAlchemyNFTMetadata({ contract, tokenId, host: state.host });
-
-    const image =
-      meta?.image?.cachedUrl ||
-      meta?.image?.pngUrl ||
-      meta?.image?.thumbnailUrl ||
-      meta?.image?.originalUrl ||
-      meta?.rawMetadata?.image ||
-      "";
-
-    if (!image) return false;
-
-    const direct = normalizeImageUrl(image);
-    tile.dataset.src = direct;
-
-    setImgSrcLimited(img, gridSafeUrl(direct)).catch(() => false);
-    return true;
-  } catch (e) {
-    return false;
-  }
+function makeFillerInner() {
+  const d = document.createElement("div");
+  d.className = "fillerText";
+  d.textContent = "LO ⚡";
+  return d;
 }
 
-function setImgWithFallback(tile, img, rawUrl) {
+function markMissing(tile, img) {
+  try { if (img && img.parentNode) img.remove(); } catch (e) {}
+  tile.dataset.src = "";
+  tile.dataset.kind = "missing";
+  // prevent duplicates
+  if (!tile.querySelector(".fillerText")) tile.appendChild(makeMissingInner());
+}
+
+async function fetchBestAlchemyImage({ contract, tokenId, host }) {
+  const meta = await fetchAlchemyNFTMetadata({ contract, tokenId, host });
+
+  const image =
+    meta?.image?.cachedUrl ||
+    meta?.image?.pngUrl ||
+    meta?.image?.thumbnailUrl ||
+    meta?.image?.originalUrl ||
+    meta?.rawMetadata?.image ||
+    "";
+
+  return image ? normalizeImageUrl(image) : "";
+}
+
+// GRID loading strategy:
+// 1) proxy-first (reliable for CORS/export style)
+// 2) if Worker fails (502 etc), try direct (your CSP allows it)
+// 3) if still fails, try Alchemy metadata image (proxy-first, then direct)
+// 4) Missing
+async function loadTileImage(tile, img, rawUrl) {
+  const contract = tile.dataset.contract || "";
+  const tokenId = tile.dataset.tokenId || "";
+
   const ipfsPath = getIpfsPath(rawUrl);
   tile.dataset.ipfsPath = ipfsPath || "";
-  tile.dataset.alchemyTried = "0";
 
-  if (!rawUrl) {
-    img.src = "";
-    return;
+  const directNormalized = normalizeImageUrl(rawUrl);
+  if (!directNormalized) return markMissing(tile, img);
+
+  // If IPFS, prefer ipfs:// form (Worker should resolve)
+  const primary = ipfsPath ? ("ipfs://" + ipfsPath) : directNormalized;
+  tile.dataset.src = primary;
+
+  // 1) try proxy-first (limited)
+  try {
+    await loadImgWithLimiter(img, gridProxyUrl(primary));
+    return true;
+  } catch (e1) {
+    // 2) for grid only, try direct (no proxy) if it's a normal URL
+    if (!ipfsPath && /^https?:\/\//i.test(primary)) {
+      try {
+        await loadImgNoLimit(img, primary);
+        return true;
+      } catch (e2) {}
+    }
   }
 
-  const markMissing = () => {
+  // 3) metadata fallback (per-tile, once)
+  if (contract && tokenId && tile.dataset.alchemyTried !== "1") {
+    tile.dataset.alchemyTried = "1";
     try {
-      img.remove();
-    } catch (e) {}
-    tile.dataset.src = "";
-    tile.dataset.kind = "missing";
-    tile.appendChild(makeMissingInner());
-  };
+      const metaUrl = await fetchBestAlchemyImage({ contract, tokenId, host: state.host });
+      if (metaUrl) {
+        tile.dataset.src = metaUrl;
 
-  // Non-IPFS
-  if (!ipfsPath) {
-    const direct = normalizeImageUrl(rawUrl);
-    tile.dataset.src = direct;
-
-    setImgSrcLimited(img, gridSafeUrl(direct)).catch(async () => {
-      const ok = await tryAlchemyImageFallback(tile, img);
-      if (!ok) markMissing();
-    });
-
-    img.onerror = async () => {
-      const ok = await tryAlchemyImageFallback(tile, img);
-      if (!ok) markMissing();
-    };
-
-    return;
+        try {
+          await loadImgWithLimiter(img, gridProxyUrl(metaUrl));
+          return true;
+        } catch (e3) {
+          if (/^https?:\/\//i.test(metaUrl)) {
+            try {
+              await loadImgNoLimit(img, metaUrl);
+              return true;
+            } catch (e4) {}
+          }
+        }
+      }
+    } catch (e5) {}
   }
 
-  // IPFS (delegate gateway fallback to Worker)
-  const ipfsDirect = "ipfs://" + ipfsPath;
-  tile.dataset.src = ipfsDirect;
-
-  setImgSrcLimited(img, gridSafeUrl(ipfsDirect)).catch(async () => {
-    const ok = await tryAlchemyImageFallback(tile, img);
-    if (!ok) markMissing();
-  });
-
-  img.onerror = async () => {
-    const ok = await tryAlchemyImageFallback(tile, img);
-    if (!ok) markMissing();
-  };
+  markMissing(tile, img);
+  return false;
 }
 
 function makeNFTTile(it) {
@@ -589,6 +606,7 @@ function makeNFTTile(it) {
 
   const raw = it?.image || "";
   tile.dataset.kind = raw ? "nft" : "empty";
+  tile.dataset.alchemyTried = "0";
 
   const img = document.createElement("img");
   img.loading = "lazy";
@@ -597,8 +615,9 @@ function makeNFTTile(it) {
   img.crossOrigin = "anonymous";
 
   if (raw) {
-    setImgWithFallback(tile, img, raw);
     tile.appendChild(img);
+    // fire and forget; don’t block buildGrid()
+    loadTileImage(tile, img, raw).catch(() => markMissing(tile, img));
   } else {
     tile.dataset.src = "";
     tile.dataset.kind = "empty";
@@ -606,13 +625,6 @@ function makeNFTTile(it) {
   }
 
   return tile;
-}
-
-function makeFillerInner() {
-  const d = document.createElement("div");
-  d.className = "fillerText";
-  d.textContent = "LO ⚡";
-  return d;
 }
 
 function makeFillerTile() {
@@ -848,7 +860,8 @@ async function exportPNG() {
 
       try {
         if (srcDirect && srcDirect.length > 5) {
-          const img = await loadImage(exportSafeUrl(srcDirect));
+          // Export MUST proxy (canvas safety)
+          const img = await loadImage(exportProxyUrl(srcDirect));
           drawCover(ctx, img, x, y, size, size);
         } else {
           drawPlaceholder(ctx, x, y, size, " ");
@@ -975,7 +988,7 @@ function drawCover(ctx, img, x, y, w, h) {
 
 // ---------- Events ----------
 (function bindEvents() {
-  // Harden wallet input for iPhone Safari paste/autocaps
+  // Wallet input hardening
   const walletInput = $("walletInput");
   if (walletInput) {
     walletInput.autocapitalize = "none";
@@ -990,21 +1003,28 @@ function drawCover(ctx, img, x, y, w, h) {
     });
   }
 
-  // ✅ iPhone-safe Add Wallet (Safari sometimes drops click)
+  // ✅ Single-tap safe "Add wallet" (prevents multi-fire on iOS)
   const addBtn = $("addWalletBtn");
   if (addBtn) {
     addBtn.type = "button";
+
+    let lastFire = 0;
     const handler = (e) => {
       try { e.preventDefault(); } catch {}
+      const now = Date.now();
+      if (now - lastFire < 350) return; // block double-fire
+      lastFire = now;
       addWallet();
     };
-    addBtn.addEventListener("click", handler, { passive: false });
-    addBtn.addEventListener("pointerup", handler, { passive: false });
-    addBtn.addEventListener("touchend", handler, { passive: false });
-  }
 
-  const clearBtn = $("clearWalletsBtn");
-  if (clearBtn) clearBtn.addEventListener("click", clearWallets);
+    // Prefer pointerup when available, otherwise click
+    if (window.PointerEvent) {
+      addBtn.addEventListener("pointerup", handler, { passive: false });
+    } else {
+      addBtn.addEventListener("click", handler, { passive: false });
+      addBtn.addEventListener("touchend", handler, { passive: false });
+    }
+  }
 
   const gridSizeEl = $("gridSize");
   if (gridSizeEl) {
@@ -1018,8 +1038,33 @@ function drawCover(ctx, img, x, y, w, h) {
 
   const customRows = $("customRows");
   const customCols = $("customCols");
-  if (customRows) customRows.addEventListener("input", () => ($("exportBtn").disabled = true));
-  if (customCols) customCols.addEventListener("input", () => ($("exportBtn").disabled = true));
+  const markExportDirty = () => {
+    const exportBtn = $("exportBtn");
+    if (exportBtn) exportBtn.disabled = true;
+  };
+  if (customRows) customRows.addEventListener("input", markExportDirty);
+  if (customCols) customCols.addEventListener("input", markExportDirty);
+
+  const chainSelect = $("chainSelect");
+  if (chainSelect) {
+    chainSelect.addEventListener("change", () => {
+      // switching chains invalidates loaded results
+      state.collections = [];
+      state.selectedKeys = new Set();
+      renderCollectionsList();
+      showControlsPanel(false);
+
+      const grid = $("grid");
+      if (grid) grid.innerHTML = "";
+
+      const exportBtn = $("exportBtn");
+      const buildBtn = $("buildBtn");
+      if (buildBtn) buildBtn.disabled = true;
+      if (exportBtn) exportBtn.disabled = true;
+
+      setStatus("Chain changed ✅ Now 🔍 Load wallet(s) again.");
+    });
+  }
 
   const loadBtn = $("loadBtn");
   const buildBtn = $("buildBtn");
@@ -1034,7 +1079,6 @@ function drawCover(ctx, img, x, y, w, h) {
   if (selectAllBtn) selectAllBtn.addEventListener("click", () => setAllCollections(true));
   if (selectNoneBtn) selectNoneBtn.addEventListener("click", () => setAllCollections(false));
 
-  // ✅ keep watermark correct on resize/orientation changes
   window.addEventListener("resize", syncWatermarkDOMToOneTile);
   window.addEventListener("orientationchange", syncWatermarkDOMToOneTile);
 

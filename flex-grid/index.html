@@ -1,168 +1,569 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
-  <title>Little Ollie Flex Grid</title>
 
-  <!-- Keep CSP simple and compatible. If you have tighter CSP elsewhere, update connect-src/img-src accordingly -->
-  <meta http-equiv="Content-Security-Policy" content="
-    default-src 'self';
-    base-uri 'self';
-    object-src 'none';
-    frame-ancestors 'none';
-    script-src 'self';
-    style-src 'self' 'unsafe-inline';
-    img-src 'self' data: blob: https:;
-    connect-src 'self' https:; 
-  ">
+<meta http-equiv="Content-Security-Policy" content="
+  default-src 'self';
+  base-uri 'self';
+  object-src 'none';
+  frame-ancestors 'none';
+
+  img-src
+    'self'
+    data:
+    blob:
+    https://loflexgrid.littleollienft.workers.dev
+    https://nft-cdn.alchemy.com
+    https://cloudflare-ipfs.com
+    https://ipfs.io
+    https://nftstorage.link
+    https://w3s.link
+    https://dweb.link;
+
+  style-src 'self' 'unsafe-inline';
+  script-src 'self' 'unsafe-inline';
+  connect-src
+    'self'
+    https://*.alchemy.com
+    https://loflexgrid.littleollienft.workers.dev;
+">
+
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Little Ollie Flex Grid</title>
 
   <style>
     *{ box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
-    body{ margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; background:#0b1020; color:#fff; }
-    .wrap{ width:min(1100px, 96vw); margin: 18px auto 28px; }
-    h1{ margin: 0 0 10px; font-size: 18px; opacity:.95; }
-    .bar{
-      display:flex; gap:10px; flex-wrap:wrap; align-items:center;
-      background: rgba(255,255,255,.06);
-      border: 1px solid rgba(255,255,255,.10);
+    :root{
+      --bg1:#6de0ff; --bg2:#4c6fff;
+      --panel: rgba(0,0,0,.18);
+      --panel2: rgba(0,0,0,.22);
+      --stroke: rgba(255,255,255,.16);
+      --shadow: 0 14px 34px rgba(0,0,0,.35);
+
+      --btnYellow:#ffdd55;
+      --btnYellow2:#ffd22e;
+      --btnText:#222;
+
+      --muted: rgba(255,255,255,.85);
+      --loBlueLine: rgba(109,224,255,0.70);
+
+      /* ✅ Watermark scale (JS updates this) */
+      --wmScale: 1;
+    }
+
+    html,body{ height:100%; margin:0; }
+    body{
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: radial-gradient(circle at top, var(--bg1), var(--bg2));
+      color:#fff;
+      display:flex;
+      justify-content:center;
+      align-items:flex-start;
+      padding: 14px 12px 22px;
+      overscroll-behavior:none;
+    }
+
+    .wrap{ width:min(1120px, 98vw); }
+
+    .heroHeader{ width:100%; margin:0 0 12px; }
+    .heroHeader img{
+      width:100%;
+      height:auto;
+      display:block;
+      border-radius: 14px;
+      filter: drop-shadow(0 16px 30px rgba(0,0,0,.35));
+    }
+
+    .panel{
+      width:100%;
+      background: linear-gradient(180deg, var(--panel2), var(--panel));
+      border: 1px solid var(--stroke);
+      box-shadow: var(--shadow);
+      border-radius: 18px;
+      padding: 14px;
+      margin: 12px 0;
+      backdrop-filter: blur(8px);
+    }
+
+    .lbl{
+      display:block;
+      font-weight: 850;
+      font-size: 12px;
+      letter-spacing:.3px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin: 2px 0 6px;
+    }
+
+    .row{ margin-bottom: 12px; }
+    .row.two{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    @media (max-width: 520px){
+      .row.two{ grid-template-columns: 1fr; }
+    }
+
+    .input{
+      width:100%;
+      border-radius: 14px;
+      padding: 12px 12px;
+      border: 1px solid rgba(255,255,255,.18);
+      background: rgba(76,111,255,.20);
+      color:#fff;
+      outline:none;
+      font-size: 14px;
+    }
+    .input::placeholder{ color: rgba(255,255,255,.70); }
+
+    select.input{
+      appearance:none;
+      background-color: rgba(76,111,255,.20);
+      background-image:
+        linear-gradient(45deg, transparent 50%, rgba(255,255,255,.85) 50%),
+        linear-gradient(135deg, rgba(255,255,255,.85) 50%, transparent 50%);
+      background-position:
+        calc(100% - 18px) calc(1em + 2px),
+        calc(100% - 13px) calc(1em + 2px);
+      background-size: 5px 5px, 5px 5px;
+      background-repeat:no-repeat;
+      padding-right: 32px;
+    }
+    select.input option{
+      background: #4c6fff;
+      color: #fff;
+    }
+
+    .btn{
+      border:0;
+      border-radius: 14px;
+      padding: 12px 14px;
+      font-weight: 950;
+      letter-spacing: .2px;
+      background: linear-gradient(180deg, var(--btnYellow), var(--btnYellow2));
+      color: var(--btnText);
+      cursor:pointer;
+      box-shadow: 0 10px 18px rgba(0,0,0,.25);
+      transition: transform .06s ease, opacity .15s ease;
+      user-select:none;
+      white-space: nowrap;
+    }
+    .btn:active{ transform: translateY(1px) scale(.99); }
+    .btn:disabled{ opacity:.55; cursor:not-allowed; transform:none; }
+
+    .actions{
+      display:flex;
+      gap:10px;
+      flex-wrap: wrap;
+      align-items:center;
+    }
+
+    .status{
+      margin-top: 10px;
+      color: rgba(255,255,255,.95);
+      font-size: 14px;
+      white-space: pre-wrap;
+    }
+
+    /* Multi-wallet UI */
+    .walletTools{
+      display:flex;
+      gap:10px;
+      flex-wrap: wrap;
+      align-items:center;
+      margin-top: 8px;
+    }
+    .walletList{
+      margin-top: 10px;
+      background: rgba(76,111,255,.14);
+      border: 1px solid rgba(255,255,255,.14);
       border-radius: 14px;
       padding: 10px;
     }
-    input, select, button{
-      font: inherit;
-      border-radius: 12px;
-      border: 1px solid rgba(255,255,255,.18);
-      background: rgba(0,0,0,.22);
-      color:#fff;
-      padding: 10px 12px;
-      outline: none;
-    }
-    button{
-      background: #ffdd55;
-      color:#222;
-      border: none;
-      font-weight: 800;
-      cursor:pointer;
-    }
-    button:disabled{ opacity:.45; cursor:not-allowed; }
-
-    #status{ margin:10px 4px 0; opacity:.9; font-size: 13px; }
-
-    /* wallet chips */
-    #walletList{ margin-top:10px; display:none; gap:8px; flex-direction:column; }
     .walletChip{
-      display:flex; justify-content:space-between; align-items:center; gap:10px;
-      padding: 10px 12px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding: 10px 10px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.04);
+      margin-bottom: 8px;
+    }
+    .walletChip:last-child{ margin-bottom:0; }
+    .walletAddr{
+      font-weight: 900;
+      font-size: 13px;
+      overflow:hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 100%;
+    }
+    .walletMeta{
+      font-size: 12px;
+      opacity: .9;
+    }
+    .chipBtns{ display:flex; gap:8px; flex:0 0 auto; }
+    .btnSmall{
+      border:0;
+      border-radius: 12px;
+      padding: 8px 10px;
+      font-weight: 950;
+      background: linear-gradient(180deg, var(--btnYellow), var(--btnYellow2));
+      color: var(--btnText);
+      cursor:pointer;
+      box-shadow: 0 10px 18px rgba(0,0,0,.18);
+      white-space: nowrap;
+    }
+
+    /* Collections */
+    .collectionsTop{
+      display:flex;
+      gap:10px;
+      align-items:end;
+      flex-wrap: wrap;
+    }
+    .collectionsTop .searchWrap{
+      flex: 1 1 320px;
+      min-width: 220px;
+    }
+    .collectionsTop .miniBtns{
+      display:flex;
+      gap:10px;
+      flex: 0 0 auto;
+    }
+
+    .collectionList{
+      margin-top: 10px;
+      background: rgba(76,111,255,.14);
+      border: 1px solid rgba(255,255,255,.14);
       border-radius: 14px;
-      background: rgba(255,255,255,.06);
-      border: 1px solid rgba(255,255,255,.10);
+      padding: 10px;
+      max-height: 280px;
+      overflow:auto;
     }
-    .walletAddr{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; font-size: 12px; opacity:.95; }
-    .walletMeta{ font-size: 12px; opacity:.75; margin-top:3px; }
-    .btnSmall{ padding:8px 10px; border-radius: 12px; background: rgba(255,255,255,.10); color:#fff; }
+    .collectionItem{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      padding: 10px 10px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.04);
+      margin-bottom: 8px;
+    }
+    .collectionItem:last-child{ margin-bottom: 0; }
+    .collectionItem input[type="checkbox"]{
+      width:20px; height:20px;
+      accent-color: var(--btnYellow);
+      cursor:pointer;
+      flex: 0 0 auto;
+    }
+    .collectionName{ font-weight: 900; line-height: 1.15; }
+    .collectionCount{ font-size: 12px; opacity: .88; margin-top: 2px; }
+    .hint{ font-size: 12px; opacity:.9; margin-top: 6px; }
 
-    /* stage */
+    /* Stage */
+    .stageWrap{ margin-top: 12px; }
     .stage{
-      margin-top: 14px;
-      background: rgba(255,255,255,.06);
-      border: 1px solid rgba(255,255,255,.10);
+      position:relative;
+      background: rgba(0,0,0,.18);
+      border: 1px solid rgba(255,255,255,.16);
       border-radius: 18px;
-      padding: 12px;
-      position: relative;
+      box-shadow: var(--shadow);
+      overflow:hidden;
     }
-    #stageTitle{ margin: 0 0 6px; font-weight: 900; }
-    #stageMeta{ margin: 0 0 10px; opacity:.8; font-size: 13px; }
+    .stageHeader{
+      padding: 10px 12px;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:10px;
+      border-bottom: 1px solid rgba(255,255,255,.14);
+      background: rgba(0,0,0,.12);
+    }
+    .stageTitle{ font-weight: 950; letter-spacing: .2px; }
+    .stageMeta{ font-size: 12px; opacity:.95; text-align:right; }
 
-    /* grid */
-    #grid{
+    /* Grid */
+    .gridWrap{ position: relative; }
+    .grid{
       display:grid;
-      gap: 6px;
-      grid-template-columns: repeat(6, 1fr);
+      gap:0 !important;
+      background: rgba(0,0,0,.08);
     }
     .tile{
+      position:relative;
+      width:100%;
       aspect-ratio: 1/1;
-      border-radius: 12px;
       overflow:hidden;
-      background: rgba(0,0,0,.20);
-      border: 1px solid rgba(255,255,255,.12);
-      position: relative;
+      border-radius: 0 !important;
+      background: rgba(0,0,0,.10);
     }
     .tile img{
       width:100%;
       height:100%;
       object-fit: cover;
       display:block;
+      border-radius: 0 !important;
+      user-select:none;
+      -webkit-user-drag:none;
     }
     .fillerText{
       width:100%; height:100%;
-      display:flex; align-items:center; justify-content:center;
-      font-weight: 900;
-      opacity:.85;
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      font-weight: 950;
+      letter-spacing:.2px;
+      color: rgba(255,255,255,0.92);
+      background: rgba(0,0,0,0.22);
+      font-size: 22px;
     }
 
-    /* watermark (DOM overlay) */
-    #wmGrid{
+    /* ✅ FIXED watermark: slim, single-line, scales on big grids */
+    .watermarkGrid{
       position:absolute;
-      left:4px;
-      top:4px;
-      z-index: 10;
+      left:6px;
+      top:6px;
+      z-index: 5;
       pointer-events:none;
-      padding: 4px 6px;
-      border-radius: 10px;
-      background: rgba(0,0,0,0.18);
-      font-weight: 900;
-      font-size: 12px;
+
+      /* one line only + safe clipping */
       white-space: nowrap;
+      max-width: calc(100% - 12px);
       overflow: hidden;
       text-overflow: ellipsis;
-      max-width: 220px;
+
+      /* compact look */
+      font-size: 10px;
+      line-height: 1;
+      font-weight: 900;
+      letter-spacing: .15px;
+
+      /* make background NOT tall */
+      padding: 2px 5px;
+      border-radius: 6px;
+
+      /* lighter background so it blocks less */
+      background: rgba(0,0,0,0.18);
+      color: rgba(255,255,255,0.95);
+      text-shadow: 0 2px 6px rgba(0,0,0,.55);
+
+      /* IMPORTANT: remove chunky effects */
+      border: 0;
+      backdrop-filter: none;
+
+      /* scale set by JS */
+      transform: scale(var(--wmScale));
+      transform-origin: top left;
     }
+
+    /* Drag visuals */
+    .tile.dragging{ opacity:.55; }
+    .tile.dropTarget{ outline: 2px solid rgba(255,221,85,0.95); outline-offset:-2px; }
   </style>
 </head>
 
 <body>
   <div class="wrap">
-    <h1>Little Ollie Flex Grid</h1>
 
-    <div class="bar">
-      <input id="walletInput" placeholder="Paste wallet 0x..." inputmode="text" autocapitalize="none" autocomplete="off" spellcheck="false" />
-      <button id="addWalletBtn" type="button">➕ Add wallet</button>
-      <button id="clearWalletsBtn" type="button">Clear</button>
-
-      <select id="chainSelect">
-        <option value="eth">ETH</option>
-        <option value="base">Base</option>
-        <option value="polygon">Polygon</option>
-      </select>
-
-      <button id="loadBtn" type="button" disabled>🔍 Load wallets</button>
-
-      <select id="gridSize">
-        <option value="auto">Auto</option>
-        <option value="9">9</option>
-        <option value="16">16</option>
-        <option value="25">25</option>
-        <option value="49">49</option>
-        <option value="100">100</option>
-      </select>
-
-      <button id="buildBtn" type="button" disabled>🧩 Build</button>
-      <button id="exportBtn" type="button" disabled>📸 Export PNG</button>
+    <div class="heroHeader">
+      <img src="./header.png" alt="Little Ollie Header" />
     </div>
 
-    <div id="status"></div>
+    <section class="panel">
+      <div class="row two">
 
-    <div id="walletList"></div>
+        <!-- LEFT: Wallets -->
+        <div>
+          <label class="lbl">Add wallet</label>
+          <input id="walletInput" class="input" placeholder="Paste wallet address (0x...) then add" autocomplete="off" />
+          <div class="walletTools">
+            <button id="addWalletBtn" class="btn">➕ Add wallet</button>
+          </div>
 
-    <div class="stage" id="stage">
-      <div id="wmGrid">⚡ Powered by Little Ollie Studio</div>
-      <p id="stageTitle">Ready</p>
-      <p id="stageMeta">Add wallet(s) → Load → Build → Export</p>
-      <div id="grid"></div>
-    </div>
+          <div id="walletList" class="walletList" style="display:none;"></div>
+
+          <div class="hint">Add multiple wallets, then load them all together.</div>
+        </div>
+
+        <!-- RIGHT: Controls -->
+        <div>
+          <label class="lbl">Chain</label>
+          <select id="chainSelect" class="input">
+            <option value="eth" selected>Ethereum</option>
+            <option value="base">Base</option>
+            <option value="polygon">Polygon (Coming Soon)</option>
+            <option value="apechain">ApeChain (Coming Soon)</option>
+            <option value="solana">Solana (Coming Soon)</option>
+          </select>
+
+          <div style="height:10px"></div>
+
+          <label class="lbl">Grid size</label>
+          <select id="gridSize" class="input">
+            <option value="auto" selected>Auto (fit selected NFTs)</option>
+            <option value="9">3×3 (9)</option>
+            <option value="16">4×4 (16)</option>
+            <option value="25">5×5 (25)</option>
+            <option value="49">7×7 (49)</option>
+            <option value="100">10×10 (100)</option>
+            <option value="custom">Custom Rows × Cols…</option>
+          </select>
+
+          <div id="customGridWrap" style="display:none; margin-top:10px;">
+            <label class="lbl">Custom grid</label>
+
+            <div class="row two" style="margin:0;">
+              <div>
+                <label class="lbl" style="margin-top:0;">Columns</label>
+                <input id="customCols" class="input" type="number" min="1" max="50" value="6" placeholder="Cols (e.g. 8)" />
+              </div>
+
+              <div>
+                <label class="lbl" style="margin-top:0;">Rows</label>
+                <input id="customRows" class="input" type="number" min="1" max="50" value="6" placeholder="Rows (e.g. 5)" />
+              </div>
+            </div>
+
+            <div class="hint">Builds a Rows × Columns grid. Export will match this shape.</div>
+          </div>
+
+          <div style="height:10px"></div>
+
+          <label class="lbl">Fill style</label>
+          <select id="mixMode" class="input">
+            <option value="mix" selected>Mix evenly</option>
+            <option value="order">Fill in order</option>
+          </select>
+        </div>
+
+      </div>
+
+      <div class="row actions" style="margin-top:12px;">
+        <button id="loadBtn" class="btn" disabled>🔍 Load wallet(s)</button>
+        <button id="buildBtn" class="btn" disabled>🧩 Build grid</button>
+        <button id="exportBtn" class="btn" disabled>📸 Export PNG</button>
+      </div>
+
+      <div id="status" class="status"></div>
+    </section>
+
+    <section class="panel" id="controlsPanel" style="display:none;">
+      <div class="row">
+        <label class="lbl">Collections</label>
+
+        <div class="collectionsTop">
+          <div class="searchWrap">
+            <input id="collectionSearch" class="input" placeholder="Search collections..." autocomplete="off" />
+            <div class="hint">Select collections to include. (Starts unchecked)</div>
+          </div>
+
+          <div class="miniBtns">
+            <button class="btn" type="button" id="selectAllBtn">✅ Select all</button>
+            <button class="btn" type="button" id="selectNoneBtn">🚫 Select none</button>
+          </div>
+        </div>
+
+        <div id="collectionsList" class="collectionList"></div>
+      </div>
+    </section>
+
+    <section class="stageWrap">
+      <div id="stage" class="stage">
+        <div class="stageHeader">
+          <div id="stageTitle" class="stageTitle">Your Flex Grid</div>
+          <div id="stageMeta" class="stageMeta"></div>
+        </div>
+
+        <div class="gridWrap">
+          <div id="grid" class="grid"></div>
+
+          <!-- ✅ Keep watermark OUTSIDE tiles, ONCE, top-left of grid -->
+          <div id="wmGrid" class="watermarkGrid" style="display:none;">⚡ Powered by Little Ollie Studio</div>
+        </div>
+      </div>
+    </section>
+
   </div>
 
-  <script src="./app.js?v=999"></script>
+  <!-- Collection search filter (unchanged) -->
+  <script>
+    (function(){
+      const $ = (id)=>document.getElementById(id);
+      const list = $("collectionsList");
+      const search = $("collectionSearch");
+
+      if (search && list){
+        search.addEventListener("input", () => {
+          const q = search.value.trim().toLowerCase();
+          const items = Array.from(list.children);
+          items.forEach(el => {
+            const txt = (el.innerText || "").toLowerCase();
+            el.style.display = (!q || txt.includes(q)) ? "" : "none";
+          });
+        });
+      }
+    })();
+  </script>
+
+  <!-- ✅ always shows/hides custom grid UI correctly -->
+  <script>
+    window.addEventListener("DOMContentLoaded", () => {
+      const gridSize = document.getElementById("gridSize");
+      const wrap = document.getElementById("customGridWrap");
+      if(!gridSize || !wrap) return;
+
+      const sync = () => {
+        wrap.style.display = (gridSize.value === "custom") ? "" : "none";
+      };
+      gridSize.addEventListener("change", sync);
+      sync();
+    });
+  </script>
+
+  <!-- ✅ Watermark auto-scale without touching app.js -->
+  <script>
+    (function(){
+      const root = document.documentElement;
+      const grid = document.getElementById("grid");
+
+      if(!grid) return;
+
+      const computeCols = () => {
+        const gtc = getComputedStyle(grid).gridTemplateColumns;
+        if(!gtc) return 0;
+        // split by spaces, ignores "repeat()" being expanded by browser
+        return gtc.split(" ").filter(Boolean).length;
+      };
+
+      const applyScale = () => {
+        const cols = computeCols();
+        if(!cols) return;
+        // 4 cols = 1.0, more cols = smaller (down to 0.55)
+        const scale = Math.max(0.55, Math.min(1, 4 / cols));
+        root.style.setProperty("--wmScale", String(scale));
+      };
+
+      // watch for grid changes (when you build a new grid)
+      const mo = new MutationObserver(() => {
+        // small delay so layout finishes
+        requestAnimationFrame(applyScale);
+      });
+      mo.observe(grid, { childList:true, subtree:false });
+
+      // also apply on resize
+      window.addEventListener("resize", applyScale);
+
+      // initial
+      requestAnimationFrame(applyScale);
+    })();
+  </script>
+
+<script src="./app.js?v=9"></script>
 </body>
 </html>

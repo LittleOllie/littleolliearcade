@@ -47,6 +47,9 @@
 
       --muted: rgba(255,255,255,.85);
       --loBlueLine: rgba(109,224,255,0.70);
+
+      /* ✅ Watermark scale (JS updates this) */
+      --wmScale: 1;
     }
 
     html,body{ height:100%; margin:0; }
@@ -286,7 +289,7 @@
     .stageMeta{ font-size: 12px; opacity:.95; text-align:right; }
 
     /* Grid */
-    .gridWrap{ position: relative; } /* already correct */
+    .gridWrap{ position: relative; }
     .grid{
       display:grid;
       gap:0 !important;
@@ -321,33 +324,42 @@
       font-size: 22px;
     }
 
-    /* ✅ Powered By overlay ONCE (top-left of the WHOLE GRID) */
+    /* ✅ FIXED watermark: slim, single-line, scales on big grids */
     .watermarkGrid{
       position:absolute;
-      left:8px;
-      top:8px;
-
-      /* always single-line */
-      white-space: nowrap;
-
-      /* scales down on big grids (small tiles) */
-      font-size: clamp(9px, 1.2vw, 14px);
-      font-weight: 900;
-      letter-spacing: .15px;
-      line-height: 1;
-
-      color: rgba(255,255,255,0.95);
-      text-shadow: 0 2px 8px rgba(0,0,0,.55);
+      left:6px;
+      top:6px;
+      z-index: 5;
       pointer-events:none;
 
-      /* ✅ make the background NOT too tall */
-      padding: 2px 6px;
+      /* one line only + safe clipping */
+      white-space: nowrap;
+      max-width: calc(100% - 12px);
+      overflow: hidden;
+      text-overflow: ellipsis;
 
-      background: rgba(0,0,0,.28);
-      border: 1px solid rgba(255,255,255,.14);
-      border-radius: 8px;
-      backdrop-filter: blur(6px);
-      z-index: 5;
+      /* compact look */
+      font-size: 10px;
+      line-height: 1;
+      font-weight: 900;
+      letter-spacing: .15px;
+
+      /* make background NOT tall */
+      padding: 2px 5px;
+      border-radius: 6px;
+
+      /* lighter background so it blocks less */
+      background: rgba(0,0,0,0.18);
+      color: rgba(255,255,255,0.95);
+      text-shadow: 0 2px 6px rgba(0,0,0,.55);
+
+      /* IMPORTANT: remove chunky effects */
+      border: 0;
+      backdrop-filter: none;
+
+      /* scale set by JS */
+      transform: scale(var(--wmScale));
+      transform-origin: top left;
     }
 
     /* Drag visuals */
@@ -474,8 +486,6 @@
           <!-- ✅ Keep watermark OUTSIDE tiles, ONCE, top-left of grid -->
           <div id="wmGrid" class="watermarkGrid" style="display:none;">⚡ Powered by Little Ollie Studio</div>
         </div>
-
-        <!-- removed gridOutline to remove faint inner square -->
       </div>
     </section>
 
@@ -501,7 +511,7 @@
     })();
   </script>
 
-  <!-- ✅ Tiny safety script: always shows/hides custom grid UI correctly -->
+  <!-- ✅ always shows/hides custom grid UI correctly -->
   <script>
     window.addEventListener("DOMContentLoaded", () => {
       const gridSize = document.getElementById("gridSize");
@@ -514,6 +524,44 @@
       gridSize.addEventListener("change", sync);
       sync();
     });
+  </script>
+
+  <!-- ✅ Watermark auto-scale without touching app.js -->
+  <script>
+    (function(){
+      const root = document.documentElement;
+      const grid = document.getElementById("grid");
+
+      if(!grid) return;
+
+      const computeCols = () => {
+        const gtc = getComputedStyle(grid).gridTemplateColumns;
+        if(!gtc) return 0;
+        // split by spaces, ignores "repeat()" being expanded by browser
+        return gtc.split(" ").filter(Boolean).length;
+      };
+
+      const applyScale = () => {
+        const cols = computeCols();
+        if(!cols) return;
+        // 4 cols = 1.0, more cols = smaller (down to 0.55)
+        const scale = Math.max(0.55, Math.min(1, 4 / cols));
+        root.style.setProperty("--wmScale", String(scale));
+      };
+
+      // watch for grid changes (when you build a new grid)
+      const mo = new MutationObserver(() => {
+        // small delay so layout finishes
+        requestAnimationFrame(applyScale);
+      });
+      mo.observe(grid, { childList:true, subtree:false });
+
+      // also apply on resize
+      window.addEventListener("resize", applyScale);
+
+      // initial
+      requestAnimationFrame(applyScale);
+    })();
   </script>
 
   <script src="./app.js"></script>

@@ -215,11 +215,11 @@ function syncWatermarkDOMToOneTile() {
 
   // Constrain to one tile width
   const tileW = firstTile.getBoundingClientRect().width || 0;
-  wm.style.maxWidth = `${Math.max(40, tileW - 12)}px`;
+  wm.style.maxWidth = `${Math.max(60, tileW - 12)}px`;
 
   // Optional: scale down a bit when tiles are tiny (big grids)
-  const scale = Math.max(0.55, Math.min(1, tileW / 240));
-  wm.style.transform = `scale(${scale})`;
+  const s = Math.max(0.60, Math.min(1, tileW / 260));
+  wm.style.transform = `scale(${s})`;
   wm.style.transformOrigin = "top left";
 }
 
@@ -892,19 +892,17 @@ async function exportPNG() {
       }
     }
 
-    // ✅ Watermark: ONE LINE ONLY, limited to ONE TILE width, slim box
-    const boxX = Math.round((pad + 6) * scale); // inset from edge
+    // ✅ Export watermark: ONE line, ONE tile width, slim box
+    const boxX = Math.round((pad + 6) * scale);
     const boxY = Math.round((pad + 6) * scale);
-    const boxW = Math.round(tileSize * scale);  // ONLY one tile wide
+    const boxW = Math.round(tileSize * scale);
 
     const wmText = "⚡ Powered by Little Ollie Studio";
 
-    // slim padding (keeps the background NOT tall)
     const boxPadX = Math.round(6 * scale);
     const boxPadY = Math.round(4 * scale);
     const maxTextW = Math.max(10, boxW - boxPadX * 2);
 
-    // start font size, then shrink down to a minimum
     let fontPx = Math.round(Math.max(9, tileSize * 0.11) * scale);
     const minFontPx = Math.round(7 * scale);
 
@@ -913,20 +911,14 @@ async function exportPNG() {
       if (ctx.measureText(wmText).width <= maxTextW) break;
       fontPx -= 1;
     }
-
     ctx.font = `900 ${fontPx}px system-ui, -apple-system, Segoe UI, Roboto, Arial`;
 
-    // if still too long at min size, truncate with ellipsis
     const finalText = ellipsizeToWidth(ctx, wmText, maxTextW);
-
-    // box height = font height + padding (slim)
     const boxH = Math.round(fontPx + boxPadY * 2);
 
-    // draw slim translucent background (no border to keep it clean)
     ctx.fillStyle = "rgba(0,0,0,0.18)";
     ctx.fillRect(boxX, boxY, boxW, boxH);
 
-    // draw text
     ctx.fillStyle = "rgba(255,255,255,0.95)";
     ctx.textBaseline = "alphabetic";
     const textY = boxY + boxPadY + fontPx - Math.round(fontPx * 0.10);
@@ -937,15 +929,44 @@ async function exportPNG() {
     ctx.lineWidth = borderPx * scale;
     ctx.strokeRect(1, 1, outW - 2, outH - 2);
 
-    canvas.toBlob((blob) => {
+    // ✅ iPhone Safari-safe save/share
+    canvas.toBlob(async (blob) => {
       if (!blob) {
         setStatus("Export failed: could not create PNG.");
         return;
       }
+
+      const fileName = "LO-FlexGrid.png";
+      const file = new File([blob], fileName, { type: "image/png" });
+
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+
+      // 1) Best: Share Sheet
+      try {
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: "LO Flex Grid" });
+          setStatus("Exported ✅ (shared)");
+          return;
+        }
+      } catch (e) {
+        // user cancelled or not supported -> fallback
+      }
+
+      // 2) Fallback: open blob (iOS) OR download link (others)
       const url = URL.createObjectURL(blob);
+
+      if (isIOS) {
+        const opened = window.open(url, "_blank");
+        if (!opened) window.location.href = url;
+
+        setStatus("Opened PNG ✅ Tap Share → Save Image (or Save to Files).");
+        setTimeout(() => URL.revokeObjectURL(url), 8000);
+        return;
+      }
+
       const a = document.createElement("a");
       a.href = url;
-      a.download = "LO-FlexGrid.png";
+      a.download = fileName;
       document.body.appendChild(a);
       a.click();
       a.remove();

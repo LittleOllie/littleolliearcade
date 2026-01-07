@@ -181,6 +181,48 @@ function exportSafeUrl(src) {
   return safeProxyUrl(src);
 }
 
+// ---------- Watermark helpers (DOM + Export) ----------
+function ellipsizeToWidth(ctx, text, maxWidth) {
+  if (ctx.measureText(text).width <= maxWidth) return text;
+  const ell = "…";
+  let t = text;
+  while (t.length > 1 && ctx.measureText(t + ell).width > maxWidth) {
+    t = t.slice(0, -1);
+  }
+  return t + ell;
+}
+
+// Keep the on-screen watermark 1-line and limited to ONE tile width
+function syncWatermarkDOMToOneTile() {
+  const wm = $("wmGrid");
+  const grid = $("grid");
+  if (!wm || !grid) return;
+
+  const firstTile = grid.querySelector(".tile");
+  if (!firstTile) {
+    wm.style.display = "none";
+    return;
+  }
+
+  wm.style.display = "";
+  wm.style.left = "6px";
+  wm.style.top = "6px";
+
+  // Force one line + ellipsis
+  wm.style.whiteSpace = "nowrap";
+  wm.style.overflow = "hidden";
+  wm.style.textOverflow = "ellipsis";
+
+  // Constrain to one tile width
+  const tileW = firstTile.getBoundingClientRect().width || 0;
+  wm.style.maxWidth = `${Math.max(60, tileW - 12)}px`;
+
+  // Optional: scale down a bit when tiles are tiny (big grids)
+  const s = Math.max(0.60, Math.min(1, tileW / 260));
+  wm.style.transform = `scale(${s})`;
+  wm.style.transformOrigin = "top left";
+}
+
 // ---------- Wallet list ----------
 function normalizeWallet(w) {
   return (w || "").trim();
@@ -441,12 +483,10 @@ function buildGrid() {
     grid.appendChild(makeFillerTile());
   }
 
+  // Show and sync watermark to ONLY one tile width (top-left)
   const wm = $("wmGrid");
-  if (wm) {
-    wm.style.display = "";
-    wm.style.left = "0";
-    wm.style.top = "0";
-  }
+  if (wm) wm.style.display = "";
+  syncWatermarkDOMToOneTile();
 
   if (exportBtn) exportBtn.disabled = false;
   setStatus("Grid built ✅ (drag tiles to reorder on desktop)");
@@ -1017,6 +1057,7 @@ async function tryAlchemyImageFallback(tile, img) {
 
 function setImgWithFallback(tile, img, rawUrl) {
   console.log("⏳ setImgWithFallback called", rawUrl);
+<<<<<<< HEAD
   const ipfsPath = getIpfsPath(rawUrl);
   tile.dataset.ipfsPath = ipfsPath || "";
   tile.dataset.gwIndex = "0";
@@ -1598,6 +1639,8 @@ function drawCover(ctx, img, x, y, w, h) {
 
 function setImgWithFallback(tile, img, rawUrl) {
 console.log("⏳ setImgWithFallback called", rawUrl);
+=======
+>>>>>>> 78d0789050627d7fffa6dad73224be1bedf0d36c
   const ipfsPath = getIpfsPath(rawUrl);
   tile.dataset.ipfsPath = ipfsPath || "";
   tile.dataset.gwIndex = "0";
@@ -1953,84 +1996,81 @@ async function exportPNG() {
       }
     }
 
-    const boxX = Math.round(pad * scale);
-    const boxY = Math.round(pad * scale);
+    // ✅ Export watermark: ONE line, ONE tile width, slim box
+    const boxX = Math.round((pad + 6) * scale);
+    const boxY = Math.round((pad + 6) * scale);
     const boxW = Math.round(tileSize * scale);
 
-    const wmSingle = "⚡ Powered by Little Ollie Studio";
-    const wm1 = "⚡ Powered by";
-    const wm2 = "Little Ollie Studio";
+    const wmText = "⚡ Powered by Little Ollie Studio";
 
-    const boxPadX = Math.round(tileSize * 0.10) * scale;
-    const boxPadY = Math.round(tileSize * 0.08) * scale;
+    const boxPadX = Math.round(6 * scale);
+    const boxPadY = Math.round(4 * scale);
     const maxTextW = Math.max(10, boxW - boxPadX * 2);
 
-    let useTwoLines = false;
-    let fontPx = Math.max(10, Math.round(tileSize * 0.14)) * scale;
+    let fontPx = Math.round(Math.max(9, tileSize * 0.11) * scale);
+    const minFontPx = Math.round(7 * scale);
 
-    while (fontPx > 8 * scale) {
+    while (fontPx > minFontPx) {
       ctx.font = `900 ${fontPx}px system-ui, -apple-system, Segoe UI, Roboto, Arial`;
-      if (ctx.measureText(wmSingle).width <= maxTextW) break;
+      if (ctx.measureText(wmText).width <= maxTextW) break;
       fontPx -= 1;
     }
-
     ctx.font = `900 ${fontPx}px system-ui, -apple-system, Segoe UI, Roboto, Arial`;
-    if (ctx.measureText(wmSingle).width > maxTextW) {
-      useTwoLines = true;
-      fontPx = Math.max(10, Math.round(tileSize * 0.13)) * scale;
 
-      while (fontPx > 8 * scale) {
-        ctx.font = `900 ${fontPx}px system-ui, -apple-system, Segoe UI, Roboto, Arial`;
-        const w = Math.max(ctx.measureText(wm1).width, ctx.measureText(wm2).width);
-        if (w <= maxTextW) break;
-        fontPx -= 1;
-      }
-    }
+    const finalText = ellipsizeToWidth(ctx, wmText, maxTextW);
+    const boxH = Math.round(fontPx + boxPadY * 2);
 
-    const lineGap = Math.round(fontPx * 0.25);
-    const textH = useTwoLines ? fontPx * 2 + lineGap : fontPx;
-    const boxH = Math.round(textH + boxPadY * 2);
-
-    ctx.fillStyle = "rgba(0,0,0,0.22)";
+    ctx.fillStyle = "rgba(0,0,0,0.18)";
     ctx.fillRect(boxX, boxY, boxW, boxH);
-
-    ctx.strokeStyle = "rgba(255,255,255,0.12)";
-    ctx.lineWidth = 2 * scale;
-    ctx.strokeRect(boxX, boxY, boxW, boxH);
-
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(boxX, boxY, boxW, boxH);
-    ctx.clip();
 
     ctx.fillStyle = "rgba(255,255,255,0.95)";
     ctx.textBaseline = "alphabetic";
+    const textY = boxY + boxPadY + fontPx - Math.round(fontPx * 0.10);
+    ctx.fillText(finalText, boxX + boxPadX, textY);
 
-    if (!useTwoLines) {
-      const y = boxY + Math.round((boxH + fontPx) / 2) - Math.round(fontPx * 0.15);
-      ctx.fillText(wmSingle, boxX + boxPadX, y);
-    } else {
-      const y1 = boxY + boxPadY + fontPx;
-      const y2 = y1 + fontPx + lineGap;
-      ctx.fillText(wm1, boxX + boxPadX, y1);
-      ctx.fillText(wm2, boxX + boxPadX, y2);
-    }
-
-    ctx.restore();
-
+    // Outer border
     ctx.strokeStyle = "rgba(109,224,255,0.70)";
     ctx.lineWidth = borderPx * scale;
     ctx.strokeRect(1, 1, outW - 2, outH - 2);
 
-    canvas.toBlob((blob) => {
+    // ✅ iPhone Safari-safe save/share
+    canvas.toBlob(async (blob) => {
       if (!blob) {
         setStatus("Export failed: could not create PNG.");
         return;
       }
+
+      const fileName = "LO-FlexGrid.png";
+      const file = new File([blob], fileName, { type: "image/png" });
+
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+
+      // 1) Best: Share Sheet
+      try {
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: "LO Flex Grid" });
+          setStatus("Exported ✅ (shared)");
+          return;
+        }
+      } catch (e) {
+        // user cancelled or not supported -> fallback
+      }
+
+      // 2) Fallback: open blob (iOS) OR download link (others)
       const url = URL.createObjectURL(blob);
+
+      if (isIOS) {
+        const opened = window.open(url, "_blank");
+        if (!opened) window.location.href = url;
+
+        setStatus("Opened PNG ✅ Tap Share → Save Image (or Save to Files).");
+        setTimeout(() => URL.revokeObjectURL(url), 8000);
+        return;
+      }
+
       const a = document.createElement("a");
       a.href = url;
-      a.download = "LO-FlexGrid.png";
+      a.download = fileName;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -2155,6 +2195,11 @@ function drawCover(ctx, img, x, y, w, h) {
   const selectNoneBtn = $("selectNoneBtn");
   if (selectAllBtn) selectAllBtn.addEventListener("click", () => setAllCollections(true));
   if (selectNoneBtn) selectNoneBtn.addEventListener("click", () => setAllCollections(false));
+
+  // keep watermark correct on resize/orientation changes
+  window.addEventListener("resize", () => {
+    syncWatermarkDOMToOneTile();
+  });
 
   enableButtons();
   setStatus("Ready ✅ ➕ Add wallet(s) → 🔍 Load wallet(s) → select collections → 🧩 Build → 📸 Export");

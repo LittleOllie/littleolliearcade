@@ -512,13 +512,26 @@ function makeFillerInner() {
   return d;
 }
 
-function markMissing(tile, img) {
+function markMissing(tile, img, rawUrl) {
   try { if (img && img.parentNode) img.remove(); } catch (e) {}
-  tile.dataset.src = "";
   tile.dataset.kind = "missing";
+
+  // keep the original source around for debugging
+  // (don't blank it before logging)
+  const src = tile.dataset.src || "";
+
   // prevent duplicates
   if (!tile.querySelector(".fillerText")) tile.appendChild(makeMissingInner());
+
+  console.warn("❌ Tile missing", {
+    contract: tile.dataset.contract,
+    tokenId: tile.dataset.tokenId,
+    src,
+    rawUrl,
+    ipfsPath: tile.dataset.ipfsPath
+  });
 }
+
 
 async function fetchBestAlchemyImage({ contract, tokenId, host }) {
   const meta = await fetchAlchemyNFTMetadata({ contract, tokenId, host });
@@ -617,7 +630,7 @@ function makeNFTTile(it) {
   if (raw) {
     tile.appendChild(img);
     // fire and forget; don’t block buildGrid()
-    loadTileImage(tile, img, raw).catch(() => markMissing(tile, img));
+loadTileImage(tile, img, raw).catch(() => markMissing(tile, img, raw));
   } else {
     tile.dataset.src = "";
     tile.dataset.kind = "empty";
@@ -1078,9 +1091,70 @@ function drawCover(ctx, img, x, y, w, h) {
   const selectNoneBtn = $("selectNoneBtn");
   if (selectAllBtn) selectAllBtn.addEventListener("click", () => setAllCollections(true));
   if (selectNoneBtn) selectNoneBtn.addEventListener("click", () => setAllCollections(false));
+// ✅ Retry missing tiles button
+const retryBtn = $("retryBtn");
+if (retryBtn) retryBtn.addEventListener("click", retryMissingTiles);
 
+
+  // ✅ keep watermark correct on resize/orientation changes
   window.addEventListener("resize", syncWatermarkDOMToOneTile);
   window.addEventListener("orientationchange", syncWatermarkDOMToOneTile);
+
+  // ======================================================
+  // ✅ NEW: Auto-retry tiles after laptop sleep/tab suspend
+  // Fixes: net::ERR_NETWORK_IO_SUSPENDED
+  // ======================================================
+  function retryMissingTiles() {
+    const tiles = Array.from(document.querySelectorAll("#grid .tile"));
+    if (!tiles.length) return;
+
+    tiles.forEach((tile) => {
+      const src = tile.dataset.src || "";
+      if (!src) return;
+
+      const img = tile.querySelector("img");
+      const needsRetry =
+        tile.dataset.kind === "missing" ||
+        !img ||
+        !img.complete ||
+        (img && img.naturalWidth === 0);
+
+      if (!needsRetry) return;
+
+      // If img was removed when marked missing, recreate it
+      let useImg = img;
+      if (!useImg) {
+        useImg = document.createElement("img");
+        useImg.loading = "lazy";
+        useImg.alt = "NFT";
+        useImg.referrerPolicy = "no-referrer";
+        useImg.crossOrigin = "anonymous";
+
+        // clear "Missing" filler so we can try again
+        tile.innerHTML = "";
+        tile.appendChild(useImg);
+      }
+
+      // restore kind so it’s not stuck as missing
+      tile.dataset.kind = "nft";
+
+      // IMPORTANT: src is the DIRECT url (ipfs://... or https://...)
+      // gridSafeUrl will proxy it correctly (and avoid double-proxy)
+      setImgSrcLimited(useImg, gridSafeUrl(src)).catch(() => {});
+    });
+
+    // keep watermark snug after retries
+    try { syncWatermarkDOMToOneTile(); } catch {}
+  }
+
+  // When returning to the tab / waking the laptop, retry
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) retryMissingTiles();
+  });
+  window.addEventListener("focus", retryMissingTiles);
+
+  // Optional: one initial retry shortly after load (helps after refresh)
+  setTimeout(retryMissingTiles, 250);
 
   enableButtons();
   setStatus("Ready ✅ ➕ Add wallet(s) → 🔍 Load wallet(s) → select collections → 🧩 Build → 📸 Export");

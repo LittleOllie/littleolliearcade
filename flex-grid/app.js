@@ -1140,7 +1140,7 @@ if (retryBtn) retryBtn.addEventListener("click", retryMissingTiles);
 
       // IMPORTANT: src is the DIRECT url (ipfs://... or https://...)
       // gridSafeUrl will proxy it correctly (and avoid double-proxy)
-      setImgSrcLimited(useImg, gridSafeUrl(src)).catch(() => {});
+loadImgWithLimiter(useImg, gridProxyUrl(src)).catch(() => {});
     });
 
     // keep watermark snug after retries

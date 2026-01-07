@@ -2175,6 +2175,81 @@ function retryMissingTiles() {
 
 // ---------- Events ----------
 (function bindEvents() {
+
+  // ======================================================
+  // ✅ Retry missing tiles (button + auto retry on focus)
+  // - Retries tiles that are "missing" OR show Missing overlay OR have broken <img>
+  // - Adds cache-buster so it actually re-requests the image
+  // ======================================================
+  function retryMissingTiles() {
+    const tiles = Array.from(document.querySelectorAll("#grid .tile"));
+    if (!tiles.length) {
+      console.log("🔄 Retry: no tiles yet");
+      return;
+    }
+
+    console.log("🔄 retryMissingTiles fired");
+    setStatus("🔄 Retrying missing images…");
+
+    let attempted = 0;
+
+    tiles.forEach((tile) => {
+      const src = tile.dataset.src || "";
+      if (!src) return;
+
+      let img = tile.querySelector("img");
+      const hasMissingOverlay = !!tile.querySelector(".fillerText");
+
+      const needsRetry =
+        tile.dataset.kind === "missing" ||
+        hasMissingOverlay ||
+        !img ||
+        !img.complete ||
+        (img && img.naturalWidth === 0);
+
+      if (!needsRetry) return;
+
+      attempted++;
+
+      // recreate <img> if it was removed
+      if (!img) {
+        img = document.createElement("img");
+        img.loading = "lazy";
+        img.alt = "NFT";
+        img.referrerPolicy = "no-referrer";
+        img.crossOrigin = "anonymous";
+
+        tile.innerHTML = "";
+        tile.appendChild(img);
+      } else {
+        // if it has a Missing overlay, clear it so we can see a fresh attempt
+        if (hasMissingOverlay) {
+          tile.innerHTML = "";
+          tile.appendChild(img);
+        }
+      }
+
+      // restore kind so it’s not stuck as missing
+      tile.dataset.kind = "nft";
+
+      // proxy-first + limiter (matches your current loader)
+      // ✅ cache-buster forces a real network re-fetch
+      const prox = gridProxyUrl(src);
+      const busted = prox + (prox.includes("?") ? "&" : "?") + "cb=" + Date.now();
+
+      loadImgWithLimiter(img, busted).catch((err) => {
+        console.log("❌ Retry failed:", src, err?.message || err);
+        // if it fails again, mark it missing so user sees it
+        try { tile.dataset.kind = "missing"; } catch {}
+      });
+    });
+
+    console.log(`🔄 Retry finished. Attempted ${attempted} tile(s).`);
+    setStatus(`🔄 Retry finished. Retried ${attempted} tile(s).`);
+
+    try { syncWatermarkDOMToOneTile(); } catch {}
+  }
+
   // Wallet input hardening
   const walletInput = $("walletInput");
   if (walletInput) {
@@ -2199,12 +2274,11 @@ function retryMissingTiles() {
     const handler = (e) => {
       try { e.preventDefault(); } catch {}
       const now = Date.now();
-      if (now - lastFire < 350) return; // block double-fire
+      if (now - lastFire < 350) return;
       lastFire = now;
       addWallet();
     };
 
-    // Prefer pointerup when available, otherwise click
     if (window.PointerEvent) {
       addBtn.addEventListener("pointerup", handler, { passive: false });
     } else {
@@ -2235,7 +2309,6 @@ function retryMissingTiles() {
   const chainSelect = $("chainSelect");
   if (chainSelect) {
     chainSelect.addEventListener("change", () => {
-      // switching chains invalidates loaded results
       state.collections = [];
       state.selectedKeys = new Set();
       renderCollectionsList();
@@ -2266,91 +2339,28 @@ function retryMissingTiles() {
   if (selectAllBtn) selectAllBtn.addEventListener("click", () => setAllCollections(true));
   if (selectNoneBtn) selectNoneBtn.addEventListener("click", () => setAllCollections(false));
 
-// ✅ Retry missing tiles button
-const retryBtn = $("retryBtn");
-if (retryBtn) retryBtn.addEventListener("click", retryMissingTiles);
-
-// ✅ Step 2 — Auto-retry after tab sleep / laptop wake
-document.addEventListener("visibilitychange", () => {
-  if (!document.hidden) retryMissingTiles();
-});
-window.addEventListener("focus", retryMissingTiles);
-
-// Optional: one early retry after load
-setTimeout(retryMissingTiles, 250);
-
-
-  // ✅ keep watermark correct on resize/orientation changes
-  window.addEventListener("resize", syncWatermarkDOMToOneTile);
-  window.addEventListener("orientationchange", syncWatermarkDOMToOneTile);
-
-  // ======================================================
-  // ✅ NEW: Auto-retry tiles after laptop sleep/tab suspend
-  // Fixes: net::ERR_NETWORK_IO_SUSPENDED
-  // ======================================================
-function retryMissingTiles() {
-  const tiles = Array.from(document.querySelectorAll("#grid .tile"));
-  if (!tiles.length) {
-    console.log("🔄 Retry: no tiles yet");
-    return;
+  // ✅ Retry button wiring (guaranteed to call the function)
+  const retryBtn = $("retryBtn");
+  if (retryBtn) {
+    retryBtn.type = "button";
+    retryBtn.addEventListener("click", () => {
+      console.log("✅ Retry button clicked");
+      retryMissingTiles();
+    });
   }
 
-  console.log("🔄 retryMissingTiles fired");
-  setStatus("🔄 Retrying missing images…");
-
-  let attempted = 0;
-
-  tiles.forEach((tile) => {
-    const src = tile.dataset.src || "";
-    if (!src) return;
-
-    let img = tile.querySelector("img");
-
-    const needsRetry =
-      tile.dataset.kind === "missing" ||
-      !img ||
-      !img.complete ||
-      (img && img.naturalWidth === 0);
-
-    if (!needsRetry) return;
-
-    attempted++;
-
-    // recreate <img> if it was removed
-    if (!img) {
-      img = document.createElement("img");
-      img.loading = "lazy";
-      img.alt = "NFT";
-      img.referrerPolicy = "no-referrer";
-      img.crossOrigin = "anonymous";
-
-      tile.innerHTML = "";
-      tile.appendChild(img);
-    }
-
-    tile.dataset.kind = "nft";
-
-    // proxy-first + limiter (matches your current loader)
-    loadImgWithLimiter(img, gridProxyUrl(src)).catch((err) => {
-      console.log("❌ Retry failed:", src, err?.message || err);
-    });
-  });
-
-  console.log(`🔄 Retry finished. Attempted ${attempted} tile(s).`);
-  setStatus(`🔄 Retry finished. Retried ${attempted} tile(s).`);
-
-  try { syncWatermarkDOMToOneTile(); } catch {}
-}
-
-
-  // When returning to the tab / waking the laptop, retry
+  // ✅ Auto-retry after tab sleep / laptop wake (no duplicates)
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden) retryMissingTiles();
   });
   window.addEventListener("focus", retryMissingTiles);
 
-  // Optional: one initial retry shortly after load (helps after refresh)
-  setTimeout(retryMissingTiles, 250);
+  // Optional: one early retry after load
+  setTimeout(retryMissingTiles, 350);
+
+  // Keep watermark correct on resize/orientation changes
+  window.addEventListener("resize", syncWatermarkDOMToOneTile);
+  window.addEventListener("orientationchange", syncWatermarkDOMToOneTile);
 
   enableButtons();
   setStatus("Ready ✅ ➕ Add wallet(s) → 🔍 Load wallet(s) → select collections → 🧩 Build → 📸 Export");
